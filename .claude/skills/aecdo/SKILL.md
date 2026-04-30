@@ -1,16 +1,7 @@
 ---
 name: aecdo
-description: Validate, inspect, summarize, and convert AEC drawing data (JSON-LD) using the AECDO CLI
-version: 0.1.0
-author: jeff-carmichael
-tags:
-  - aec
-  - architecture
-  - engineering
-  - construction
-  - drawings
-  - json-ld
-  - ontology
+description: Validate, inspect, summarize, and convert AEC drawing data (JSON-LD) using the AECDO CLI. Use when working with Architecture, Engineering, and Construction drawing files, DrawingBot output, or JSON-LD conforming to the AEC Drawing Ontology.
+allowed-tools: Bash(npx aecdo *) Bash(aecdo *) Read Glob
 ---
 
 # AECDO CLI
@@ -19,7 +10,11 @@ Command-line tool for working with structured data extracted from Architecture, 
 
 ## Setup
 
-> **Coming soon:** `npm install -g aecdo` will be the primary install method. For now, install from source:
+```bash
+npm install -g aecdo
+```
+
+Or from source:
 
 ```bash
 git clone https://github.com/jeff-carmichael/aecdo.git
@@ -28,14 +23,12 @@ npm install
 npm run build
 ```
 
-All commands below assume you are in the repo root directory.
-
 ## Commands
 
 ### Validate a file
 
 ```bash
-npx aecdo validate examples/sample-drawing-set.jsonld
+aecdo validate examples/sample-drawing-set.jsonld
 ```
 
 Output: `✓ file.jsonld is valid against AECDO schema.` or lists errors. Exit code 1 on failure.
@@ -43,7 +36,7 @@ Output: `✓ file.jsonld is valid against AECDO schema.` or lists errors. Exit c
 For machine-readable output:
 
 ```bash
-npx aecdo validate file.jsonld --format json
+aecdo validate file.jsonld --format json
 ```
 
 Returns: `{"valid": true, "file": "...", "errors": []}`
@@ -51,7 +44,7 @@ Returns: `{"valid": true, "file": "...", "errors": []}`
 ### Inspect a drawing set
 
 ```bash
-npx aecdo inspect examples/sample-drawing-set.jsonld
+aecdo inspect examples/sample-drawing-set.jsonld
 ```
 
 Shows the full hierarchy: sheets → drawings → layers with item counts, plus table/note counts.
@@ -59,7 +52,7 @@ Shows the full hierarchy: sheets → drawings → layers with item counts, plus 
 ### Get a summary
 
 ```bash
-npx aecdo summary examples/sample-drawing-set.jsonld
+aecdo summary examples/sample-drawing-set.jsonld
 ```
 
 Prints totals: sheet count, drawing count, item count, breakdowns by drawing type and item type.
@@ -68,16 +61,16 @@ Prints totals: sheet count, drawing count, item count, breakdowns by drawing typ
 
 ```bash
 # JSON-LD → plain JSON (strips @context, @type → type, @id → id)
-npx aecdo convert file.jsonld -o plain.json
+aecdo convert file.jsonld -o plain.json
 
 # Plain JSON → JSON-LD (adds @context)
-npx aecdo convert plain.json
+aecdo convert plain.json
 ```
 
 ### Validate all JSON-LD files in a directory
 
 ```bash
-for f in *.jsonld; do npx aecdo validate "$f" --format json; done
+for f in *.jsonld; do aecdo validate "$f" --format json; done
 ```
 
 ## Common Options

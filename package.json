@@ -21,10 +21,12 @@
     "dist/",
     "ontology/",
     "examples/",
-    "SKILLS.md",
+    ".claude/",
+    "scripts/postinstall.mjs",
     "CHANGELOG.md"
   ],
   "scripts": {
+    "postinstall": "node scripts/postinstall.mjs",
     "build": "tsc -p cli/tsconfig.json",
     "prebuild": "node -e \"import('node:fs').then(f=>f.promises.rm('dist',{recursive:true,force:true}))\"",
     "test": "npm run build && node --test dist/src/**/*.test.js",

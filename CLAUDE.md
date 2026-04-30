@@ -13,7 +13,8 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `cli/src/types.ts` — shared data model types (DrawingSet, Sheet, Drawing, etc.)
 - `package.json` — at repo root, npm-publishable as "aecdo"
 - `examples/sample-drawing-set.jsonld` — validates against the schema
-- `SKILLS.md` — skill file for AI agents (skills directory format with YAML frontmatter)
+- `.claude/skills/aecdo/SKILL.md` — installable Claude Code skill
+- `scripts/postinstall.mjs` — copies skill to `~/.claude/skills/` on `npm install -g`
 
 ## Data model
 
