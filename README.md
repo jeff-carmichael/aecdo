@@ -87,10 +87,19 @@ sheet> A101
   Tables (1):
 
     Door Schedule
+      id: urn:uuid:99999999-9999-9999-9999-999999999999
+      bbox: [72, 560, 400, 680]
       ┌──────────────────────────────────────────────────┐
       │ Mark | Width | Height | Type | Hardware          │
       │ D101 | 3'-0" | 7'-0" | Single | Lever            │
       └──────────────────────────────────────────────────┘
+
+  Notes (1):
+
+    Note: urn:uuid:bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+      bbox: [420, 560, 720, 650]
+      1. All dimensions are to face of finish unless noted otherwise.
+      2. Verify all dimensions in field prior to fabrication.
 
 sheet>
 ```
