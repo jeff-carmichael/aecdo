@@ -9,7 +9,7 @@ AEC projects produce hundreds of drawing sheets — floor plans, sections, detai
 **AECDO** provides:
 
 1. **An ontology/schema** defining the standard format for extracted drawing data
-2. **A CLI tool** for validating, inspecting, and transforming these files
+2. **A CLI tool** for validating, summarizing, and interactively exploring these files
 3. **A [skills guide](SKILLS.md)** for AI agents to work with drawing data programmatically
 
 ## Quick Start
@@ -31,42 +31,68 @@ npx aecdo validate examples/sample-drawing-set.jsonld
 # ✓ sample-drawing-set.jsonld is valid against AECDO schema.
 ```
 
-### Inspect a drawing set
-
-```bash
-npx aecdo inspect examples/sample-drawing-set.jsonld
-```
-
-```
-Drawing Set: urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890
-Source: Example_Building_Plans.pdf
-Processed: 2026-04-10T14:30:00Z
-
-Sheets: 2
-
-  A101 - Ground Floor Plan (page 0)
-    Drawing: Ground Floor Plan [plan, 1/4" = 1'-0"]
-      Layer: Walls (1 items)
-      Layer: Doors & Windows (1 items)
-      Layer: Annotations (1 items)
-    Tables: 1
-    Notes: 1
-
-  A201 - Building Sections (page 1)
-    Drawing: Section A [section, 1/4" = 1'-0"]
-      Layer: Structure (1 items)
-```
-
 ### Summarize
 
 ```bash
 npx aecdo summary examples/sample-drawing-set.jsonld
 ```
 
-### Convert between JSON-LD and plain JSON
+### Explore interactively
 
 ```bash
-npx aecdo convert examples/sample-drawing-set.jsonld -o plain.json
+npx aecdo explore examples/sample-drawing-set.jsonld
+```
+
+Loads the file once, validates it, shows the sheet overview, then drops into an interactive prompt. Type a sheet number (e.g. `A101`) or page index (e.g. `0`) to see everything on that sheet — drawings, layers, items with their data and references, tables, and notes.
+
+```
+✓ sample-drawing-set.jsonld is valid against AECDO schema.
+
+  A101 - Ground Floor Plan (page 0)
+  A201 - Building Sections (page 1)
+
+Enter a sheet number or page index to view its contents.
+Type "list" to show sheets again, or "quit" to exit.
+
+sheet> A101
+
+════════════════════════════════════════════════════════════
+  Sheet A101 — Ground Floor Plan (page 0)
+════════════════════════════════════════════════════════════
+
+  Drawing: Ground Floor Plan [plan, 1/4" = 1'-0"]
+    id:   urn:uuid:22222222-2222-2222-2222-222222222222
+    bbox: [72, 108, 720, 540]
+    → Section A (A201, page 1)
+
+    Layer: Walls (1 items)
+      bbox: [85, 120, 700, 520]
+
+      [THING] Exterior Wall
+        id:   urn:uuid:44444444-4444-4444-4444-444444444444
+        bbox: [85, 120, 700, 130]
+        data:
+          material: CMU 8"
+          thickness: 8
+
+    Layer: Annotations (1 items)
+
+      [TAG] Section Cut A
+        id:   urn:uuid:88888888-8888-8888-8888-888888888888
+        bbox: [400, 300, 420, 320]
+        data:
+          referenceId: A/A201
+        → Section A (A201, page 1)
+
+  Tables (1):
+
+    Door Schedule
+      ┌──────────────────────────────────────────────────┐
+      │ Mark | Width | Height | Type | Hardware          │
+      │ D101 | 3'-0" | 7'-0" | Single | Lever            │
+      └──────────────────────────────────────────────────┘
+
+sheet>
 ```
 
 ## Schema Overview
@@ -195,18 +221,6 @@ classDiagram
 }
 ```
 
-## Programmatic Usage
-
-> **Coming soon:** Once published to npm, you'll be able to `npm install aecdo` and import directly.
-
-```js
-import { validate, inspect, summary } from "aecdo";
-
-// Or access the schema and context directly
-import schema from "aecdo/schema" with { type: "json" };
-import context from "aecdo/context" with { type: "json" };
-```
-
 ## Project Structure
 
 ```
@@ -218,7 +232,7 @@ ontology/               Schema definitions (versioned)
     diagram.mmd            Mermaid class diagram of the ontology
 cli/                    CLI tool
   bin/aecdo.js            Entry point (npx aecdo)
-  src/commands/           validate, inspect, summary, convert
+  src/commands/           validate, summary, explore, page
   src/lib/                Schema loading, output utilities
 examples/               Sample JSON-LD files
 SKILLS.md               Skill file for AI agents (skills directory format)

@@ -1,6 +1,21 @@
-import type { Sheet, Drawing, Layer, Item, Table, Note } from "../types.js";
+import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note } from "../types.js";
 
-export function printPage(sheet: Sheet): void {
+type RefResolver = (id: string) => string;
+
+function buildRefResolver(data: DrawingSet): RefResolver {
+  const map = new Map<string, string>();
+  for (const s of data.sheets ?? []) {
+    map.set(s["@id"], `Sheet ${s.sheetNumber} — ${s.title} (page ${s.pageIndex})`);
+    for (const d of s.drawings ?? []) {
+      map.set(d["@id"], `${d.title} (${s.sheetNumber}, page ${s.pageIndex})`);
+    }
+  }
+  return (id: string) => map.get(id) ?? id;
+}
+
+export function printPage(sheet: Sheet, data: DrawingSet): void {
+  const resolve = buildRefResolver(data);
+
   console.log(`\n${"═".repeat(60)}`);
   console.log(`  Sheet ${sheet.sheetNumber} — ${sheet.title} (page ${sheet.pageIndex})`);
   console.log(`${"═".repeat(60)}`);
@@ -10,7 +25,7 @@ export function printPage(sheet: Sheet): void {
   const notes = sheet.notes ?? [];
 
   for (const drawing of drawings) {
-    printDrawing(drawing);
+    printDrawing(drawing, resolve);
   }
 
   if (tables.length > 0) {
@@ -30,31 +45,33 @@ export function printPage(sheet: Sheet): void {
   console.log();
 }
 
-function printDrawing(d: Drawing): void {
+function printDrawing(d: Drawing, resolve: RefResolver): void {
   const meta = [d.drawingType, d.scale].filter(Boolean).join(", ");
   console.log(`\n  Drawing: ${d.title}${meta ? ` [${meta}]` : ""}`);
   console.log(`    id:   ${d["@id"]}`);
   console.log(`    bbox: [${d.bbox.join(", ")}]`);
   if (d.references?.length) {
-    console.log(`    references: ${d.references.join(", ")}`);
+    for (const ref of d.references) {
+      console.log(`    → ${resolve(ref)}`);
+    }
   }
 
   for (const layer of d.layers) {
-    printLayer(layer);
+    printLayer(layer, resolve);
   }
 }
 
-function printLayer(l: Layer): void {
+function printLayer(l: Layer, resolve: RefResolver): void {
   const items = l.items ?? [];
   console.log(`\n    Layer: ${l.name} (${items.length} items)`);
   if (l.bbox) console.log(`      bbox: [${l.bbox.join(", ")}]`);
 
   for (const item of items) {
-    printItem(item);
+    printItem(item, resolve);
   }
 }
 
-function printItem(item: Item): void {
+function printItem(item: Item, resolve: RefResolver): void {
   const typeTag = item.itemType.toUpperCase();
   const label = (item.data as Record<string, unknown>).label ?? item["@id"];
   console.log(`\n      [${typeTag}] ${label}`);
@@ -70,7 +87,9 @@ function printItem(item: Item): void {
   }
 
   if (item.references?.length) {
-    console.log(`        references: ${item.references.join(", ")}`);
+    for (const ref of item.references) {
+      console.log(`        → ${resolve(ref)}`);
+    }
   }
 }
 

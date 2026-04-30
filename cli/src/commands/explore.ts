@@ -3,24 +3,11 @@ import { validate } from "./validate.js";
 import { printPage } from "./page.js";
 import type { DrawingSet, CommandOptions } from "../types.js";
 
-function printOverview(data: DrawingSet): void {
+function printSheetList(data: DrawingSet): void {
   const sheets = data.sheets ?? [];
-  console.log(`\nDrawing Set: ${data["@id"]}`);
-  console.log(`Source: ${data.filename}`);
-  if (data.processedDate) console.log(`Processed: ${data.processedDate}`);
-  console.log(`\nSheets: ${sheets.length}`);
-
+  console.log();
   for (const s of sheets) {
-    console.log(`\n  ${s.sheetNumber} - ${s.title} (page ${s.pageIndex})`);
-    for (const d of s.drawings ?? []) {
-      const meta = [d.drawingType, d.scale].filter(Boolean).join(", ");
-      console.log(`    Drawing: ${d.title}${meta ? ` [${meta}]` : ""}`);
-      for (const l of d.layers) {
-        console.log(`      Layer: ${l.name} (${l.items?.length ?? 0} items)`);
-      }
-    }
-    if (s.tables?.length) console.log(`    Tables: ${s.tables.length}`);
-    if (s.notes?.length) console.log(`    Notes: ${s.notes.length}`);
+    console.log(`  ${s.sheetNumber} - ${s.title} (page ${s.pageIndex})`);
   }
 }
 
@@ -30,7 +17,7 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
     console.log("\nFile has validation errors. Continuing anyway…\n");
   }
 
-  printOverview(data);
+  printSheetList(data);
 
   const sheets = data.sheets ?? [];
   if (sheets.length === 0) {
@@ -51,9 +38,7 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
     if (answer === "quit" || answer === "q" || answer === "exit") break;
 
     if (answer === "list" || answer === "ls") {
-      for (const s of sheets) {
-        console.log(`  ${s.sheetNumber} — ${s.title} (page ${s.pageIndex})`);
-      }
+      printSheetList(data);
       console.log();
       continue;
     }
@@ -69,7 +54,7 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
       continue;
     }
 
-    printPage(sheet);
+    printPage(sheet, data);
   }
 
   rl.close();
