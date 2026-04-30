@@ -1,0 +1,137 @@
+{
+  "@context": "https://aecdrawingbot.com/ontology/v0.1.0/aecdo#",
+  "@id": "urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "@type": "DrawingSet",
+  "processedDate": "2026-04-10T14:30:00Z",
+  "filename": "Example_Building_Plans.pdf",
+  "sheets": [
+    {
+      "@id": "urn:uuid:11111111-1111-1111-1111-111111111111",
+      "@type": "Sheet",
+      "sheetNumber": "A101",
+      "title": "Ground Floor Plan",
+      "pageIndex": 0,
+      "drawings": [
+        {
+          "@id": "urn:uuid:22222222-2222-2222-2222-222222222222",
+          "@type": "Drawing",
+          "title": "Ground Floor Plan",
+          "scale": "1/4\" = 1'-0\"",
+          "drawingType": "plan",
+          "bbox": [72, 108, 720, 540],
+          "layers": [
+            {
+              "@id": "urn:uuid:33333333-3333-3333-3333-333333333333",
+              "@type": "Layer",
+              "name": "Walls",
+              "bbox": [85, 120, 700, 520],
+              "items": [
+                {
+                  "@id": "urn:uuid:44444444-4444-4444-4444-444444444444",
+                  "@type": "Item",
+                  "itemType": "thing",
+                  "data": {
+                    "label": "Exterior Wall",
+                    "material": "CMU 8\"",
+                    "thickness": 8
+                  },
+                  "bbox": [85, 120, 700, 130]
+                }
+              ]
+            },
+            {
+              "@id": "urn:uuid:55555555-5555-5555-5555-555555555555",
+              "@type": "Layer",
+              "name": "Doors & Windows",
+              "items": [
+                {
+                  "@id": "urn:uuid:66666666-6666-6666-6666-666666666666",
+                  "@type": "Item",
+                  "itemType": "thing",
+                  "data": {
+                    "label": "Door",
+                    "doorType": "Single",
+                    "width": "3'-0\""
+                  },
+                  "bbox": [200, 120, 236, 130]
+                }
+              ]
+            },
+            {
+              "@id": "urn:uuid:77777777-7777-7777-7777-777777777777",
+              "@type": "Layer",
+              "name": "Annotations",
+              "items": [
+                {
+                  "@id": "urn:uuid:88888888-8888-8888-8888-888888888888",
+                  "@type": "Item",
+                  "itemType": "tag",
+                  "data": {
+                    "label": "Section Cut A",
+                    "referenceId": "A/A201"
+                  },
+                  "bbox": [400, 300, 420, 320],
+                  "references": ["urn:uuid:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+                }
+              ]
+            }
+          ],
+          "references": ["urn:uuid:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+        }
+      ],
+      "tables": [
+        {
+          "@id": "urn:uuid:99999999-9999-9999-9999-999999999999",
+          "@type": "Table",
+          "title": "Door Schedule",
+          "content": "Mark | Width | Height | Type | Hardware\nD101 | 3'-0\" | 7'-0\" | Single | Lever\nD102 | 6'-0\" | 7'-0\" | Double | Panic",
+          "bbox": [72, 560, 400, 680]
+        }
+      ],
+      "notes": [
+        {
+          "@id": "urn:uuid:bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          "@type": "Note",
+          "content": "1. All dimensions are to face of finish unless noted otherwise.\n2. Verify all dimensions in field prior to fabrication.\n3. See structural drawings for foundation details.",
+          "bbox": [420, 560, 720, 650]
+        }
+      ]
+    },
+    {
+      "@id": "urn:uuid:cccccccc-cccc-cccc-cccc-cccccccccccc",
+      "@type": "Sheet",
+      "sheetNumber": "A201",
+      "title": "Building Sections",
+      "pageIndex": 1,
+      "drawings": [
+        {
+          "@id": "urn:uuid:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          "@type": "Drawing",
+          "title": "Section A",
+          "scale": "1/4\" = 1'-0\"",
+          "drawingType": "section",
+          "bbox": [72, 108, 400, 540],
+          "layers": [
+            {
+              "@id": "urn:uuid:dddddddd-dddd-dddd-dddd-dddddddddddd",
+              "@type": "Layer",
+              "name": "Structure",
+              "items": [
+                {
+                  "@id": "urn:uuid:eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+                  "@type": "Item",
+                  "itemType": "thing",
+                  "data": {
+                    "label": "Steel Beam",
+                    "size": "W12x26"
+                  },
+                  "bbox": [100, 200, 380, 212]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

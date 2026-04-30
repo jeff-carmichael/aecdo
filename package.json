@@ -1,0 +1,61 @@
+{
+  "name": "aecdo",
+  "version": "0.1.0",
+  "description": "CLI and schema for processing AEC drawing data (JSON-LD) conforming to the AEC Drawing Ontology.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "aecdo": "./dist/bin/aecdo.js"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./schema": "./ontology/v0.1.0/aecdo.schema.json",
+    "./context": "./ontology/v0.1.0/context.jsonld"
+  },
+  "files": [
+    "dist/",
+    "ontology/",
+    "examples/",
+    "SKILLS.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p cli/tsconfig.json",
+    "prebuild": "node -e \"import('node:fs').then(f=>f.promises.rm('dist',{recursive:true,force:true}))\"",
+    "test": "npm run build && node --test dist/src/**/*.test.js",
+    "lint": "eslint cli/src/",
+    "aecdo": "node dist/bin/aecdo.js"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "aec",
+    "architecture",
+    "engineering",
+    "construction",
+    "drawings",
+    "json-ld",
+    "ontology",
+    "drawingbot"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jeff-carmichael/aecdo.git"
+  },
+  "homepage": "https://aecdrawingbot.com"
+}

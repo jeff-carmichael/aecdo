@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aecdrawingbot.com/ontology/v0.1.0/aecdo.schema.json",
+  "title": "AEC Drawing Ontology (AECDO)",
+  "description": "Schema for structured data extracted from Architecture, Engineering, and Construction (AEC) drawings. Produced by AEC DrawingBot and conforming tools.",
+  "type": "object",
+  "required": ["@context", "@id", "@type", "sheets", "filename", "processedDate"],
+  "properties": {
+    "@context": {
+      "description": "JSON-LD context for this document.",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "object" }
+      ]
+    },
+    "@id": {
+      "type": "string",
+      "pattern": "^urn:uuid:[0-9a-fA-F-]{36}$",
+      "description": "Unique identifier for this drawing set (UUID URN)."
+    },
+    "@type": {
+      "const": "DrawingSet",
+      "description": "The root type is always DrawingSet."
+    },
+    "processedDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when this file was generated."
+    },
+    "filename": {
+      "type": "string",
+      "description": "The source filename that was processed."
+    },
+    "sheets": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The collection of sheets extracted from the source file.",
+      "items": {
+        "$ref": "#/$defs/Sheet"
+      }
+    }
+  },
+  "$defs": {
+    "Sheet": {
+      "type": "object",
+      "description": "A single sheet page from the drawing set.",
+      "required": ["@id", "@type", "title", "sheetNumber", "pageIndex"],
+      "properties": {
+        "@id": {
+          "type": "string",
+          "pattern": "^urn:uuid:[0-9a-fA-F-]{36}$"
+        },
+        "@type": {
+          "const": "Sheet"
+        },
+        "sheetNumber": {
+          "type": "string",
+          "description": "The alphanumeric identifier from the title block (e.g., A101, S-202)."
+        },
+        "title": {
+          "type": "string",
+          "description": "The descriptive name of the sheet from the title block (e.g., 'Ground Floor Plan')."
+        },
+        "pageIndex": {
+          "type": "integer",
+          "description": "The zero-based index of this sheet within the source PDF file."
+        },
+        "drawings": {
+          "type": "array",
+          "description": "Drawings (views) found on this sheet.",
+          "items": {
+            "$ref": "#/$defs/Drawing"
+          }
+        },
+        "tables": {
+          "type": "array",
+          "description": "Tables and schedules found on this sheet.",
+          "items": {
+            "$ref": "#/$defs/Table"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "description": "General notes found on this sheet.",
+          "items": {
+            "$ref": "#/$defs/Note"
+          }
+        }
+      }
+    },
+    "Drawing": {
+      "type": "object",
+      "description": "A single drawing view on a sheet (plan, section, elevation, detail).",
+      "required": ["@id", "@type", "title", "layers", "bbox"],
+      "properties": {
+        "@id": {
+          "type": "string",
+          "pattern": "^urn:uuid:[0-9a-fA-F-]{36}$"
+        },
+        "@type": {
+          "const": "Drawing"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of this drawing view."
+        },
+        "scale": {
+          "type": "string",
+          "description": "The scale of the drawing (e.g. '1/4\" = 1\\'-0\"')."
+        },
+        "drawingType": {
+          "type": "string",
+          "enum": ["section", "plan", "elevation", "detail"],
+          "description": "The type of drawing view."
+        },
+        "bbox": {
+          "$ref": "#/$defs/BBox",
+          "description": "Bounding box of this drawing on the sheet."
+        },
+        "layers": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Layers containing categorized items within this drawing.",
+          "items": {
+            "$ref": "#/$defs/Layer"
+          }
+        },
+        "references": {
+          "type": "array",
+          "description": "URIs of other drawings this drawing references.",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    },
+    "Layer": {
+      "type": "object",
+      "description": "A named layer grouping related items within a drawing.",
+      "required": ["@id", "@type", "name"],
+      "properties": {
+        "@id": {
+          "type": "string",
+          "pattern": "^urn:uuid:[0-9a-fA-F-]{36}$"
+        },
+        "@type": {
+          "const": "Layer"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of this layer (e.g. 'Walls', 'Doors & Windows', 'Annotations')."
+        },
+        "bbox": {
+          "$ref": "#/$defs/BBox",
+          "description": "Bounding box of this layer's content."
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Items contained in this layer.",
+          "items": {
+            "$ref": "#/$defs/Item"
+          }
+        }
+      }
+    },
+    "Item": {
+      "type": "object",
+      "description": "An individual item extracted from a drawing layer — a tag, thing, or area.",
+      "required": ["@id", "@type", "itemType", "data"],
+      "properties": {
+        "@id": {
+          "type": "string",
+          "pattern": "^urn:uuid:[0-9a-fA-F-]{36}$"
+        },
+        "@type": {
+          "const": "Item"
+        },
+        "itemType": {
+          "type": "string",
+          "enum": ["tag", "thing", "area"],
+          "description": "The classification of this item: 'tag' for annotations/symbols, 'thing' for physical elements, 'area' for spatial regions."
+        },
+        "data": {
+          "type": "object",
+          "description": "Item-specific properties. Contents vary by item type and discipline.",
+          "additionalProperties": true
+        },
+        "bbox": {
+          "$ref": "#/$defs/BBox",
+          "description": "Bounding box of this item on the sheet."
+        },
+        "references": {
+          "type": "array",
+          "description": "URIs of other entities this item references (e.g. a section tag referencing a drawing).",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    },
+    "Table": {
+      "type": "object",
+      "description": "A table or schedule extracted from a sheet (e.g. door schedule, finish schedule).",
+      "required": ["@id", "@type", "content"],
+      "properties": {
+        "@id": {
+          "type": "string",
+          "pattern": "^urn:uuid:[0-9a-fA-F-]{36}$"
+        },
+        "@type": {
+          "const": "Table"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the table/schedule."
+        },
+        "content": {
+          "type": "string",
+          "description": "The table content as pipe-delimited text with newlines separating rows."
+        },
+        "bbox": {
+          "$ref": "#/$defs/BBox",
+          "description": "Bounding box of this table on the sheet."
+        }
+      }
+    },
+    "Note": {
+      "type": "object",
+      "description": "A general note block on a sheet.",
+      "required": ["@id", "@type", "content"],
+      "properties": {
+        "@id": {
+          "type": "string",
+          "pattern": "^urn:uuid:[0-9a-fA-F-]{36}$"
+        },
+        "@type": {
+          "const": "Note"
+        },
+        "content": {
+          "type": "string",
+          "description": "The text content of the note."
+        },
+        "bbox": {
+          "$ref": "#/$defs/BBox",
+          "description": "Bounding box of this note on the sheet."
+        }
+      }
+    },
+    "BBox": {
+      "type": "array",
+      "description": "Bounding box as [xmin, ymin, xmax, ymax].",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4
+    }
+  }
+}

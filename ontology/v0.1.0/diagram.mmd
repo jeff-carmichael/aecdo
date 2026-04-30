@@ -1,0 +1,57 @@
+---
+title: AEC DrawingBot 2.0 Ontology
+---
+
+classDiagram
+    class DrawingSet {
+		    +uuid4 @id
+        +Date date
+        +String filename
+    }
+    class Sheet {
+		    +uuid4 @id
+        +String sheetNumber
+        +String title
+        +int pageIndex
+    }
+    class Drawing {
+		    +uuid4 @id
+        +String title
+        +String scale
+        +String drawingType
+        +array bbox
+    }
+    class Layer {
+		    +uuid4 @id
+        +String name
+        +array bbox
+    }
+    class Item {
+		    +uuid4 @id
+		    +Object data
+		    +String itemType
+		    +array bbox
+    }
+    class Table {
+		    +uuid4 @id
+        +String title
+        +String content
+        +array bbox
+    }
+    class Note {
+		    +uuid4 @id
+        +String content
+        +array bbox
+    }
+
+		%% Structure Relationships
+    DrawingSet "1" --* "1..*" Sheet : contains
+    Sheet "1" --* "0..*" Drawing : contains
+    Sheet "1" --* "0..*" Table : contains
+    Sheet "1" --* "0..*" Note : contains
+    Drawing "1" --* "1..*" Layer : contains
+    Layer "1" --* "0..*" Item : contains
+
+    %% The Reference Relationships
+    Item "1" ..> "1..*" Drawing : references
+    Drawing "1" ..> "1..*"  Drawing : references

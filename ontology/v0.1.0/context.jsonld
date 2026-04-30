@@ -1,0 +1,75 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "aecdo": "https://aecdrawingbot.com/ontology/v0.1.0#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+
+    "id": "@id",
+
+    "DrawingSet": "aecdo:DrawingSet",
+    "Sheet": "aecdo:Sheet",
+    "Drawing": "aecdo:Drawing",
+    "Layer": "aecdo:Layer",
+    "Item": "aecdo:Item",
+    "Table": "aecdo:Table",
+    "Note": "aecdo:Note",
+
+    "processedDate": {
+      "@id": "aecdo:processedDate",
+      "@type": "xsd:dateTime"
+    },
+    "filename": "aecdo:filename",
+
+    "sheets": {
+      "@id": "aecdo:sheets",
+      "@container": "@list"
+    },
+    "sheetNumber": "aecdo:sheetNumber",
+    "title": "aecdo:title",
+    "pageIndex": {
+      "@id": "aecdo:pageIndex",
+      "@type": "xsd:integer"
+    },
+
+    "drawings": {
+      "@id": "aecdo:drawings",
+      "@container": "@set"
+    },
+    "tables": {
+      "@id": "aecdo:tables",
+      "@container": "@set"
+    },
+    "notes": {
+      "@id": "aecdo:notes",
+      "@container": "@set"
+    },
+
+    "scale": "aecdo:scale",
+    "drawingType": "aecdo:drawingType",
+    "bbox": {
+      "@id": "aecdo:bbox",
+      "@container": "@list"
+    },
+
+    "layers": {
+      "@id": "aecdo:layers",
+      "@container": "@list"
+    },
+    "name": "aecdo:name",
+
+    "items": {
+      "@id": "aecdo:items",
+      "@container": "@set"
+    },
+    "itemType": "aecdo:itemType",
+    "data": "aecdo:data",
+
+    "content": "aecdo:content",
+
+    "references": {
+      "@id": "aecdo:references",
+      "@type": "@id",
+      "@container": "@set"
+    }
+  }
+}
