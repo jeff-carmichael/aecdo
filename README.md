@@ -242,7 +242,7 @@ CHANGELOG.md            Version history
 
 ## For AI Agents
 
-See [SKILLS.md](SKILLS.md) — installable via `openskills` and follows the [skills directory format](https://www.skillsdirectory.com/docs/skill-md-format).
+Installing the CLI (`npm install -g aecdo`) automatically copies the Claude Code skill to `~/.claude/skills/aecdo/SKILL.md`. This lets Claude Code use the `aecdo` commands directly when working with drawing data.
 
 ## Contributing
 
