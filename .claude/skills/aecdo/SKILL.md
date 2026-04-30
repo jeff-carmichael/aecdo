@@ -1,12 +1,12 @@
 ---
 name: aecdo
-description: Validate, inspect, summarize, and convert AEC drawing data (JSON-LD) using the AECDO CLI. Use when working with Architecture, Engineering, and Construction drawing files, DrawingBot output, or JSON-LD conforming to the AEC Drawing Ontology.
+description: Validate, summarize, and interactively explore AEC drawing data (JSON-LD) using the AECDO CLI. Use when working with Architecture, Engineering, and Construction drawing files, DrawingBot output, or JSON-LD conforming to the AEC Drawing Ontology.
 allowed-tools: Bash(npx aecdo *) Bash(aecdo *) Read Glob
 ---
 
 # AECDO CLI
 
-Command-line tool for working with structured data extracted from Architecture, Engineering, and Construction (AEC) drawings. Tools like [AEC DrawingBot](https://aecdrawingbot.com) produce JSON-LD files conforming to the AECDO schema. This CLI validates, inspects, and transforms those files.
+Command-line tool for working with structured data extracted from Architecture, Engineering, and Construction (AEC) drawings. Tools like [AEC DrawingBot](https://aecdrawingbot.com) produce JSON-LD files conforming to the AECDO schema. This CLI validates, summarizes, and explores those files.
 
 ## Setup
 
@@ -41,14 +41,6 @@ aecdo validate file.jsonld --format json
 
 Returns: `{"valid": true, "file": "...", "errors": []}`
 
-### Inspect a drawing set
-
-```bash
-aecdo inspect examples/sample-drawing-set.jsonld
-```
-
-Shows the full hierarchy: sheets → drawings → layers with item counts, plus table/note counts.
-
 ### Get a summary
 
 ```bash
@@ -57,15 +49,13 @@ aecdo summary examples/sample-drawing-set.jsonld
 
 Prints totals: sheet count, drawing count, item count, breakdowns by drawing type and item type.
 
-### Convert between JSON-LD and plain JSON
+### Explore a drawing set interactively
 
 ```bash
-# JSON-LD → plain JSON (strips @context, @type → type, @id → id)
-aecdo convert file.jsonld -o plain.json
-
-# Plain JSON → JSON-LD (adds @context)
-aecdo convert plain.json
+aecdo explore examples/sample-drawing-set.jsonld
 ```
+
+Loads the file once, validates it, shows the inspection overview, then drops into an interactive prompt. Type a sheet number (e.g. `A101`) or page index (e.g. `0`) to see everything on that sheet — drawings, layers, items with their data and references, tables, and notes. Type `list` to see sheets again, `quit` to exit.
 
 ### Validate all JSON-LD files in a directory
 

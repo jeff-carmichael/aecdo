@@ -33,9 +33,8 @@ Hierarchy: **DrawingSet → Sheet → Drawing → Layer → Item**, plus Table a
 npm install
 npm run build
 npx aecdo validate examples/sample-drawing-set.jsonld
-npx aecdo inspect examples/sample-drawing-set.jsonld
 npx aecdo summary examples/sample-drawing-set.jsonld
-npx aecdo convert examples/sample-drawing-set.jsonld
+npx aecdo explore examples/sample-drawing-set.jsonld
 ```
 
 After `npm install -g aecdo` (once published), `aecdo` works directly without `npx`.

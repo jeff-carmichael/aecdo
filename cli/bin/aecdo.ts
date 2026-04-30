@@ -4,9 +4,8 @@ import { parseArgs } from "node:util";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { validate } from "../src/commands/validate.js";
-import { inspect } from "../src/commands/inspect.js";
 import { summary } from "../src/commands/summary.js";
-import { convert } from "../src/commands/convert.js";
+import { explore } from "../src/commands/explore.js";
 import type { DrawingSet, CommandOptions } from "../src/types.js";
 
 const HELP = `
@@ -17,9 +16,8 @@ Usage:
 
 Commands:
   validate <file>     Validate a JSON-LD file against the AECDO schema
-  inspect <file>      Display structured information about a drawing set
   summary <file>      Print a concise summary of a drawing set
-  convert <file>      Convert between JSON-LD and plain JSON
+  explore <file>      Load, validate, inspect, then browse sheets interactively
 
 Options:
   --help, -h          Show this help message
@@ -31,9 +29,8 @@ Options:
 
 Examples:
   aecdo validate drawings.jsonld
-  aecdo inspect drawings.jsonld --format json
   aecdo summary drawings.jsonld
-  aecdo convert drawings.jsonld --format json --output drawings.json
+  aecdo explore drawings.jsonld
 `;
 
 async function main(): Promise<void> {
@@ -108,14 +105,11 @@ async function main(): Promise<void> {
       case "validate":
         await validate(data, resolvedPath, opts);
         break;
-      case "inspect":
-        await inspect(data, resolvedPath, opts);
-        break;
       case "summary":
         await summary(data, resolvedPath, opts);
         break;
-      case "convert":
-        await convert(data, resolvedPath, opts);
+      case "explore":
+        await explore(data, resolvedPath, opts);
         break;
       default:
         console.error(`Error: Unknown command "${command}".`);
