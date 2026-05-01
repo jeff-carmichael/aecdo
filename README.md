@@ -24,6 +24,23 @@ cd aecdo
 npm install
 ```
 
+### Process a PDF via the DrawingBot API
+
+```bash
+npx aecdo configure                          # one-time setup: enter API credentials and region
+npx aecdo process plans.pdf                  # upload, wait for processing, download result
+npx aecdo process plans.pdf --then summary   # process and immediately summarize
+npx aecdo process plans.pdf -o result.jsonld # save result to a file
+```
+
+Or use the individual commands for scripting:
+
+```bash
+npx aecdo upload plans.pdf                   # returns a job ID
+npx aecdo status <jobId> --wait              # poll until processing completes
+npx aecdo download <jobId> -o result.jsonld  # download the JSON-LD result
+```
+
 ### Validate a file
 
 ```bash
@@ -45,22 +62,6 @@ npx aecdo explore examples/sample-drawing-set.jsonld
 
 Loads the file once, validates it, shows the sheet overview, then drops into an interactive prompt. Type a sheet number (e.g. `A101`) or page index (e.g. `0`) to see everything on that sheet — drawings, layers, items with their data and references, tables, and notes.
 
-### Process a PDF via the DrawingBot API
-
-```bash
-npx aecdo configure                          # one-time setup: enter API credentials and region
-npx aecdo process plans.pdf                  # upload, wait for processing, download result
-npx aecdo process plans.pdf --then summary   # process and immediately summarize
-npx aecdo process plans.pdf -o result.jsonld # save result to a file
-```
-
-Or use the individual commands for scripting:
-
-```bash
-npx aecdo upload plans.pdf                   # returns a job ID
-npx aecdo status <jobId> --wait              # poll until processing completes
-npx aecdo download <jobId> -o result.jsonld  # download the JSON-LD result
-```
 
 ```
 ✓ sample-drawing-set.jsonld is valid against AECDO schema.
