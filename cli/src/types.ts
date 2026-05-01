@@ -67,3 +67,61 @@ export interface CommandOptions {
   output?: string;
   schema?: string;
 }
+
+export type ApiRegion = "us-west-2";
+
+export interface ApiConfig {
+  clientId: string;
+  clientSecret: string;
+  region: ApiRegion;
+  baseUrl: string;
+  tokenUrl: string;
+}
+
+export interface TokenCache {
+  accessToken: string;
+  expiresAt: number;
+}
+
+export interface UploadResponse {
+  jobId: string;
+  uploadUrl: string;
+  s3Key: string;
+}
+
+export interface PageStatus {
+  page: string;
+  status: "Pending" | "Processing" | "Done" | "Error";
+  processingTime?: number | null;
+  title?: string | null;
+  sheetNumber?: string | null;
+  error?: string | null;
+}
+
+export interface AgentStatus {
+  status: "Pending" | "Processing" | "Done" | "Error";
+  startTime?: string | null;
+  endTime?: string | null;
+  error?: string | null;
+}
+
+export interface JobStatus {
+  jobId: string;
+  fileName: string;
+  globalStatus: "Pending" | "Processing" | "Done" | "Error";
+  totalPages?: number | null;
+  startTime?: string | null;
+  agent?: AgentStatus | null;
+  pages: PageStatus[];
+}
+
+export interface JobResult {
+  jobId: string;
+  downloadUrl: string;
+}
+
+export interface ProcessOptions extends CommandOptions {
+  poll?: number;
+  wait?: boolean;
+  then?: string;
+}

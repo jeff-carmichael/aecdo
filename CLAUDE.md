@@ -10,7 +10,10 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `ontology/v0.1.0/context.jsonld` — JSON-LD context
 - `ontology/v0.1.0/diagram.mmd` — Mermaid class diagram
 - `cli/` — TypeScript CLI source (compiled to `dist/` via `npm run build`)
-- `cli/src/types.ts` — shared data model types (DrawingSet, Sheet, Drawing, etc.)
+- `cli/src/types.ts` — shared data model + API types (DrawingSet, ApiConfig, JobStatus, etc.)
+- `cli/src/lib/config.ts` — API credential storage and region-to-endpoint mapping
+- `cli/src/lib/auth.ts` — OAuth token management with caching
+- `cli/src/lib/api.ts` — HTTP client for the DrawingBot API
 - `package.json` — at repo root, npm-publishable as "aecdo"
 - `examples/sample-drawing-set.jsonld` — validates against the schema
 - `.claude/skills/aecdo/SKILL.md` — installable Claude Code skill
@@ -37,14 +40,27 @@ npx aecdo summary examples/sample-drawing-set.jsonld
 npx aecdo explore examples/sample-drawing-set.jsonld
 ```
 
+### API commands (requires DrawingBot API credentials)
+
+```bash
+npx aecdo configure                          # set up credentials and region
+npx aecdo process plans.pdf                  # end-to-end: upload → poll → download
+npx aecdo process plans.pdf --then summary   # process and pipe into summary
+npx aecdo upload plans.pdf                   # upload only, returns job ID
+npx aecdo status <jobId> --wait              # poll until done
+npx aecdo download <jobId> -o result.jsonld  # download completed result
+```
+
 After `npm install -g aecdo` (once published), `aecdo` works directly without `npx`.
+
+API credentials are stored at `~/.aecdo/config.json` (0o600 permissions). Tokens are cached at `~/.aecdo/token.json` (4-hour validity).
 
 ## Code conventions
 
 - TypeScript with strict mode, compiled via `tsc`
 - ES modules (`import`/`export`), no CommonJS
 - No comments unless explaining a non-obvious "why"
-- Minimal dependencies (only ajv for validation)
+- Minimal dependencies (ajv for validation, native fetch for API calls)
 - Use Node.js built-in test runner (`node --test`)
 
 ## Schema versioning

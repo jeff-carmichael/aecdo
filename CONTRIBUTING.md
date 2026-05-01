@@ -17,9 +17,9 @@ git checkout -b your-feature-branch
 ## Project Structure
 
 - **`ontology/`** — The schema definitions (versioned). This is the core of the project.
-- **`cli/`** — Node.js CLI for working with AECDO JSON-LD files.
+- **`cli/`** — TypeScript CLI for working with AECDO JSON-LD files (compiled to `dist/` via `npm run build`).
 - **`examples/`** — Sample JSON-LD files used for testing and documentation.
-- **`SKILLS.md`** — Guide for AI agents working with this repo.
+- **`.claude/skills/aecdo/SKILL.md`** — Claude Code skill for AI agents working with drawing data.
 
 ## Contributing to the Ontology/Schema
 
@@ -84,6 +84,7 @@ Update the `$id` field in `aecdo.schema.json` and all context URLs to reflect th
 
 ```bash
 npm install
+npm run build
 ```
 
 ### Running
@@ -101,23 +102,24 @@ npm test
 
 ### Adding a New Command
 
-1. Create `cli/src/commands/yourcommand.js` exporting an async function
-2. Register it in `cli/bin/aecdo.js` (import + switch case)
-3. Export from `cli/src/index.js`
+1. Create `cli/src/commands/yourcommand.ts` exporting an async function
+2. Register it in `cli/bin/aecdo.ts` (import + switch case)
+3. Export from `cli/src/index.ts`
 4. Add tests
-5. Document in `SKILLS.md` and `README.md`
+5. Document in `SKILL.md` and `README.md`
 
 ### Code Style
 
-- ES modules (`import`/`export`)
-- Node.js >= 18 (use built-in test runner, `parseArgs`, etc.)
+- TypeScript with strict mode, compiled via `tsc`
+- ES modules (`import`/`export`), no CommonJS
+- Node.js >= 18 (use built-in test runner, `parseArgs`, native `fetch`, etc.)
 - No comments unless explaining a non-obvious "why"
 - Minimal dependencies
 
 ## Release Process
 
 1. Update `CHANGELOG.md` with the new version
-2. Update version in `cli/package.json`
+2. Update version in `package.json`
 3. Create a git tag: `git tag v0.1.0`
 4. Push the tag: `git push origin v0.1.0`
 5. Create a GitHub release from the tag
