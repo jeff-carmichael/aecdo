@@ -1,0 +1,30 @@
+#!/bin/sh
+
+# Rebuild dist/ from TypeScript source
+npm run build 2>&1 | tail -1
+
+# Regenerate Mermaid diagram from schema
+npm run diagram 2>&1 | tail -1
+
+# Stage any files that were regenerated
+git add dist/ ontology/v0.1.0/diagram.mmd
+
+# Check if CHANGELOG.md is being updated when ontology or CLI changes
+STAGED=$(git diff --cached --name-only)
+
+NEEDS_CHANGELOG=false
+if echo "$STAGED" | grep -qE '^ontology/'; then
+  NEEDS_CHANGELOG=true
+fi
+if echo "$STAGED" | grep -qE '^cli/src/'; then
+  NEEDS_CHANGELOG=true
+fi
+
+if [ "$NEEDS_CHANGELOG" = "true" ]; then
+  if ! echo "$STAGED" | grep -q '^CHANGELOG.md$'; then
+    echo ""
+    echo "⚠  ontology/ or cli/src/ changed — update CHANGELOG.md before committing."
+    echo "   (commit skipped)"
+    exit 1
+  fi
+fi

@@ -1,0 +1,78 @@
+name: Consistency checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: dist/ is up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Check dist/ is current
+        run: |
+          if ! git diff --quiet dist/; then
+            echo "::error::dist/ is out of date. Run the pre-commit hook or 'npm run build' and commit the result."
+            git diff --stat dist/
+            exit 1
+          fi
+
+  diagram:
+    name: diagram.mmd is up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify diagram matches schema
+        run: node scripts/generate-diagram.mjs --check
+
+  changelog:
+    name: CHANGELOG updated
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check CHANGELOG updated when ontology or CLI changes
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE=${{ github.event.pull_request.base.sha }}
+          else
+            BASE=${{ github.event.before }}
+          fi
+          HEAD=${{ github.sha }}
+
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD")
+
+          NEEDS_CHANGELOG=false
+          if echo "$CHANGED" | grep -qE '^ontology/'; then
+            NEEDS_CHANGELOG=true
+          fi
+          if echo "$CHANGED" | grep -qE '^cli/src/'; then
+            NEEDS_CHANGELOG=true
+          fi
+
+          if [ "$NEEDS_CHANGELOG" = "true" ]; then
+            if ! echo "$CHANGED" | grep -q '^CHANGELOG.md$'; then
+              echo "::error::ontology/ or cli/src/ changed but CHANGELOG.md was not updated."
+              exit 1
+            fi
+          fi
+          echo "CHANGELOG check passed."
