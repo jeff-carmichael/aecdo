@@ -41,6 +41,16 @@ export interface Note {
   bbox?: [number, number, number, number];
 }
 
+export type ImageRole = "logo" | "photo" | "detail-raster" | "diagram" | "other";
+
+export interface Image {
+  "@id": string;
+  "@type": "Image";
+  role: ImageRole;
+  caption?: string;
+  bbox: [number, number, number, number];
+}
+
 export interface Sheet {
   "@id": string;
   "@type": "Sheet";
@@ -50,6 +60,7 @@ export interface Sheet {
   drawings?: Drawing[];
   tables?: Table[];
   notes?: Note[];
+  images?: Image[];
 }
 
 export interface DrawingSet {

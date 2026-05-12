@@ -60,7 +60,7 @@ Pre-1.0, minor versions may include breaking changes (per semver convention), bu
 
 ```bash
 # Copy current version as starting point
-cp -r ontology/v0.1.0 ontology/v0.2.0
+cp -r ontology/v0.2.0 ontology/v0.3.0
 
 # Update $id in the schema
 # Update @context URLs
@@ -69,6 +69,40 @@ cp -r ontology/v0.1.0 ontology/v0.2.0
 ```
 
 Update the `$id` field in `aecdo.schema.json` and all context URLs to reflect the new version.
+
+### Files That Must Be Updated for a Schema Change
+
+Whenever you add, remove, rename, or restructure a type or field, walk this checklist. Missing any of these will leave the schema, CLI, and docs out of sync.
+
+**Ontology (required):**
+- `ontology/v<version>/aecdo.schema.json` — the JSON Schema itself (type definition + any parent `properties` that embed it)
+- `ontology/v<version>/context.jsonld` — add a term for every new type and every new property
+- `ontology/v<version>/diagram.mmd` — add the class, its fields, and any containment/reference edges
+
+**CLI (required if the field is user-visible):**
+- `cli/src/types.ts` — TypeScript interfaces mirroring the schema
+- `cli/src/lib/schema.ts` — bump `DEFAULT_SCHEMA_PATH` when creating a new version directory
+- `cli/src/commands/summary.ts` — count and report the new type/field if it's summary-worthy
+- `cli/src/commands/page.ts` — render the new type/field in the per-sheet view (add a `printX` helper if it's a new type)
+- `cli/src/commands/explore.ts` — only if interactive flow changes (rarely needed for additive changes)
+
+**Examples & fixtures:**
+- `examples/sample-drawing-set.jsonld` — bump the `@context` URL and include at least one instance of any new type/field
+- Any other files under `examples/` — bump `@context` URLs
+
+**Docs & metadata:**
+- `README.md` — schema version references, Mermaid diagram, Types table, example JSON, Project Structure tree
+- `CHANGELOG.md` — a `Schema` entry under the new version describing what changed and why
+- `CLAUDE.md` — update the "Key paths" list and any data-model notes if shapes change
+- `.claude/skills/aecdo/SKILL.md` — update if new commands, fields, or types affect how agents should interact with the data
+
+**Verify before opening a PR:**
+```bash
+npm run build
+npx aecdo validate examples/sample-drawing-set.jsonld
+npx aecdo summary examples/sample-drawing-set.jsonld
+npm test
+```
 
 ### Schema Design Principles
 

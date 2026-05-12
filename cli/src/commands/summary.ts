@@ -9,12 +9,18 @@ export async function summary(data: DrawingSet, filePath: string, opts: CommandO
   let totalItems = 0;
   let totalTables = 0;
   let totalNotes = 0;
+  let totalImages = 0;
   const drawingTypes: Record<string, number> = {};
   const itemTypes: Record<string, number> = {};
+  const imageRoles: Record<string, number> = {};
 
   for (const s of sheets) {
     totalTables += s.tables?.length ?? 0;
     totalNotes += s.notes?.length ?? 0;
+    totalImages += s.images?.length ?? 0;
+    for (const img of s.images ?? []) {
+      imageRoles[img.role] = (imageRoles[img.role] || 0) + 1;
+    }
 
     for (const d of s.drawings ?? []) {
       totalDrawings++;
@@ -43,6 +49,8 @@ export async function summary(data: DrawingSet, filePath: string, opts: CommandO
     itemTypes,
     tableCount: totalTables,
     noteCount: totalNotes,
+    imageCount: totalImages,
+    imageRoles,
   };
 
   if (opts.format === "json") {
@@ -67,10 +75,18 @@ export async function summary(data: DrawingSet, filePath: string, opts: CommandO
       }
     }
 
-    if (result.tableCount > 0 || result.noteCount > 0) {
+    if (result.tableCount > 0 || result.noteCount > 0 || result.imageCount > 0) {
       console.log("");
       if (result.tableCount > 0) console.log(`Tables: ${result.tableCount}`);
       if (result.noteCount > 0) console.log(`Notes: ${result.noteCount}`);
+      if (result.imageCount > 0) console.log(`Images: ${result.imageCount}`);
+    }
+
+    if (Object.keys(result.imageRoles).length > 0) {
+      console.log("\nImage roles:");
+      for (const [role, count] of Object.entries(result.imageRoles)) {
+        console.log(`  ${role}: ${count}`);
+      }
     }
   }
 }

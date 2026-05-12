@@ -1,4 +1,4 @@
-import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note } from "../types.js";
+import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image } from "../types.js";
 
 type RefResolver = (id: string) => string;
 
@@ -23,6 +23,7 @@ export function printPage(sheet: Sheet, data: DrawingSet): void {
   const drawings = sheet.drawings ?? [];
   const tables = sheet.tables ?? [];
   const notes = sheet.notes ?? [];
+  const images = sheet.images ?? [];
 
   for (const drawing of drawings) {
     printDrawing(drawing, resolve);
@@ -39,6 +40,13 @@ export function printPage(sheet: Sheet, data: DrawingSet): void {
     console.log(`\n  Notes (${notes.length}):`);
     for (const note of notes) {
       printNote(note);
+    }
+  }
+
+  if (images.length > 0) {
+    console.log(`\n  Images (${images.length}):`);
+    for (const image of images) {
+      printImage(image);
     }
   }
 
@@ -110,4 +118,10 @@ function printNote(n: Note): void {
   for (const line of n.content.split("\n")) {
     console.log(`      ${line}`);
   }
+}
+
+function printImage(img: Image): void {
+  console.log(`\n    [IMAGE:${img.role}] ${img.caption ?? img["@id"]}`);
+  console.log(`      id:   ${img["@id"]}`);
+  console.log(`      bbox: [${img.bbox.join(", ")}]`);
 }

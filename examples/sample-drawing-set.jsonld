@@ -1,5 +1,5 @@
 {
-  "@context": "https://aecdrawingbot.com/ontology/v0.1.0/aecdo#",
+  "@context": "https://aecdrawingbot.com/ontology/v0.2.0/aecdo#",
   "@id": "urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "@type": "DrawingSet",
   "processedDate": "2026-04-10T14:30:00Z",
@@ -94,6 +94,15 @@
           "@type": "Note",
           "content": "1. All dimensions are to face of finish unless noted otherwise.\n2. Verify all dimensions in field prior to fabrication.\n3. See structural drawings for foundation details.",
           "bbox": [420, 560, 720, 650]
+        }
+      ],
+      "images": [
+        {
+          "@id": "urn:uuid:f0f0f0f0-f0f0-f0f0-f0f0-f0f0f0f0f0f0",
+          "@type": "Image",
+          "role": "logo",
+          "caption": "Firm logo in title block",
+          "bbox": [640, 40, 720, 90]
         }
       ]
     },

@@ -124,11 +124,11 @@ sheet>
 
 ## Schema Overview
 
-The schema is at **v0.1.0** (pre-release). Full definition: [`ontology/v0.1.0/aecdo.schema.json`](ontology/v0.1.0/aecdo.schema.json)
+The schema is at **v0.2.0** (pre-release). Full definition: [`ontology/v0.2.0/aecdo.schema.json`](ontology/v0.2.0/aecdo.schema.json)
 
 ### Hierarchy
 
-> The diagram source is at [`ontology/v0.1.0/diagram.mmd`](ontology/v0.1.0/diagram.mmd)
+> The diagram source is at [`ontology/v0.2.0/diagram.mmd`](ontology/v0.2.0/diagram.mmd)
 
 ```mermaid
 ---
@@ -176,12 +176,19 @@ classDiagram
         +String content
         +array bbox
     }
+    class Image {
+		    +uuid4 @id
+        +String role
+        +String caption
+        +array bbox
+    }
 
 		%% Structure Relationships
     DrawingSet "1" --* "1..*" Sheet : contains
     Sheet "1" --* "0..*" Drawing : contains
     Sheet "1" --* "0..*" Table : contains
     Sheet "1" --* "0..*" Note : contains
+    Sheet "1" --* "0..*" Image : contains
     Drawing "1" --* "1..*" Layer : contains
     Layer "1" --* "0..*" Item : contains
 
@@ -201,12 +208,13 @@ classDiagram
 | **Item** | An extracted entity — `thing` (physical element), `tag` (annotation/symbol), or `area` (region) |
 | **Table** | A schedule or table with pipe-delimited content |
 | **Note** | A general notes text block |
+| **Image** | A raster image embedded on a sheet — records `role` (`logo`, `photo`, `detail-raster`, `diagram`, `other`), optional `caption`, and `bbox`. Image bytes are not stored. |
 
 ### Example
 
 ```json
 {
-  "@context": "https://aecdrawingbot.com/ontology/v0.1.0/aecdo#",
+  "@context": "https://aecdrawingbot.com/ontology/v0.2.0/aecdo#",
   "@id": "urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "@type": "DrawingSet",
   "processedDate": "2026-04-10T14:30:00Z",
@@ -253,7 +261,7 @@ classDiagram
 ```
 package.json            npm package root (publishes as "aecdo")
 ontology/               Schema definitions (versioned)
-  v0.1.0/
+  v0.2.0/
     aecdo.schema.json     JSON Schema for validation
     context.jsonld         JSON-LD context for linked data
     diagram.mmd            Mermaid class diagram of the ontology

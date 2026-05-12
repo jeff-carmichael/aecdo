@@ -4,7 +4,14 @@ All notable changes to the AECDO schema and CLI will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## 0.2.0 - 2026-05-12
+
+### Schema
+- New ontology version `v0.2.0` (`ontology/v0.2.0/`)
+- Added `Image` type at the sheet level (sibling of `Note` and `Table`) to record raster images embedded on a sheet. Fields: `@id`, `@type`, `role` (`logo` | `photo` | `detail-raster` | `diagram` | `other`), `caption`, `bbox`. Image bytes are not stored in the document.
+- Added `images` array to `Sheet`
+- Updated `context.jsonld` and `diagram.mmd` for the new type
+- CLI now validates against v0.2.0 by default
 
 ### CLI
 - DrawingBot API integration: `configure`, `process`, `upload`, `status`, `download` commands
