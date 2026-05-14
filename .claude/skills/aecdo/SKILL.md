@@ -91,17 +91,38 @@ Returns: `{"valid": true, "file": "...", "errors": []}`
 
 ```bash
 aecdo summary examples/sample-drawing-set.jsonld
+aecdo summary examples/sample-drawing-set.jsonld --format json
 ```
 
 Prints totals: sheet count, drawing count, item count, breakdowns by drawing type and item type.
 
-### Explore a drawing set interactively
+### List sheets (non-interactive)
+
+```bash
+aecdo sheets examples/sample-drawing-set.jsonld
+aecdo sheets examples/sample-drawing-set.jsonld --format json
+```
+
+Prints each sheet's number, title, and page index. Use this instead of `explore` when scripting or running as an agent — it completes in one shot and supports JSON.
+
+### Print one sheet
+
+```bash
+aecdo page examples/sample-drawing-set.jsonld A101
+aecdo page examples/sample-drawing-set.jsonld 0 --format json
+```
+
+Prints everything on a sheet — drawings, layers, items with their data and references, tables, notes, and images — selected by sheet number (e.g. `A101`) or page index (e.g. `0`). With `--format json`, emits the raw sheet object. Exits non-zero if no sheet matches.
+
+### Explore a drawing set interactively (humans)
 
 ```bash
 aecdo explore examples/sample-drawing-set.jsonld
 ```
 
-Loads the file once, validates it, shows the inspection overview, then drops into an interactive prompt. Type a sheet number (e.g. `A101`) or page index (e.g. `0`) to see everything on that sheet — drawings, layers, items with their data and references, tables, and notes. Type `list` to see sheets again, `quit` to exit.
+Loads the file once, validates it, shows the inspection overview, then drops into an interactive prompt. Type a sheet number (e.g. `A101`) or page index (e.g. `0`) to see everything on that sheet. Type `list` to see sheets again, `quit` to exit.
+
+**Agents / non-interactive use:** `explore` detects when stdin is not a TTY or when `--format json` is passed and falls back to listing sheets, so it won't hang on the prompt. Prefer `sheets` and `page` for scripted workflows.
 
 ### Validate all JSON-LD files in a directory
 

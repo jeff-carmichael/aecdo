@@ -6,6 +6,8 @@ import { resolve } from "node:path";
 import { validate } from "../src/commands/validate.js";
 import { summary } from "../src/commands/summary.js";
 import { explore } from "../src/commands/explore.js";
+import { sheets } from "../src/commands/sheets.js";
+import { page } from "../src/commands/page.js";
 import { configure } from "../src/commands/configure.js";
 import { upload } from "../src/commands/upload.js";
 import { status } from "../src/commands/status.js";
@@ -22,7 +24,10 @@ Usage:
 Commands:
   validate <file>     Validate a JSON-LD file against the AECDO schema
   summary <file>      Print a concise summary of a drawing set
-  explore <file>      Load, validate, inspect, then browse sheets interactively
+  sheets <file>       List all sheets (non-interactive; agent-friendly)
+  page <file> <id>    Print one sheet by sheet number or page index
+  explore <file>      Browse sheets interactively (humans). Non-TTY / --format json
+                      falls back to listing sheets.
   configure           Set up API credentials and region
   process <pdf>       Upload a PDF, wait for processing, download the result
   upload <pdf>        Upload a PDF and return the job ID
@@ -45,6 +50,9 @@ API Options:
 Examples:
   aecdo validate drawings.jsonld
   aecdo summary drawings.jsonld
+  aecdo sheets drawings.jsonld --format json
+  aecdo page drawings.jsonld A101
+  aecdo page drawings.jsonld 0 --format json
   aecdo explore drawings.jsonld
   aecdo configure
   aecdo process plans.pdf
@@ -142,6 +150,8 @@ async function main(): Promise<void> {
       }
       case "validate":
       case "summary":
+      case "sheets":
+      case "page":
       case "explore": {
         const filePath = options.positionals[0];
         if (!filePath) {
@@ -181,6 +191,19 @@ async function main(): Promise<void> {
           case "summary":
             await summary(data, resolvedPath, cmdOpts);
             break;
+          case "sheets":
+            await sheets(data, resolvedPath, cmdOpts);
+            break;
+          case "page": {
+            const selector = options.positionals[1];
+            if (!selector) {
+              console.error("Error: No sheet number or page index specified.");
+              console.error('Usage: aecdo page <file> <sheetNumber|pageIndex>');
+              process.exit(1);
+            }
+            await page(data, selector, cmdOpts);
+            break;
+          }
           case "explore":
             await explore(data, resolvedPath, cmdOpts);
             break;

@@ -4,7 +4,7 @@ All notable changes to the AECDO schema and CLI will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## 0.2.0 - 2026-05-12
+## [0.2.0] - 2026-05-12
 
 ### Schema
 - New ontology version `v0.2.0` (`ontology/v0.2.0/`)
@@ -22,6 +22,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - `--then` flag to pipe API results directly into validate/summary/explore
 - `--poll` and `--wait` flags for status polling control
 - API types: `ApiConfig`, `JobStatus`, `JobResult`, `UploadResponse`, `ProcessOptions`
+- New `sheets <file>` command: list sheets non-interactively, with `--format json` for agent-friendly output
+- New `page <file> <sheetNumber|pageIndex>` command: print one sheet by number or index. Supports `--format json`. Replaces the interactive REPL's sheet lookup for scripts and agents.
+- `explore` now falls back to listing sheets (text or JSON) when stdin is not a TTY or `--format json` is passed, so agents and pipelines no longer hang on the interactive prompt
 
 ## [0.1.0] - 2026-04-30
 

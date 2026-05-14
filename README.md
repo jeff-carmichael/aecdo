@@ -54,13 +54,25 @@ npx aecdo validate examples/sample-drawing-set.jsonld
 npx aecdo summary examples/sample-drawing-set.jsonld
 ```
 
-### Explore interactively
+### List sheets or print one sheet (agent-friendly, non-interactive)
+
+```bash
+npx aecdo sheets examples/sample-drawing-set.jsonld --format json
+npx aecdo page examples/sample-drawing-set.jsonld A101
+npx aecdo page examples/sample-drawing-set.jsonld 0 --format json
+```
+
+`sheets` lists every sheet (number, title, page index). `page` prints one sheet selected by sheet number or page index. Both support `--format json` for scripting and LLM agents.
+
+### Explore interactively (humans)
 
 ```bash
 npx aecdo explore examples/sample-drawing-set.jsonld
 ```
 
 Loads the file once, validates it, shows the sheet overview, then drops into an interactive prompt. Type a sheet number (e.g. `A101`) or page index (e.g. `0`) to see everything on that sheet — drawings, layers, items with their data and references, tables, and notes.
+
+When stdin is not a TTY or `--format json` is passed, `explore` falls back to listing sheets so pipelines and agents don't hang on the prompt.
 
 
 ```

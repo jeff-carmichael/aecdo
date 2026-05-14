@@ -1,7 +1,8 @@
 export { validate } from "./commands/validate.js";
 export { summary } from "./commands/summary.js";
 export { explore } from "./commands/explore.js";
-export { printPage } from "./commands/page.js";
+export { sheets } from "./commands/sheets.js";
+export { page, printPage, findSheet } from "./commands/page.js";
 export { configure } from "./commands/configure.js";
 export { upload } from "./commands/upload.js";
 export { status } from "./commands/status.js";

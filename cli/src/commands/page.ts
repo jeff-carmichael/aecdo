@@ -1,4 +1,32 @@
-import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image } from "../types.js";
+import { output } from "../lib/output.js";
+import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image, CommandOptions } from "../types.js";
+
+export function findSheet(data: DrawingSet, selector: string): Sheet | undefined {
+  return (data.sheets ?? []).find(
+    (s) =>
+      s.sheetNumber.toLowerCase() === selector.toLowerCase() ||
+      String(s.pageIndex) === selector
+  );
+}
+
+export async function page(
+  data: DrawingSet,
+  selector: string,
+  opts: CommandOptions = {}
+): Promise<void> {
+  const sheet = findSheet(data, selector);
+  if (!sheet) {
+    console.error(`Error: No sheet matching "${selector}". Try a sheet number or page index.`);
+    process.exit(1);
+  }
+
+  if (opts.format === "json") {
+    await output(sheet, opts);
+    return;
+  }
+
+  printPage(sheet, data);
+}
 
 type RefResolver = (id: string) => string;
 

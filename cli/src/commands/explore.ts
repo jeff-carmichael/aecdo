@@ -1,6 +1,7 @@
 import { createInterface } from "node:readline";
 import { validate } from "./validate.js";
 import { printPage } from "./page.js";
+import { sheets as sheetsCmd } from "./sheets.js";
 import type { DrawingSet, CommandOptions } from "../types.js";
 
 function printSheetList(data: DrawingSet): void {
@@ -12,6 +13,11 @@ function printSheetList(data: DrawingSet): void {
 }
 
 export async function explore(data: DrawingSet, filePath: string, opts: CommandOptions = {}): Promise<void> {
+  if (opts.format === "json" || !process.stdin.isTTY) {
+    await sheetsCmd(data, filePath, opts);
+    return;
+  }
+
   const valid = await validate(data, filePath, opts);
   if (!valid) {
     console.log("\nFile has validation errors. Continuing anyway…\n");

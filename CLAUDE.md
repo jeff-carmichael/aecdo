@@ -37,8 +37,12 @@ npm install
 npm run build
 npx aecdo validate examples/sample-drawing-set.jsonld
 npx aecdo summary examples/sample-drawing-set.jsonld
-npx aecdo explore examples/sample-drawing-set.jsonld
+npx aecdo sheets examples/sample-drawing-set.jsonld --format json
+npx aecdo page examples/sample-drawing-set.jsonld A101
+npx aecdo explore examples/sample-drawing-set.jsonld   # interactive (humans)
 ```
+
+Agent-friendly, non-interactive commands: `validate`, `summary`, `sheets`, `page` — all support `--format json`. `configure` is human-interactive by design. `explore` detects non-TTY stdin or `--format json` and falls back to listing sheets so it won't hang in scripts.
 
 ### API commands (requires DrawingBot API credentials)
 
