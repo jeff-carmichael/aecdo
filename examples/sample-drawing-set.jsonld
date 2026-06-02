@@ -1,5 +1,5 @@
 {
-  "@context": "https://aecdrawingbot.com/ontology/v0.2.0/aecdo#",
+  "@context": "https://aecdrawingbot.com/ontology/v0.3.0/aecdo#",
   "@id": "urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "@type": "DrawingSet",
   "processedDate": "2026-04-10T14:30:00Z",
@@ -15,7 +15,7 @@
         {
           "@id": "urn:uuid:22222222-2222-2222-2222-222222222222",
           "@type": "Drawing",
-          "title": "Ground Floor Plan",
+          "label": "Ground Floor Plan",
           "scale": "1/4\" = 1'-0\"",
           "drawingType": "plan",
           "bbox": [72, 108, 720, 540],
@@ -83,7 +83,7 @@
         {
           "@id": "urn:uuid:99999999-9999-9999-9999-999999999999",
           "@type": "Table",
-          "title": "Door Schedule",
+          "label": "Door Schedule",
           "content": "Mark | Width | Height | Type | Hardware\nD101 | 3'-0\" | 7'-0\" | Single | Lever\nD102 | 6'-0\" | 7'-0\" | Double | Panic",
           "bbox": [72, 560, 400, 680]
         }
@@ -116,7 +116,7 @@
         {
           "@id": "urn:uuid:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
           "@type": "Drawing",
-          "title": "Section A",
+          "label": "Building Section A",
           "scale": "1/4\" = 1'-0\"",
           "drawingType": "section",
           "bbox": [72, 108, 400, 540],

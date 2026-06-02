@@ -66,7 +66,7 @@ function getReferenceRelationships(typeName, properties) {
 
 const lines = [];
 lines.push("---");
-lines.push("title: AEC DrawingBot 2.0 Ontology");
+lines.push("title: AEC DrawingBot Ontology");
 lines.push("---");
 lines.push("");
 lines.push("classDiagram");

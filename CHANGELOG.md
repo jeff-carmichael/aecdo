@@ -4,6 +4,15 @@ All notable changes to the AECDO schema and CLI will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-06-02
+
+### Schema
+- New ontology version `v0.3.0` (`ontology/v0.3.0/`)
+- BREAKING: renamed `title` → `label` on `Drawing` and `Table` to describe what the region is, distinct from the sheet's `title`. `Drawing.label` is required (replacing the previously required `title`); `Table.label` remains optional.
+- The sheet-level `title` field is unchanged.
+- Updated `context.jsonld` (added `label` term, kept `title` for the sheet) and `diagram.mmd`
+- CLI now validates against v0.3.0 by default. Drawing/Table display reads `label` with a `title` fallback for pre-v0.3.0 documents.
+
 ## [0.2.0] - 2026-05-12
 
 ### Schema

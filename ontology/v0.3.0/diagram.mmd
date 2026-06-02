@@ -16,7 +16,7 @@ classDiagram
     }
     class Drawing {
 		    +uuid4 @id
-		    +String title
+		    +String label
 		    +String scale
 		    +String drawingType
 		    +array bbox
@@ -34,7 +34,7 @@ classDiagram
     }
     class Table {
 		    +uuid4 @id
-		    +String title
+		    +String label
 		    +String content
 		    +array bbox
     }
@@ -43,12 +43,19 @@ classDiagram
 		    +String content
 		    +array bbox
     }
+    class Image {
+		    +uuid4 @id
+		    +String role
+		    +String caption
+		    +array bbox
+    }
 
 		%% Structure Relationships
     DrawingSet "1" --* "1..*" Sheet : contains
     Sheet "1" --* "0..*" Drawing : contains
     Sheet "1" --* "0..*" Table : contains
     Sheet "1" --* "0..*" Note : contains
+    Sheet "1" --* "0..*" Image : contains
     Drawing "1" --* "1..*" Layer : contains
     Layer "1" --* "1..*" Item : contains
 

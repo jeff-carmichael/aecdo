@@ -10,7 +10,7 @@ import { dirname, resolve } from "node:path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_SCHEMA_PATH = resolve(
   __dirname,
-  "../../../ontology/v0.2.0/aecdo.schema.json"
+  "../../../ontology/v0.3.0/aecdo.schema.json"
 );
 
 export async function loadSchema(customPath?: string): Promise<Record<string, unknown>> {

@@ -35,7 +35,7 @@ function buildRefResolver(data: DrawingSet): RefResolver {
   for (const s of data.sheets ?? []) {
     map.set(s["@id"], `Sheet ${s.sheetNumber} — ${s.title} (page ${s.pageIndex})`);
     for (const d of s.drawings ?? []) {
-      map.set(d["@id"], `${d.title} (${s.sheetNumber}, page ${s.pageIndex})`);
+      map.set(d["@id"], `${d.label ?? d.title} (${s.sheetNumber}, page ${s.pageIndex})`);
     }
   }
   return (id: string) => map.get(id) ?? id;
@@ -83,7 +83,7 @@ export function printPage(sheet: Sheet, data: DrawingSet): void {
 
 function printDrawing(d: Drawing, resolve: RefResolver): void {
   const meta = [d.drawingType, d.scale].filter(Boolean).join(", ");
-  console.log(`\n  Drawing: ${d.title}${meta ? ` [${meta}]` : ""}`);
+  console.log(`\n  Drawing: ${d.label ?? d.title}${meta ? ` [${meta}]` : ""}`);
   console.log(`    id:   ${d["@id"]}`);
   console.log(`    bbox: [${d.bbox.join(", ")}]`);
   if (d.references?.length) {
@@ -130,7 +130,7 @@ function printItem(item: Item, resolve: RefResolver): void {
 }
 
 function printTable(t: Table): void {
-  console.log(`\n    ${t.title ?? "Untitled Table"}`);
+  console.log(`\n    ${t.label ?? t.title ?? "Untitled Table"}`);
   console.log(`      id: ${t["@id"]}`);
   if (t.bbox) console.log(`      bbox: [${t.bbox.join(", ")}]`);
   console.log(`      ┌${"─".repeat(50)}┐`);

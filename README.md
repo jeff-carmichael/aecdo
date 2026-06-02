@@ -144,7 +144,7 @@ The schema is at **v0.2.0** (pre-release). Full definition: [`ontology/v0.2.0/ae
 
 ```mermaid
 ---
-title: AEC DrawingBot 2.0 Ontology
+title: AEC DrawingBot Ontology
 ---
 
 classDiagram

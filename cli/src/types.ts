@@ -18,7 +18,9 @@ export interface Layer {
 export interface Drawing {
   "@id": string;
   "@type": "Drawing";
-  title: string;
+  label: string;
+  /** @deprecated pre-v0.3.0 documents used `title`; read via `label` with this as fallback */
+  title?: string;
   drawingType?: "plan" | "section" | "elevation" | "detail";
   scale?: string;
   bbox: [number, number, number, number];
@@ -29,6 +31,8 @@ export interface Drawing {
 export interface Table {
   "@id": string;
   "@type": "Table";
+  label?: string;
+  /** @deprecated pre-v0.3.0 documents used `title`; read via `label` with this as fallback */
   title?: string;
   content: string;
   bbox?: [number, number, number, number];
