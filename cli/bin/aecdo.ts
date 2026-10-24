@@ -26,8 +26,9 @@ Commands:
   summary <file>      Print a concise summary of a drawing set
   sheets <file>       List all sheets (non-interactive; agent-friendly)
   page <file> <id>    Print one sheet by sheet number or page index
-  explore <file>      Browse sheets interactively (humans). Non-TTY / --format json
-                      falls back to listing sheets.
+  explore <file>      Browse interactively (humans): sheet → drawings/tables/notes/
+                      images → layers → items. Non-TTY / --format json falls
+                      back to listing sheets.
   configure           Set up API credentials and region
   process <pdf>       Upload a PDF, wait for processing, download the result
   upload <pdf>        Upload a PDF and return the job ID

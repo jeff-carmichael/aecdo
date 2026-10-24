@@ -4,6 +4,19 @@ All notable changes to the AECDO schema and CLI will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### CLI
+- `explore` is now a step-by-step drill-down: opening a sheet lists its drawings, tables, notes, and images as a numbered menu; drawings open into layers, layers into items, and leaf entries print their details. Navigate with `back`/`..`, `top`, `all`, `ls`, and `quit`.
+
+### Security
+- Updated `fast-uri` (via `ajv`) to 3.1.9 and `brace-expansion` (dev-only, via `eslint`) to 1.1.21 to resolve high-severity advisories
+
+### Fixed
+- `package.json` `exports` (`aecdo/schema`, `aecdo/context`) now point at `ontology/v0.3.0` instead of `v0.1.0`; package version bumped to `0.3.0` to match the latest release
+- `scripts/generate-diagram.mjs` and the pre-commit hook target `ontology/v0.3.0`, and the generator now includes the `Image` class
+- README schema version, Mermaid diagram, example JSON (`label` on Drawing), and explore walkthrough brought up to date
+
 ## [0.3.0] - 2026-06-02
 
 ### Schema

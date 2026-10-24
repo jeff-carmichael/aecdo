@@ -28,9 +28,9 @@ export async function page(
   printPage(sheet, data);
 }
 
-type RefResolver = (id: string) => string;
+export type RefResolver = (id: string) => string;
 
-function buildRefResolver(data: DrawingSet): RefResolver {
+export function buildRefResolver(data: DrawingSet): RefResolver {
   const map = new Map<string, string>();
   for (const s of data.sheets ?? []) {
     map.set(s["@id"], `Sheet ${s.sheetNumber} — ${s.title} (page ${s.pageIndex})`);
@@ -107,7 +107,7 @@ function printLayer(l: Layer, resolve: RefResolver): void {
   }
 }
 
-function printItem(item: Item, resolve: RefResolver): void {
+export function printItem(item: Item, resolve: RefResolver): void {
   const typeTag = item.itemType.toUpperCase();
   const label = (item.data as Record<string, unknown>).label ?? item["@id"];
   console.log(`\n      [${typeTag}] ${label}`);
@@ -129,7 +129,7 @@ function printItem(item: Item, resolve: RefResolver): void {
   }
 }
 
-function printTable(t: Table): void {
+export function printTable(t: Table): void {
   console.log(`\n    ${t.label ?? t.title ?? "Untitled Table"}`);
   console.log(`      id: ${t["@id"]}`);
   if (t.bbox) console.log(`      bbox: [${t.bbox.join(", ")}]`);
@@ -140,7 +140,7 @@ function printTable(t: Table): void {
   console.log(`      └${"─".repeat(50)}┘`);
 }
 
-function printNote(n: Note): void {
+export function printNote(n: Note): void {
   console.log(`\n    Note: ${n["@id"]}`);
   if (n.bbox) console.log(`      bbox: [${n.bbox.join(", ")}]`);
   for (const line of n.content.split("\n")) {
@@ -148,7 +148,7 @@ function printNote(n: Note): void {
   }
 }
 
-function printImage(img: Image): void {
+export function printImage(img: Image): void {
   console.log(`\n    [IMAGE:${img.role}] ${img.caption ?? img["@id"]}`);
   console.log(`      id:   ${img["@id"]}`);
   console.log(`      bbox: [${img.bbox.join(", ")}]`);

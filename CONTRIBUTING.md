@@ -60,7 +60,7 @@ Pre-1.0, minor versions may include breaking changes (per semver convention), bu
 
 ```bash
 # Copy current version as starting point
-cp -r ontology/v0.2.0 ontology/v0.3.0
+cp -r ontology/v0.3.0 ontology/v0.4.0
 
 # Update $id in the schema
 # Update @context URLs
@@ -84,7 +84,7 @@ Whenever you add, remove, rename, or restructure a type or field, walk this chec
 - `cli/src/lib/schema.ts` — bump `DEFAULT_SCHEMA_PATH` when creating a new version directory
 - `cli/src/commands/summary.ts` — count and report the new type/field if it's summary-worthy
 - `cli/src/commands/page.ts` — render the new type/field in the per-sheet view (add a `printX` helper if it's a new type)
-- `cli/src/commands/explore.ts` — only if interactive flow changes (rarely needed for additive changes)
+- `cli/src/commands/explore.ts` — add new sheet-level types to `sheetEntries`/`describeEntry` so they appear in the drill-down menu; new Drawing/Layer children need a new navigation level
 
 **Examples & fixtures:**
 - `examples/sample-drawing-set.jsonld` — bump the `@context` URL and include at least one instance of any new type/field
@@ -92,6 +92,8 @@ Whenever you add, remove, rename, or restructure a type or field, walk this chec
 
 **Docs & metadata:**
 - `README.md` — schema version references, Mermaid diagram, Types table, example JSON, Project Structure tree
+- `package.json` — `exports` paths for `./schema` and `./context`
+- `scripts/generate-diagram.mjs` and `.githooks/pre-commit` — schema/diagram paths and the `typeOrder` list of classes
 - `CHANGELOG.md` — a `Schema` entry under the new version describing what changed and why
 - `CLAUDE.md` — update the "Key paths" list and any data-model notes if shapes change
 - `.claude/skills/aecdo/SKILL.md` — update if new commands, fields, or types affect how agents should interact with the data
