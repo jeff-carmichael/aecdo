@@ -9,10 +9,25 @@ Thank you for your interest in contributing to the AEC Drawing Ontology. This gu
 3. Create a branch for your changes
 
 ```bash
-git clone https://github.com/jeff-carmichael/aecdo.git
+git clone https://github.com/<your-username>/aecdo.git
 cd aecdo
+npm install
+npm run setup          # enable the pre-commit hook (regenerates the diagram, checks CHANGELOG)
 git checkout -b your-feature-branch
 ```
+
+## Before You Open a PR
+
+CI runs these checks on every pull request. Run them locally first:
+
+| CI check | What it enforces | Run locally |
+|----------|------------------|-------------|
+| Build and test | TypeScript compiles and tests pass | `npm test` (builds first) |
+| ESLint | No lint errors in `cli/` | `npm run lint` |
+| diagram.mmd is up to date | the current schema's `diagram.mmd` matches the schema | `npm run diagram:check` (fix with `npm run diagram`) |
+| CHANGELOG updated | Any change under `ontology/` or `cli/src/` also updates `CHANGELOG.md` | add an entry under `[Unreleased]` |
+
+Fill in the PR template checklist when you open the PR.
 
 ## Project Structure
 
@@ -95,7 +110,7 @@ Whenever you add, remove, rename, or restructure a type or field, walk this chec
 - `package.json` — `exports` paths for `./schema` and `./context`
 - `scripts/generate-diagram.mjs` and `.githooks/pre-commit` — schema/diagram paths and the `typeOrder` list of classes
 - `CHANGELOG.md` — a `Schema` entry under the new version describing what changed and why
-- `CLAUDE.md` — update the "Key paths" list and any data-model notes if shapes change
+- `AGENTS.md` — update the "Key paths" list and any data-model notes if shapes change
 - `.claude/skills/aecdo/SKILL.md` — update if new commands, fields, or types affect how agents should interact with the data
 
 **Verify before opening a PR:**
@@ -152,9 +167,12 @@ If a command reads a file at runtime, embed it in `cli/bin/embed-assets.ts` too,
 
 1. Create `cli/src/commands/yourcommand.ts` exporting an async function
 2. Register it in `cli/bin/aecdo.ts` (import + switch case)
-3. Export from `cli/src/index.ts`
-4. Add tests
-5. Document in `SKILL.md` and `README.md`
+3. Add it to the `HELP` text in `cli/bin/aecdo.ts`
+4. Export from `cli/src/index.ts`
+5. Add tests next to the source (`cli/src/commands/yourcommand.test.ts`)
+6. Support `--format json` if the command produces output, so agents can use it
+7. Document it in `.claude/skills/aecdo/SKILL.md` and the README's Usage section
+8. Add a `CHANGELOG.md` entry under `[Unreleased]`
 
 ### Code Style
 
@@ -171,7 +189,14 @@ If a command reads a file at runtime, embed it in `cli/bin/embed-assets.ts` too,
 
 The tag triggers `.github/workflows/release.yml`, which checks that the tag matches `package.json`, builds binaries for all platforms, and publishes the GitHub Release with `checksums.txt`. Don't create the release by hand — the workflow will fail if it already exists.
 
-For schema-only releases, the tag should reflect the schema version. For CLI releases, use the CLI version. If both change together, use the schema version.
+### Package vs. schema versions
+
+The two are versioned independently:
+
+- **Package version** (`package.json`, release tags like `v0.3.1`) tracks the CLI and is what users install. Bump it for any release.
+- **Schema version** (`ontology/v<x.y.z>/`) tracks the ontology and changes only when the schema does (see [Versioning Policy](#versioning-policy)). A CLI release can ship without a schema change, e.g. package `0.3.1` validates against schema `v0.3.0`.
+
+When a release includes a new schema version, bump the package version at least as much (a new schema minor version means at least a new package minor version), and say which schema version the CLI validates against in the CHANGELOG.
 
 ## Reporting Issues
 
