@@ -103,9 +103,12 @@ aecdo process plans.pdf --then summary       # process and summarize
 
 `upload`, `status <jobId> --wait`, and `download <jobId>` run each step separately. Run `aecdo --help` for all options.
 
-### Update notifications
+### Updating
 
-Once a day, `aecdo` checks [GitHub Releases](https://github.com/jeff-carmichael/aecdo/releases) in the background for a newer version. The check never delays a command: it refreshes a cache at `~/.aecdo/update-check.json`, and the next run prints a notice to stderr (so piped stdout stays clean). It is skipped when stderr is not a terminal or `CI` is set. Turn it off with `NO_UPDATE_CHECK=1` or `--no-update-check`.
+Run `aecdo update` to replace the installed binary with the latest release. It downloads the build for your platform, checks it against the release's `checksums.txt`, and swaps it in. If the binary is in a folder you can't write to (such as `/usr/local/bin`), run `sudo aecdo update`. npm installs print `npm install -g aecdo@latest` instead.
+
+
+Once a day, `aecdo` checks [GitHub Releases](https://github.com/jeff-carmichael/aecdo/releases) in the background for a newer version. The check never delays a command: it refreshes a cache at `~/.aecdo/update-check.json`, and the next run prints a notice to stderr suggesting `aecdo update` (so piped stdout stays clean). It is skipped when stderr is not a terminal or `CI` is set. Turn it off with `NO_UPDATE_CHECK=1` or `--no-update-check`.
 
 ## Schema
 

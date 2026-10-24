@@ -84,5 +84,5 @@ test("formatUpdateBanner names both versions and the right upgrade path", () => 
   assert.match(npm, /Update available! v0\.3\.1 → v0\.4\.0/);
   assert.match(npm, /npm install -g aecdo@latest/);
   const bin = formatUpdateBanner("0.3.1", "0.4.0", true);
-  assert.match(bin, /install\.sh \| sh/);
+  assert.match(bin, /Run 'aecdo update' to upgrade\./);
 });

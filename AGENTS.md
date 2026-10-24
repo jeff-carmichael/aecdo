@@ -65,6 +65,8 @@ npx aecdo status <jobId> --wait              # poll until done
 npx aecdo download <jobId> -o result.jsonld  # download completed result
 ```
 
+`aecdo update` (`cli/src/commands/update.ts`) self-updates the standalone binary from GitHub Releases (checksum-verified, uses the system `tar` to unpack); for npm installs it only prints the npm command.
+
 ### Standalone binaries (Bun)
 
 ```bash

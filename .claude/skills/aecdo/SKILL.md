@@ -66,6 +66,14 @@ aecdo download <jobId> --then explore
 
 Downloads the JSON-LD result of a completed job. Results expire after 7 days.
 
+### Update the CLI
+
+```bash
+aecdo update
+```
+
+Replaces the standalone binary with the latest GitHub release after verifying its SHA-256 checksum. Prints "already the latest version" when current. If the install folder is not writable it exits 1 and suggests `sudo aecdo update`. For npm installs it only prints `npm install -g aecdo@latest`.
+
 ### Validate a file
 
 ```bash
