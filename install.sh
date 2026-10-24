@@ -4,7 +4,7 @@
 #   curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.sh | sh
 #
 # Environment overrides:
-#   AECDO_VERSION      release tag to install, e.g. v0.3.0 (default: latest)
+#   AECDO_VERSION      release tag to install, e.g. v0.3.1 (default: latest)
 #   AECDO_INSTALL_DIR  destination directory (default: /usr/local/bin)
 
 set -eu

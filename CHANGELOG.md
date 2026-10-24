@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-24
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
 - Standalone binaries via `bun build --compile`: `build:bin` (current platform) and `build:bin:<target>` / `build:bin:all` for macOS x64/arm64, Linux x64/arm64, and Windows x64. The Bun entry (`cli/bin/standalone.ts`) embeds the default schema and version so the binary needs no files beside it.
 - Release workflow (`.github/workflows/release.yml`) builds, packages, checksums, and publishes binaries on `v*` tags; `install.sh` installs the right binary via `curl -sSL … | sh`.
