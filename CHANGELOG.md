@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- Background update notifications: once every 24 hours a detached process checks GitHub Releases for a newer version and caches the result in `~/.aecdo/update-check.json`. When the cache shows a newer release, a notice prints to stderr after the command finishes, so commands are never delayed and piped stdout stays clean. Skipped when stderr is not a TTY or `CI` is set; opt out with `NO_UPDATE_CHECK=1`, `AECDO_NO_UPDATE_CHECK=1`, or `--no-update-check`.
+
 ## [0.3.1] - 2026-10-24
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.

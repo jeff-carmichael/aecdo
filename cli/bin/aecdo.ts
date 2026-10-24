@@ -14,6 +14,7 @@ import { status } from "../src/commands/status.js";
 import { download } from "../src/commands/download.js";
 import { processPdf } from "../src/commands/process.js";
 import { embedded } from "../src/lib/embedded.js";
+import { startUpdateNotifier, runUpdateCheckWorker, WORKER_ENV, NO_UPDATE_CHECK_FLAG } from "../src/lib/update-check.js";
 import type { DrawingSet, CommandOptions, ProcessOptions } from "../src/types.js";
 
 const HELP = `
@@ -43,6 +44,8 @@ Options:
   --format <fmt>      Output format: json, text (default: text)
   --pretty            Pretty-print JSON output
   --output, -o <file> Write output to a file instead of stdout
+  --no-update-check   Skip the daily check for a newer release
+                      (or set NO_UPDATE_CHECK=1)
 
 API Options:
   --poll <seconds>    Polling interval for status checks (default: 5)
@@ -64,8 +67,31 @@ Examples:
   aecdo download <jobId> -o result.jsonld
 `;
 
+async function getVersion(): Promise<string> {
+  return (
+    embedded.version ??
+    (JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf-8")) as { version: string }).version
+  );
+}
+
 async function main(): Promise<void> {
-  const args = process.argv.slice(2);
+  if (process.env[WORKER_ENV]) {
+    await runUpdateCheckWorker();
+    return;
+  }
+
+  const rawArgs = process.argv.slice(2);
+  const args = rawArgs.filter((a) => a !== NO_UPDATE_CHECK_FLAG);
+
+  try {
+    startUpdateNotifier({
+      currentVersion: await getVersion(),
+      standalone: embedded.version !== undefined,
+      args: rawArgs,
+    });
+  } catch {
+    // update checks must never break a command
+  }
 
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     console.log(HELP.trim());
@@ -73,10 +99,7 @@ async function main(): Promise<void> {
   }
 
   if (args.includes("--version") || args.includes("-v")) {
-    const version =
-      embedded.version ??
-      (JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf-8")) as { version: string }).version;
-    console.log(`aecdo v${version}`);
+    console.log(`aecdo v${await getVersion()}`);
     process.exit(0);
   }
 
