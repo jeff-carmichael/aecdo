@@ -103,6 +103,10 @@ aecdo process plans.pdf --then summary       # process and summarize
 
 `upload`, `status <jobId> --wait`, and `download <jobId>` run each step separately. Run `aecdo --help` for all options.
 
+### Update notifications
+
+Once a day, `aecdo` checks [GitHub Releases](https://github.com/jeff-carmichael/aecdo/releases) in the background for a newer version. The check never delays a command: it refreshes a cache at `~/.aecdo/update-check.json`, and the next run prints a notice to stderr (so piped stdout stays clean). It is skipped when stderr is not a terminal or `CI` is set. Turn it off with `NO_UPDATE_CHECK=1` or `--no-update-check`.
+
 ## Schema
 
 Current version: **v0.3.0** — [`ontology/v0.3.0/aecdo.schema.json`](ontology/v0.3.0/aecdo.schema.json). See [`examples/sample-drawing-set.jsonld`](examples/sample-drawing-set.jsonld) for a complete file.

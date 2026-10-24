@@ -133,6 +133,7 @@ for f in *.jsonld; do aecdo validate "$f" --format json; done
 | `--pretty` | Pretty-print JSON output |
 | `-o, --output <file>` | Write to file instead of stdout |
 | `--schema <path>` | Use a custom schema file for validation |
+| `--no-update-check` | Skip the daily background check for a newer release (or set `NO_UPDATE_CHECK=1`). Update notices go to stderr only, so stdout JSON is never affected. |
 
 ## API Options
 
