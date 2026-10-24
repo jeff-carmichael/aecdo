@@ -11,6 +11,17 @@ import {
   type RefResolver,
 } from "./page.js";
 import { sheets as sheetsCmd } from "./sheets.js";
+import {
+  ASSISTANTS,
+  assistantForMention,
+  createLlmModels,
+  isAssistantConfigured,
+  resolveAssistantModel,
+  type AssistantInfo,
+  type AssistantName,
+} from "../lib/llm.js";
+import { createAssistantSession, type AssistantSession } from "../lib/assistant.js";
+import type { MutableModels } from "@earendil-works/pi-ai";
 import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image, CommandOptions } from "../types.js";
 
 type View =
@@ -38,6 +49,10 @@ function plural(n: number, word: string): string {
 
 function drawingName(d: Drawing): string {
   return d.label ?? d.title ?? d["@id"];
+}
+
+function sheetHeader(s: Sheet): Record<string, unknown> {
+  return { sheetNumber: s.sheetNumber, title: s.title, pageIndex: s.pageIndex };
 }
 
 function itemLabel(item: Item): string {
@@ -84,6 +99,7 @@ const GROUP_TITLES: Record<SheetEntry["kind"], string> = {
 export class Explorer {
   private stack: View[] = [{ kind: "sheets" }];
   private resolve: RefResolver;
+  private lastShown: unknown;
 
   constructor(
     private data: DrawingSet,
@@ -119,6 +135,50 @@ export class Explorer {
     }
   }
 
+  /** The current view as structured data, for the AI assistant. */
+  context(): Record<string, unknown> {
+    const v = this.view;
+    const location = this.prompt().replace(/> $/, "");
+    const listing = this.capture(() => this.render()).join("\n").trim();
+    switch (v.kind) {
+      case "sheets":
+        return { view: "sheet list", location, listing };
+      case "sheet":
+        return { view: "sheet", location, listing, sheet: v.sheet };
+      case "drawing":
+        return { view: "drawing", location, listing, sheet: sheetHeader(v.sheet), drawing: v.drawing };
+      case "layer":
+        return {
+          view: "layer",
+          location,
+          listing,
+          sheet: sheetHeader(v.sheet),
+          drawing: { "@id": v.drawing["@id"], label: drawingName(v.drawing), drawingType: v.drawing.drawingType },
+          layer: v.layer,
+        };
+    }
+  }
+
+  /** Runs a command for the assistant; the user sees the same output as if they typed it. */
+  navigate(command: string): Record<string, unknown> {
+    this.lastShown = undefined;
+    this.handle(command);
+    const ctx = this.context();
+    return this.lastShown === undefined ? ctx : { ...ctx, shown: this.lastShown };
+  }
+
+  private capture(fn: () => void): string[] {
+    const lines: string[] = [];
+    const log = this.log;
+    this.log = (line = "") => lines.push(line);
+    try {
+      fn();
+    } finally {
+      this.log = log;
+    }
+    return lines;
+  }
+
   help(): void {
     this.log();
     if (this.view.kind === "sheets") {
@@ -129,6 +189,7 @@ export class Explorer {
     }
     if (this.view.kind === "sheet") this.log('  "all" prints everything on this sheet.');
     this.log('  "ls" reprints the current list, "quit" exits.');
+    this.log('  "@claude …" or "@chatgpt …" asks an AI assistant about this view.');
     this.log();
   }
 
@@ -207,12 +268,15 @@ export class Explorer {
         this.render();
         return;
       case "table":
+        this.lastShown = entry.value;
         printTable(entry.value);
         break;
       case "note":
+        this.lastShown = entry.value;
         printNote(entry.value);
         break;
       case "image":
+        this.lastShown = entry.value;
         printImage(entry.value);
         break;
     }
@@ -236,6 +300,7 @@ export class Explorer {
       this.log(`No item "${raw}". Pick 1–${items.length}, or "back".`);
       return;
     }
+    this.lastShown = item;
     printItem(item, this.resolve);
     this.log();
   }
@@ -308,6 +373,96 @@ export class Explorer {
   }
 }
 
+export interface Mention {
+  word: string;
+  assistant?: AssistantInfo;
+  text: string;
+}
+
+/** Parses "@claude what is on this sheet?" style input. */
+export function parseMention(input: string): Mention | null {
+  const m = /^@([a-z]+)\b[\s,:]*([\s\S]*)$/i.exec(input.trim());
+  if (!m) return null;
+  return { word: m[1], assistant: assistantForMention(m[1]), text: m[2].trim() };
+}
+
+export function nodeSupportsAssistant(version = process.versions.node, isBun = "bun" in process.versions): boolean {
+  if (isBun) return true;
+  const [major, minor] = version.split(".").map(Number);
+  return major > 22 || (major === 22 && minor >= 19);
+}
+
+class AssistantBridge {
+  private models?: MutableModels;
+  private sessions = new Map<AssistantName, AssistantSession>();
+  active?: AssistantSession;
+
+  constructor(
+    private data: DrawingSet,
+    private filePath: string,
+    private explorer: Explorer,
+    private ask: (q: string) => Promise<string>
+  ) {}
+
+  async run(mention: Mention): Promise<void> {
+    const info = mention.assistant;
+    if (!info) {
+      const names = Object.values(ASSISTANTS).map((a) => `@${a.name}`).join(" or ");
+      console.log(`Unknown assistant "@${mention.word}". Try ${names}.`);
+      return;
+    }
+    if (!mention.text) {
+      console.log(`Ask something after @${info.name}, e.g. "@${info.name} summarize this sheet".`);
+      return;
+    }
+    if (!nodeSupportsAssistant()) {
+      console.log(`The AI assistant needs Node.js 22.19 or newer (you have ${process.versions.node}), or the standalone aecdo binary.`);
+      return;
+    }
+
+    try {
+      const session = await this.session(info);
+      if (!session) return;
+      this.active = session;
+      console.log();
+      await session.ask(mention.text);
+      console.log();
+    } catch (err) {
+      console.log(`\n${info.label}: ${(err as Error).message}`);
+    } finally {
+      this.active = undefined;
+    }
+  }
+
+  private async session(info: AssistantInfo): Promise<AssistantSession | undefined> {
+    const existing = this.sessions.get(info.name);
+    if (existing) return existing;
+
+    this.models ??= await createLlmModels();
+    if (!(await isAssistantConfigured(this.models, info.name))) {
+      console.log(`${info.label} isn't set up yet. Run "aecdo configure ai" to sign in or add an API key.`);
+      return undefined;
+    }
+    const model = await resolveAssistantModel(this.models, info.name);
+    const session = await createAssistantSession(
+      {
+        data: this.data,
+        filePath: this.filePath,
+        cwd: process.cwd(),
+        view: this.explorer,
+        write: (text) => process.stdout.write(text),
+        print: (line) => console.log(line),
+        confirm: async (q) => /^y(es)?$/i.test((await this.ask(q)).trim()),
+      },
+      info,
+      this.models,
+      model
+    );
+    this.sessions.set(info.name, session);
+    return session;
+  }
+}
+
 export async function explore(data: DrawingSet, filePath: string, opts: CommandOptions = {}): Promise<void> {
   if (opts.format === "json" || !process.stdin.isTTY) {
     await sheetsCmd(data, filePath, opts);
@@ -330,10 +485,29 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const ask = (q: string) => new Promise<string>((res) => rl.question(q, res));
+  const assistant = new AssistantBridge(data, filePath, explorer, ask);
+
+  let closed = false;
+  rl.on("close", () => (closed = true));
+  rl.on("SIGINT", () => {
+    if (assistant.active) {
+      assistant.active.abort();
+      console.log("\n(stopped)");
+      return;
+    }
+    rl.close();
+    process.exit(130);
+  });
 
   let running = true;
-  while (running) {
-    running = explorer.handle(await ask(explorer.prompt()));
+  while (running && !closed) {
+    const input = await ask(explorer.prompt());
+    const mention = parseMention(input);
+    if (mention) {
+      await assistant.run(mention);
+      continue;
+    }
+    running = explorer.handle(input);
   }
 
   rl.close();

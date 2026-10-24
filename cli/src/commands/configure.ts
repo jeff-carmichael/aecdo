@@ -56,6 +56,7 @@ export async function configure(): Promise<void> {
 
   await saveConfig(clientId, clientSecret, region);
   console.log(`\nConfiguration saved to ${join(getConfigDir(), "config.json")}`);
+  console.log('Tip: run "aecdo configure ai" to use @claude or @chatgpt inside "aecdo explore".');
 
   rl.close();
 }
