@@ -22,7 +22,7 @@ AEC projects produce hundreds of drawing sheets — floor plans, sections, detai
 curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.sh | sh
 ```
 
-This downloads the right build for your OS and CPU from [GitHub Releases](https://github.com/jeff-carmichael/aecdo/releases), verifies its SHA256 checksum, and installs `aecdo` to `/usr/local/bin` (using `sudo` if needed). Set `AECDO_VERSION=v0.3.0` to pin a release or `AECDO_INSTALL_DIR=~/.local/bin` to install elsewhere. Windows users can download `aecdo-windows-x64.zip` from the releases page.
+This downloads the right build for your OS and CPU from [GitHub Releases](https://github.com/jeff-carmichael/aecdo/releases), verifies its SHA256 checksum, and installs `aecdo` to `/usr/local/bin` (using `sudo` if needed). Set `AECDO_VERSION=v0.3.1` to pin a release or `AECDO_INSTALL_DIR=~/.local/bin` to install elsewhere. Windows users can download `aecdo-windows-x64.zip` from the releases page.
 
 **From source:**
 
