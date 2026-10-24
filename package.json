@@ -13,6 +13,7 @@
   },
   "files": [
     "dist/",
+    "!dist/**/*.test.*",
     "ontology/",
     "examples/",
     ".claude/",
