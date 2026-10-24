@@ -18,7 +18,65 @@ curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.s
 
 Windows: download `aecdo-windows-x64.zip` from [Releases](https://github.com/jeff-carmichael/aecdo/releases).
 
+## Getting started
+
+### 1. Connect your DrawingBot API account (one time)
+
+```bash
+aecdo configure
+```
+
+Enter the Client ID and Client Secret from your [DrawingBot API](https://aecdrawingbot.com/api) account and pick a region. They are saved to `~/.aecdo/config.json`.
+
+### 2. Process a PDF
+
+```bash
+cd ~/Projects/my-building
+aecdo process
+```
+
+With no file name, `process` lists the PDFs in the current folder. Use ↑/↓ to move, type to filter, Enter to select, and Esc to cancel. You can also name the file directly: `aecdo process plans.pdf`.
+
+`process` uploads the PDF, shows progress while it is processed, and saves the result as `plans.jsonld` next to the PDF.
+
+### 3. Look at the result
+
+```bash
+aecdo summary plans.jsonld                   # counts of sheets, drawings, items
+aecdo explore plans.jsonld                   # browse sheet by sheet
+```
+
+### Optional: tab completion
+
+Set this up once and `aecdo process <Tab>` offers only PDFs (and folders), while `summary`, `explore`, and the other file commands offer only `.jsonld`/`.json` files.
+
+```bash
+echo 'eval "$(aecdo completion bash)"' >> ~/.bashrc                 # bash
+echo 'eval "$(aecdo completion zsh)"' >> ~/.zshrc                   # zsh
+aecdo completion fish > ~/.config/fish/completions/aecdo.fish       # fish
+```
+
+Open a new terminal afterwards. `aecdo completion` with no shell name uses your `$SHELL`.
+
 ## Usage
+
+Run `aecdo --help` for every command and option.
+
+### Process PDFs
+
+```bash
+aecdo process                                # pick a PDF in this folder
+aecdo process plans.pdf                      # upload, wait, save plans.jsonld next to the PDF
+aecdo process plans.pdf -o result.jsonld     # save to a different path
+aecdo process plans.pdf --then summary       # save, then summarize
+aecdo process plans.pdf --stdout             # print the JSON-LD instead of saving it
+```
+
+`process` overwrites an existing file at the save path. The PDF picker only appears in a terminal; in scripts and pipes a missing file name is an error.
+
+`upload`, `status <jobId> --wait`, and `download <jobId>` run each step separately, which is handy for scripts.
+
+### Work with JSON-LD files
 
 ```bash
 aecdo validate drawings.jsonld               # check a file against the schema
@@ -92,20 +150,6 @@ A101 › Ground Floor Plan › Walls> 1
 
 A101 › Ground Floor Plan › Walls> q
 ```
-
-### Process a PDF with the DrawingBot API
-
-```bash
-aecdo configure                              # one-time: enter API credentials and region
-aecdo process plans.pdf                      # upload, wait, save plans.jsonld next to the PDF
-aecdo process plans.pdf -o result.jsonld     # save to a different path
-aecdo process plans.pdf --then summary       # save, then summarize
-aecdo process plans.pdf --stdout             # print the JSON-LD instead of saving it
-```
-
-`process` saves the result by default and overwrites an existing file at that path.
-
-`upload`, `status <jobId> --wait`, and `download <jobId>` run each step separately. Run `aecdo --help` for all options.
 
 ### Updating
 

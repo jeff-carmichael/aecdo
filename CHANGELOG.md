@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### CLI
 - `aecdo process` now saves the result by default as `<pdf name>.jsonld` next to the PDF (e.g. `plans.pdf` → `plans.jsonld`) and prints the path to stderr. `-o` still picks a different path, and `--then` runs after the file is saved. Pass the new `--stdout` flag to print the JSON-LD to stdout without saving, which was the old default.
+- `aecdo process` and `aecdo upload` with no file now open an arrow-key picker of the PDFs in the current folder (type to filter, Enter to select, Esc to cancel). It only appears when stdin and stderr are terminals, so scripts still get the "No input file specified" error.
+- New `aecdo completion [bash|zsh|fish]` command prints a tab-completion script (shell detected from `$SHELL` if omitted). `process`/`upload` complete only PDFs, and `validate`/`summary`/`sheets`/`page`/`explore` only `.jsonld`/`.json` files; commands, flags, `--format`, and `--then` values complete too.
 
 ## [0.3.2] - 2026-10-24
 

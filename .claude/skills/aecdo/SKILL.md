@@ -39,6 +39,8 @@ aecdo process plans.pdf --stdout
 
 Uploads the PDF to the DrawingBot API, polls for completion with live progress, then downloads the JSON-LD result and saves it as `<pdf name>.jsonld` next to the PDF (e.g. `plans.pdf` → `plans.jsonld`), overwriting any existing file. The saved path is printed to stderr. Use `-o` to choose a different path, `--then` to also pipe into validate, summary, or explore, or `--stdout` to print the JSON-LD to stdout instead of saving a file.
 
+With no file in an interactive terminal, `process` and `upload` open an arrow-key picker of the PDFs in the current folder. Agents should always pass the file path: without a TTY a missing file is an error, not a prompt.
+
 ### Upload a PDF
 
 ```bash
@@ -74,6 +76,14 @@ aecdo update
 ```
 
 Replaces the standalone binary with the latest GitHub release after verifying its SHA-256 checksum. Prints "already the latest version" when current. If the install folder is not writable it exits 1 and suggests `sudo aecdo update`. For npm installs it only prints `npm install -g aecdo@latest`.
+
+### Shell tab completion
+
+```bash
+aecdo completion bash   # or zsh, fish; defaults to $SHELL
+```
+
+Prints a completion script for a human's shell (`process <Tab>` lists only PDFs). Install with `eval "$(aecdo completion bash)"` in `~/.bashrc` (zsh: `~/.zshrc`), or `aecdo completion fish > ~/.config/fish/completions/aecdo.fish`.
 
 ### Validate a file
 
