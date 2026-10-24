@@ -1,10 +1,9 @@
-import { resolve, basename } from "node:path";
-import { stat } from "node:fs/promises";
+import { resolve, basename, dirname, extname, join } from "node:path";
+import { stat, writeFile } from "node:fs/promises";
 import { loadConfig } from "../lib/config.js";
 import { getToken } from "../lib/auth.js";
 import { createUpload, uploadFile, getJobStatus, getJobResult, downloadResult } from "../lib/api.js";
 import { renderStatus, renderComplete, renderError } from "../lib/progress.js";
-import { output } from "../lib/output.js";
 import { validate } from "./validate.js";
 import { summary } from "./summary.js";
 import { explore } from "./explore.js";
@@ -14,7 +13,16 @@ function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms));
 }
 
+export function defaultResultPath(pdfPath: string): string {
+  const ext = extname(pdfPath);
+  return join(dirname(pdfPath), `${basename(pdfPath, ext)}.jsonld`);
+}
+
 export async function processPdf(filePath: string, opts: ProcessOptions): Promise<void> {
+  if (opts.stdout && opts.output) {
+    throw new Error("Use either --output or --stdout, not both.");
+  }
+
   const resolved = resolve(filePath);
 
   try {
@@ -54,8 +62,10 @@ export async function processPdf(filePath: string, opts: ProcessOptions): Promis
   process.stderr.write("\nDownloading result...\n");
   const content = await downloadResult(result.downloadUrl);
 
-  if (opts.output) {
-    await output(content, opts);
+  if (!opts.stdout) {
+    const outPath = opts.output ?? defaultResultPath(resolved);
+    await writeFile(outPath, content + "\n", "utf-8");
+    process.stderr.write(`Result saved to ${outPath}\n`);
   }
 
   if (opts.then) {
@@ -76,7 +86,7 @@ export async function processPdf(filePath: string, opts: ProcessOptions): Promis
     return;
   }
 
-  if (!opts.output) {
+  if (opts.stdout) {
     console.log(content);
   }
 }

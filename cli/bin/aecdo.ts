@@ -33,7 +33,8 @@ Commands:
                       images → layers → items. Non-TTY / --format json falls
                       back to listing sheets.
   configure           Set up API credentials and region
-  process <pdf>       Upload a PDF, wait for processing, download the result
+  process <pdf>       Upload a PDF, wait for processing, and save the result
+                      as <pdf name>.jsonld next to the PDF
   upload <pdf>        Upload a PDF and return the job ID
   status <jobId>      Check the status of a processing job
   download <jobId>    Download the result of a completed job
@@ -53,6 +54,7 @@ API Options:
   --poll <seconds>    Polling interval for status checks (default: 5)
   --wait              Wait for job completion (used with status)
   --then <command>    Pipe result into: validate, summary, explore
+  --stdout            process: print the result to stdout instead of saving it
 
 Examples:
   aecdo validate drawings.jsonld
@@ -64,6 +66,8 @@ Examples:
   aecdo configure
   aecdo process plans.pdf
   aecdo process plans.pdf --then summary
+  aecdo process plans.pdf -o result.jsonld
+  aecdo process plans.pdf --stdout | jq .sheets
   aecdo upload plans.pdf
   aecdo status <jobId> --wait
   aecdo download <jobId> -o result.jsonld
@@ -132,6 +136,7 @@ async function main(): Promise<void> {
         poll: { type: "string" },
         wait: { type: "boolean", default: false },
         then: { type: "string" },
+        stdout: { type: "boolean", default: false },
       },
       allowPositionals: true,
     });
@@ -148,6 +153,7 @@ async function main(): Promise<void> {
     poll: options.values.poll ? Number(options.values.poll) : undefined,
     wait: options.values.wait,
     then: options.values.then,
+    stdout: options.values.stdout,
   };
 
   try {

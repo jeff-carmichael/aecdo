@@ -139,4 +139,5 @@ export interface ProcessOptions extends CommandOptions {
   poll?: number;
   wait?: boolean;
   then?: string;
+  stdout?: boolean;
 }

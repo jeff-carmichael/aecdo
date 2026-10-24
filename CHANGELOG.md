@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- `aecdo process` now saves the result by default as `<pdf name>.jsonld` next to the PDF (e.g. `plans.pdf` → `plans.jsonld`) and prints the path to stderr. `-o` still picks a different path, and `--then` runs after the file is saved. Pass the new `--stdout` flag to print the JSON-LD to stdout without saving, which was the old default.
+
 ## [0.3.2] - 2026-10-24
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.

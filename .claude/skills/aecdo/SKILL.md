@@ -34,9 +34,10 @@ Prompts for Client ID, Client Secret, and region. Saves to `~/.aecdo/config.json
 aecdo process plans.pdf
 aecdo process plans.pdf --then summary
 aecdo process plans.pdf -o result.jsonld
+aecdo process plans.pdf --stdout
 ```
 
-Uploads the PDF to the DrawingBot API, polls for completion with live progress, then downloads the JSON-LD result. Use `--then` to pipe into validate, summary, or explore.
+Uploads the PDF to the DrawingBot API, polls for completion with live progress, then downloads the JSON-LD result and saves it as `<pdf name>.jsonld` next to the PDF (e.g. `plans.pdf` → `plans.jsonld`), overwriting any existing file. The saved path is printed to stderr. Use `-o` to choose a different path, `--then` to also pipe into validate, summary, or explore, or `--stdout` to print the JSON-LD to stdout instead of saving a file.
 
 ### Upload a PDF
 
@@ -150,3 +151,4 @@ for f in *.jsonld; do aecdo validate "$f" --format json; done
 | `--poll <seconds>` | Polling interval for status checks (default: 5) |
 | `--wait` | Wait for job completion (used with `status`) |
 | `--then <command>` | Pipe downloaded result into: validate, summary, explore |
+| `--stdout` | `process` only: print the result to stdout instead of saving `<pdf name>.jsonld` |
