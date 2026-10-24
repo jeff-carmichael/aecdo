@@ -91,7 +91,7 @@ Whenever you add, remove, rename, or restructure a type or field, walk this chec
 - Any other files under `examples/` — bump `@context` URLs
 
 **Docs & metadata:**
-- `README.md` — schema version references, Mermaid diagram, Types table, example JSON, Project Structure tree
+- `README.md` — schema version references, Mermaid diagram, Types table
 - `package.json` — `exports` paths for `./schema` and `./context`
 - `scripts/generate-diagram.mjs` and `.githooks/pre-commit` — schema/diagram paths and the `typeOrder` list of classes
 - `CHANGELOG.md` — a `Schema` entry under the new version describing what changed and why
@@ -130,11 +130,23 @@ npx aecdo --help
 npx aecdo validate examples/sample-drawing-set.jsonld
 ```
 
-### Tests
+### Tests and lint
 
 ```bash
 npm test
+npm run lint
 ```
+
+### Standalone binaries
+
+Requires [Bun](https://bun.sh). Binaries embed the schema and version, so they run without `node_modules` or `ontology/`.
+
+```bash
+bun run build:bin        # current platform → dist-bin/aecdo
+bun run build:bin:all    # darwin-x64, darwin-arm64, linux-x64, linux-arm64, windows-x64 → dist-bin/<target>/
+```
+
+If a command reads a file at runtime, embed it in `cli/bin/embed-assets.ts` too, or the binary will break.
 
 ### Adding a New Command
 
@@ -154,11 +166,10 @@ npm test
 
 ## Release Process
 
-1. Update `CHANGELOG.md` with the new version
-2. Update version in `package.json`
-3. Create a git tag: `git tag v0.1.0`
-4. Push the tag: `git push origin v0.1.0`
-5. Create a GitHub release from the tag
+1. In a PR, bump the version in `package.json` (`npm version <x.y.z> --no-git-tag-version`) and move the `[Unreleased]` entries in `CHANGELOG.md` under the new version
+2. After it merges, tag `main` and push the tag: `git tag v<x.y.z> && git push origin v<x.y.z>`
+
+The tag triggers `.github/workflows/release.yml`, which checks that the tag matches `package.json`, builds binaries for all platforms, and publishes the GitHub Release with `checksums.txt`. Don't create the release by hand — the workflow will fail if it already exists.
 
 For schema-only releases, the tag should reflect the schema version. For CLI releases, use the CLI version. If both change together, use the schema version.
 
