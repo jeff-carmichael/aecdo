@@ -50,7 +50,11 @@ export async function loadConfig(): Promise<ApiConfig> {
     // stat failed — permission check is best-effort
   }
 
-  const parsed = JSON.parse(raw);
+  const parsed = JSON.parse(raw) as {
+    clientId?: string;
+    clientSecret?: string;
+    region?: ApiRegion;
+  };
   const { clientId, clientSecret, region } = parsed;
 
   if (!clientId || !clientSecret) {

@@ -107,10 +107,15 @@ function printLayer(l: Layer, resolve: RefResolver): void {
   }
 }
 
+function formatValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  return JSON.stringify(value) ?? String(value);
+}
+
 export function printItem(item: Item, resolve: RefResolver): void {
   const typeTag = item.itemType.toUpperCase();
-  const label = (item.data as Record<string, unknown>).label ?? item["@id"];
-  console.log(`\n      [${typeTag}] ${label}`);
+  const label = item.data.label ?? item["@id"];
+  console.log(`\n      [${typeTag}] ${formatValue(label)}`);
   console.log(`        id:   ${item["@id"]}`);
   if (item.bbox) console.log(`        bbox: [${item.bbox.join(", ")}]`);
 
@@ -118,7 +123,7 @@ export function printItem(item: Item, resolve: RefResolver): void {
   if (dataEntries.length > 0) {
     console.log(`        data:`);
     for (const [key, value] of dataEntries) {
-      console.log(`          ${key}: ${value}`);
+      console.log(`          ${key}: ${formatValue(value)}`);
     }
   }
 

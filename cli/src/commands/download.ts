@@ -34,7 +34,7 @@ export async function download(jobId: string, opts: ProcessOptions): Promise<voi
   }
 
   if (opts.then) {
-    const data: DrawingSet = JSON.parse(content);
+    const data = JSON.parse(content) as DrawingSet;
     switch (opts.then) {
       case "validate":
         await validate(data, `job:${jobId}`, opts);

@@ -76,6 +76,7 @@ API credentials are stored at `~/.aecdo/config.json` (0o600 permissions). Tokens
 - ES modules (`import`/`export`), no CommonJS
 - No comments unless explaining a non-obvious "why"
 - Minimal dependencies (ajv for validation, native fetch for API calls)
+- Lint with `npm run lint` (ESLint flat config in `eslint.config.js`, `typescript-eslint` type-checked rules); CI enforces it
 - Use Node.js built-in test runner (`node --test`); tests live next to source as `cli/src/**/*.test.ts` and run via `npm test`
 
 ## Schema versioning

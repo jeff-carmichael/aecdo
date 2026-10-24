@@ -33,7 +33,7 @@
     "build:bin:all": "bun run build:bin:darwin-x64 && bun run build:bin:darwin-arm64 && bun run build:bin:linux-x64 && bun run build:bin:linux-arm64 && bun run build:bin:windows-x64",
     "prebuild": "node -e \"import('node:fs').then(f=>f.promises.rm('dist',{recursive:true,force:true}))\"",
     "test": "npm run build && node --test dist/src/**/*.test.js",
-    "lint": "eslint cli/src/",
+    "lint": "eslint cli/",
     "diagram": "node scripts/generate-diagram.mjs",
     "diagram:check": "node scripts/generate-diagram.mjs --check",
     "setup": "git config core.hooksPath .githooks",
@@ -46,7 +46,8 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "eslint": "^9.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.72.0"
   },
   "engines": {
     "node": ">=18.0.0"

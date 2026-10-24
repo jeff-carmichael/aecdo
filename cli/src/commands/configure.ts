@@ -13,10 +13,11 @@ export async function configure(): Promise<void> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const prompt = (q: string) => new Promise<string>((res) => rl.question(q, res));
 
-  let existing: { clientId?: string; clientSecret?: string; region?: string } | null = null;
+  type SavedConfig = { clientId?: string; clientSecret?: string; region?: string };
+  let existing: SavedConfig | null = null;
   try {
     const raw = await readFile(join(getConfigDir(), "config.json"), "utf-8");
-    existing = JSON.parse(raw);
+    existing = JSON.parse(raw) as SavedConfig;
   } catch {
     // no existing config
   }

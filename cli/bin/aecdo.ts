@@ -75,7 +75,7 @@ async function main(): Promise<void> {
   if (args.includes("--version") || args.includes("-v")) {
     const version =
       embedded.version ??
-      JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf-8")).version;
+      (JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf-8")) as { version: string }).version;
     console.log(`aecdo v${version}`);
     process.exit(0);
   }
@@ -173,7 +173,7 @@ async function main(): Promise<void> {
 
         let data: DrawingSet;
         try {
-          data = JSON.parse(fileContent);
+          data = JSON.parse(fileContent) as DrawingSet;
         } catch (err) {
           console.error(`Error: Invalid JSON in "${filePath}": ${(err as Error).message}`);
           process.exit(1);

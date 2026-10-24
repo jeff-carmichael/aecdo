@@ -10,7 +10,7 @@ function tokenCachePath(): string {
 async function loadCachedToken(): Promise<TokenCache | null> {
   try {
     const raw = await readFile(tokenCachePath(), "utf-8");
-    const cached: TokenCache = JSON.parse(raw);
+    const cached = JSON.parse(raw) as TokenCache;
     if (cached.accessToken && cached.expiresAt > Date.now()) {
       return cached;
     }
@@ -48,7 +48,7 @@ async function fetchToken(config: ApiConfig): Promise<TokenCache> {
     );
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as { access_token: string; expires_in: number };
   const expiresAt = Date.now() + data.expires_in * 1000 - 60_000;
 
   return { accessToken: data.access_token, expiresAt };

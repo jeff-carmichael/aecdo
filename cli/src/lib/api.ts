@@ -24,7 +24,7 @@ async function request<T>(url: string, token: string, init?: RequestInit): Promi
     const body = await response.text();
     let message: string;
     try {
-      message = JSON.parse(body).error ?? body;
+      message = (JSON.parse(body) as { error?: string }).error ?? body;
     } catch {
       message = body;
     }
