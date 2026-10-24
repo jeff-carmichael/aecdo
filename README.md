@@ -97,9 +97,13 @@ A101 › Ground Floor Plan › Walls> q
 
 ```bash
 aecdo configure                              # one-time: enter API credentials and region
-aecdo process plans.pdf -o result.jsonld     # upload, wait, download
-aecdo process plans.pdf --then summary       # process and summarize
+aecdo process plans.pdf                      # upload, wait, save plans.jsonld next to the PDF
+aecdo process plans.pdf -o result.jsonld     # save to a different path
+aecdo process plans.pdf --then summary       # save, then summarize
+aecdo process plans.pdf --stdout             # print the JSON-LD instead of saving it
 ```
+
+`process` saves the result by default and overwrites an existing file at that path.
 
 `upload`, `status <jobId> --wait`, and `download <jobId>` run each step separately. Run `aecdo --help` for all options.
 
