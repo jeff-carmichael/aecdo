@@ -6,6 +6,7 @@ const addFormats = _addFormats as unknown as typeof _addFormats.default;
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { embedded } from "./embedded.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_SCHEMA_PATH = resolve(
@@ -14,6 +15,7 @@ const DEFAULT_SCHEMA_PATH = resolve(
 );
 
 export async function loadSchema(customPath?: string): Promise<Record<string, unknown>> {
+  if (!customPath && embedded.schema) return embedded.schema;
   const schemaPath = customPath || DEFAULT_SCHEMA_PATH;
   const raw = await readFile(schemaPath, "utf-8");
   return JSON.parse(raw);

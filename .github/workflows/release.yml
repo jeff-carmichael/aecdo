@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  BUN_VERSION: 1.4.4
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { target: linux-x64,    runner: ubuntu-latest, smoke: true }
+          - { target: linux-arm64,  runner: ubuntu-latest, smoke: false }
+          - { target: windows-x64,  runner: ubuntu-latest, smoke: false }
+          # macOS binaries are built on macOS so they can be codesigned (required on Apple Silicon).
+          - { target: darwin-arm64, runner: macos-latest,  smoke: true }
+          - { target: darwin-x64,   runner: macos-latest,  smoke: false }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tag matches package.json version
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "v$PKG_VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version v$PKG_VERSION"
+            exit 1
+          fi
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Compile binary
+        run: bun run build:bin:${{ matrix.target }}
+
+      - name: Codesign (macOS)
+        if: startsWith(matrix.target, 'darwin-')
+        run: codesign --force --sign - dist-bin/${{ matrix.target }}/aecdo
+
+      - name: Smoke test
+        if: matrix.smoke
+        run: |
+          BIN=dist-bin/${{ matrix.target }}/aecdo
+          "$BIN" --version
+          cd "$RUNNER_TEMP"
+          "$GITHUB_WORKSPACE/$BIN" validate "$GITHUB_WORKSPACE/examples/sample-drawing-set.jsonld"
+
+      - name: Package
+        run: |
+          TARGET=${{ matrix.target }}
+          STAGE="$RUNNER_TEMP/aecdo-$TARGET"
+          mkdir -p "$STAGE" out
+          cp dist-bin/$TARGET/* LICENSE README.md "$STAGE/"
+          if [ "${TARGET#windows-}" != "$TARGET" ]; then
+            (cd "$STAGE" && zip -q -9 "$GITHUB_WORKSPACE/out/aecdo-$TARGET.zip" *)
+          else
+            tar -C "$STAGE" -czf "out/aecdo-$TARGET.tar.gz" .
+          fi
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecdo-${{ matrix.target }}
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          pattern: aecdo-*
+          merge-multiple: true
+
+      - name: Generate SHA256 checksums
+        working-directory: out
+        run: |
+          sha256sum aecdo-* > checksums.txt
+          cat checksums.txt
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FLAGS="--verify-tag --generate-notes --title $GITHUB_REF_NAME"
+          case "$GITHUB_REF_NAME" in *-*) FLAGS="$FLAGS --prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" $FLAGS out/*
