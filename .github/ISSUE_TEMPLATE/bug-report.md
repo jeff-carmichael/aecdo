@@ -26,6 +26,7 @@ assignees: ''
 
 ## Environment
 
-- OS:
-- Node.js version:
-- AECDO version:
+- OS and CPU (e.g. macOS arm64, Linux x64):
+- Install method: standalone binary / from source
+- `aecdo --version` output:
+- Node.js version (from source only):

@@ -10,18 +10,13 @@ Command-line tool for working with structured data extracted from Architecture, 
 
 ## Setup
 
-```bash
-npm install -g aecdo
-```
-
-Or from source:
+Check whether it's installed with `aecdo --version`. If not, install the standalone binary (macOS and Linux):
 
 ```bash
-git clone https://github.com/jeff-carmichael/aecdo.git
-cd aecdo
-npm install
-npm run build
+curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.sh | sh
 ```
+
+Inside a clone of the aecdo repo, you can instead run `npm install && npm run build` and use `npx aecdo` in place of `aecdo`.
 
 ## Commands
 
