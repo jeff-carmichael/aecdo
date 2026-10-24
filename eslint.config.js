@@ -14,6 +14,17 @@ export default tseslint.config(
     },
   },
   {
+    // Bun-only entry files are outside the tsc build; type-check them with their own config.
+    files: ["cli/bin/standalone.ts", "cli/bin/embed-assets.ts"],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: "./cli/tsconfig.bun.json",
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
     // node:test's test() returns a promise the runner tracks itself.
     files: ["cli/**/*.test.ts"],
     rules: { "@typescript-eslint/no-floating-promises": "off" },

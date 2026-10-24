@@ -13,6 +13,7 @@ import { upload } from "../src/commands/upload.js";
 import { status } from "../src/commands/status.js";
 import { download } from "../src/commands/download.js";
 import { processPdf } from "../src/commands/process.js";
+import { embedded } from "../src/lib/embedded.js";
 import type { DrawingSet, CommandOptions, ProcessOptions } from "../src/types.js";
 
 const HELP = `
@@ -72,10 +73,10 @@ async function main(): Promise<void> {
   }
 
   if (args.includes("--version") || args.includes("-v")) {
-    const pkg = JSON.parse(
-      await readFile(new URL("../../package.json", import.meta.url), "utf-8")
-    ) as { version: string };
-    console.log(`aecdo v${pkg.version}`);
+    const version =
+      embedded.version ??
+      (JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf-8")) as { version: string }).version;
+    console.log(`aecdo v${version}`);
     process.exit(0);
   }
 
