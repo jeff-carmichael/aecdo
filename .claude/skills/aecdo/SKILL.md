@@ -120,7 +120,7 @@ Prints everything on a sheet — drawings, layers, items with their data and ref
 aecdo explore examples/sample-drawing-set.jsonld
 ```
 
-Loads the file once, validates it, shows the inspection overview, then drops into an interactive prompt. Type a sheet number (e.g. `A101`) or page index (e.g. `0`) to see everything on that sheet. Type `list` to see sheets again, `quit` to exit.
+Loads the file once, validates it, shows the sheet list, then drops into a drill-down prompt. Type a sheet number (e.g. `A101`) or page index (e.g. `0`) to open a sheet: it lists the drawings, tables, notes, and images on that sheet as a numbered menu. Pick a number to dive in — a drawing opens its layers, a layer opens its items, and an item, table, note, or image prints its full details. Type `back` (or `..`) to go up a level, `top` to return to the sheet list, `all` on a sheet to print everything at once, `ls` to reprint the current list, and `quit` to exit.
 
 **Agents / non-interactive use:** `explore` detects when stdin is not a TTY or when `--format json` is passed and falls back to listing sheets, so it won't hang on the prompt. Prefer `sheets` and `page` for scripted workflows.
 

@@ -4,6 +4,11 @@ All notable changes to the AECDO schema and CLI will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### CLI
+- `explore` is now a step-by-step drill-down: opening a sheet lists its drawings, tables, notes, and images as a numbered menu; drawings open into layers, layers into items, and leaf entries print their details. Navigate with `back`/`..`, `top`, `all`, `ls`, and `quit`.
+
 ## [0.3.0] - 2026-06-02
 
 ### Schema
