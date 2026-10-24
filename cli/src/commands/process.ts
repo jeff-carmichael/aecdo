@@ -59,7 +59,7 @@ export async function processPdf(filePath: string, opts: ProcessOptions): Promis
   }
 
   if (opts.then) {
-    const data: DrawingSet = JSON.parse(content);
+    const data = JSON.parse(content) as DrawingSet;
     switch (opts.then) {
       case "validate":
         await validate(data, `job:${jobId}`, opts);

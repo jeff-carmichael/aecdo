@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### CLI
 - `explore` is now a step-by-step drill-down: opening a sheet lists its drawings, tables, notes, and images as a numbered menu; drawings open into layers, layers into items, and leaf entries print their details. Navigate with `back`/`..`, `top`, `all`, `ls`, and `quit`.
 
+- Added `eslint.config.js` (ESLint 9 flat config with `typescript-eslint` type-checked recommended rules); `npm run lint` now covers `cli/` and runs in CI. Parsed JSON and API responses are now explicitly typed.
+- Item labels and `data` values that are objects or arrays now print as JSON in `page`/`explore` instead of `[object Object]`.
+- Unhandled errors from the CLI entry point now print a message and exit with code 1 instead of an unhandled promise rejection.
+
 ### Security
 - Updated `fast-uri` (via `ajv`) to 3.1.9 and `brace-expansion` (dev-only, via `eslint`) to 1.1.21 to resolve high-severity advisories
 

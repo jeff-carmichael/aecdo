@@ -16,7 +16,7 @@ const DEFAULT_SCHEMA_PATH = resolve(
 export async function loadSchema(customPath?: string): Promise<Record<string, unknown>> {
   const schemaPath = customPath || DEFAULT_SCHEMA_PATH;
   const raw = await readFile(schemaPath, "utf-8");
-  return JSON.parse(raw);
+  return JSON.parse(raw) as Record<string, unknown>;
 }
 
 export function createValidator(schema: Record<string, unknown>) {

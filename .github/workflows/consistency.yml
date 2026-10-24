@@ -29,6 +29,20 @@ jobs:
             exit 1
           fi
 
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm run lint
+
   diagram:
     name: diagram.mmd is up to date
     runs-on: ubuntu-latest
