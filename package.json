@@ -1,6 +1,6 @@
 {
   "name": "aecdo",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "CLI and schema for processing AEC drawing data (JSON-LD) conforming to the AEC Drawing Ontology.",
   "license": "Apache-2.0",
   "type": "module",
@@ -8,8 +8,8 @@
     "aecdo": "./dist/bin/aecdo.js"
   },
   "exports": {
-    "./schema": "./ontology/v0.1.0/aecdo.schema.json",
-    "./context": "./ontology/v0.1.0/context.jsonld"
+    "./schema": "./ontology/v0.3.0/aecdo.schema.json",
+    "./context": "./ontology/v0.3.0/context.jsonld"
   },
   "files": [
     "dist/",

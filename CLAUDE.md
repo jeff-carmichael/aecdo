@@ -6,9 +6,9 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 
 ## Key paths
 
-- `ontology/v0.1.0/aecdo.schema.json` — the JSON Schema (source of truth)
-- `ontology/v0.1.0/context.jsonld` — JSON-LD context
-- `ontology/v0.1.0/diagram.mmd` — Mermaid class diagram
+- `ontology/v0.3.0/aecdo.schema.json` — the JSON Schema (source of truth)
+- `ontology/v0.3.0/context.jsonld` — JSON-LD context
+- `ontology/v0.3.0/diagram.mmd` — Mermaid class diagram
 - `cli/` — TypeScript CLI source (compiled to `dist/` via `npm run build`)
 - `cli/src/types.ts` — shared data model + API types (DrawingSet, ApiConfig, JobStatus, etc.)
 - `cli/src/lib/config.ts` — API credential storage and region-to-endpoint mapping
@@ -21,7 +21,7 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 
 ## Data model
 
-Hierarchy: **DrawingSet → Sheet → Drawing → Layer → Item**, plus Table and Note at the sheet level.
+Hierarchy: **DrawingSet → Sheet → Drawing → Layer → Item**, plus Table, Note, and Image at the sheet level.
 
 - All `@id` fields are UUID URNs (`urn:uuid:...`)
 - `bbox` is always `[xmin, ymin, xmax, ymax]` (4-element number array)
@@ -39,10 +39,12 @@ npx aecdo validate examples/sample-drawing-set.jsonld
 npx aecdo summary examples/sample-drawing-set.jsonld
 npx aecdo sheets examples/sample-drawing-set.jsonld --format json
 npx aecdo page examples/sample-drawing-set.jsonld A101
-npx aecdo explore examples/sample-drawing-set.jsonld   # interactive (humans)
+npx aecdo explore examples/sample-drawing-set.jsonld   # interactive drill-down (humans)
 ```
 
 Agent-friendly, non-interactive commands: `validate`, `summary`, `sheets`, `page` — all support `--format json`. `configure` is human-interactive by design. `explore` detects non-TTY stdin or `--format json` and falls back to listing sheets so it won't hang in scripts.
+
+`explore` is a drill-down navigator (`Explorer` class in `cli/src/commands/explore.ts`): sheet list → sheet contents (numbered drawings, tables, notes, images) → drawing layers → layer items → item detail. `back`/`..` goes up, `top` resets, `all` prints the full sheet via `printPage`. The `Explorer` takes an injectable logger so navigation is unit-tested without a TTY.
 
 ### API commands (requires DrawingBot API credentials)
 
@@ -65,7 +67,7 @@ API credentials are stored at `~/.aecdo/config.json` (0o600 permissions). Tokens
 - ES modules (`import`/`export`), no CommonJS
 - No comments unless explaining a non-obvious "why"
 - Minimal dependencies (ajv for validation, native fetch for API calls)
-- Use Node.js built-in test runner (`node --test`)
+- Use Node.js built-in test runner (`node --test`); tests live next to source as `cli/src/**/*.test.ts` and run via `npm test`
 
 ## Schema versioning
 

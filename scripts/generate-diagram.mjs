@@ -4,12 +4,12 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const schemaPath = resolve(__dirname, "../ontology/v0.1.0/aecdo.schema.json");
-const outputPath = resolve(__dirname, "../ontology/v0.1.0/diagram.mmd");
+const schemaPath = resolve(__dirname, "../ontology/v0.3.0/aecdo.schema.json");
+const outputPath = resolve(__dirname, "../ontology/v0.3.0/diagram.mmd");
 
 const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
 
-const typeOrder = ["DrawingSet", "Sheet", "Drawing", "Layer", "Item", "Table", "Note"];
+const typeOrder = ["DrawingSet", "Sheet", "Drawing", "Layer", "Item", "Table", "Note", "Image"];
 
 function getFields(properties, required = []) {
   const fields = [];

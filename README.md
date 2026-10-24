@@ -81,8 +81,8 @@ When stdin is not a TTY or `--format json` is passed, `explore` falls back to li
   A101 - Ground Floor Plan (page 0)
   A201 - Building Sections (page 1)
 
-Enter a sheet number or page index to view its contents.
-Type "list" to show sheets again, or "quit" to exit.
+  Enter a sheet number or page index to open it.
+  "ls" reprints the current list, "quit" exits.
 
 sheet> A101
 
@@ -90,13 +90,39 @@ sheet> A101
   Sheet A101 — Ground Floor Plan (page 0)
 ════════════════════════════════════════════════════════════
 
-  Drawing: Ground Floor Plan [plan, 1/4" = 1'-0"]
+  Drawings (1):
+     1. Ground Floor Plan [plan, 1/4" = 1'-0"] — 3 layers, 3 items
+
+  Tables (1):
+     2. Door Schedule — 3 rows
+
+  Notes (1):
+     3. 1. All dimensions are to face of finish unless noted otherw…
+
+  Images (1):
+     4. [logo] Firm logo in title block
+
+A101> 1
+
+  Drawing: Ground Floor Plan [plan, 1/4" = 1'-0"] (sheet A101)
     id:   urn:uuid:22222222-2222-2222-2222-222222222222
     bbox: [72, 108, 720, 540]
-    → Section A (A201, page 1)
+    → Building Section A (A201, page 1)
 
-    Layer: Walls (1 items)
-      bbox: [85, 120, 700, 520]
+  Layers (3):
+     1. Walls — 1 item
+     2. Doors & Windows — 1 item
+     3. Annotations — 1 item
+
+A101 › Ground Floor Plan> 1
+
+  Layer: Walls
+    bbox: [85, 120, 700, 520]
+
+  Items (1):
+     1. [THING] Exterior Wall
+
+A101 › Ground Floor Plan › Walls> 1
 
       [THING] Exterior Wall
         id:   urn:uuid:44444444-4444-4444-4444-444444444444
@@ -105,42 +131,16 @@ sheet> A101
           material: CMU 8"
           thickness: 8
 
-    Layer: Annotations (1 items)
-
-      [TAG] Section Cut A
-        id:   urn:uuid:88888888-8888-8888-8888-888888888888
-        bbox: [400, 300, 420, 320]
-        data:
-          referenceId: A/A201
-        → Section A (A201, page 1)
-
-  Tables (1):
-
-    Door Schedule
-      id: urn:uuid:99999999-9999-9999-9999-999999999999
-      bbox: [72, 560, 400, 680]
-      ┌──────────────────────────────────────────────────┐
-      │ Mark | Width | Height | Type | Hardware          │
-      │ D101 | 3'-0" | 7'-0" | Single | Lever            │
-      └──────────────────────────────────────────────────┘
-
-  Notes (1):
-
-    Note: urn:uuid:bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
-      bbox: [420, 560, 720, 650]
-      1. All dimensions are to face of finish unless noted otherwise.
-      2. Verify all dimensions in field prior to fabrication.
-
-sheet>
+A101 › Ground Floor Plan › Walls> q
 ```
 
 ## Schema Overview
 
-The schema is at **v0.2.0** (pre-release). Full definition: [`ontology/v0.2.0/aecdo.schema.json`](ontology/v0.2.0/aecdo.schema.json)
+The schema is at **v0.3.0** (pre-release). Full definition: [`ontology/v0.3.0/aecdo.schema.json`](ontology/v0.3.0/aecdo.schema.json)
 
 ### Hierarchy
 
-> The diagram source is at [`ontology/v0.2.0/diagram.mmd`](ontology/v0.2.0/diagram.mmd)
+> The diagram source is at [`ontology/v0.3.0/diagram.mmd`](ontology/v0.3.0/diagram.mmd)
 
 ```mermaid
 ---
@@ -150,49 +150,49 @@ title: AEC DrawingBot Ontology
 classDiagram
     class DrawingSet {
 		    +uuid4 @id
-        +Date date
-        +String filename
+		    +Date processedDate
+		    +String filename
     }
     class Sheet {
 		    +uuid4 @id
-        +String sheetNumber
-        +String title
-        +int pageIndex
+		    +String sheetNumber
+		    +String title
+		    +int pageIndex
     }
     class Drawing {
 		    +uuid4 @id
-        +String title
-        +String scale
-        +String drawingType
-        +array bbox
+		    +String label
+		    +String scale
+		    +String drawingType
+		    +array bbox
     }
     class Layer {
 		    +uuid4 @id
-        +String name
-        +array bbox
+		    +String name
+		    +array bbox
     }
     class Item {
 		    +uuid4 @id
-		    +Object data
 		    +String itemType
+		    +Object data
 		    +array bbox
     }
     class Table {
 		    +uuid4 @id
-        +String title
-        +String content
-        +array bbox
+		    +String label
+		    +String content
+		    +array bbox
     }
     class Note {
 		    +uuid4 @id
-        +String content
-        +array bbox
+		    +String content
+		    +array bbox
     }
     class Image {
 		    +uuid4 @id
-        +String role
-        +String caption
-        +array bbox
+		    +String role
+		    +String caption
+		    +array bbox
     }
 
 		%% Structure Relationships
@@ -202,11 +202,11 @@ classDiagram
     Sheet "1" --* "0..*" Note : contains
     Sheet "1" --* "0..*" Image : contains
     Drawing "1" --* "1..*" Layer : contains
-    Layer "1" --* "0..*" Item : contains
+    Layer "1" --* "1..*" Item : contains
 
     %% The Reference Relationships
+    Drawing "1" ..> "1..*" Drawing : references
     Item "1" ..> "1..*" Drawing : references
-    Drawing "1" ..> "1..*"  Drawing : references
 ```
 
 ### Types
@@ -226,7 +226,7 @@ classDiagram
 
 ```json
 {
-  "@context": "https://aecdrawingbot.com/ontology/v0.2.0/aecdo#",
+  "@context": "https://aecdrawingbot.com/ontology/v0.3.0/aecdo#",
   "@id": "urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "@type": "DrawingSet",
   "processedDate": "2026-04-10T14:30:00Z",
@@ -242,7 +242,7 @@ classDiagram
         {
           "@id": "urn:uuid:22222222-2222-2222-2222-222222222222",
           "@type": "Drawing",
-          "title": "Ground Floor Plan",
+          "label": "Ground Floor Plan",
           "drawingType": "plan",
           "bbox": [72, 108, 720, 540],
           "layers": [
@@ -273,13 +273,13 @@ classDiagram
 ```
 package.json            npm package root (publishes as "aecdo")
 ontology/               Schema definitions (versioned)
-  v0.2.0/
+  v0.3.0/
     aecdo.schema.json     JSON Schema for validation
     context.jsonld         JSON-LD context for linked data
     diagram.mmd            Mermaid class diagram of the ontology
 cli/                    CLI tool (TypeScript, compiled to dist/)
   bin/aecdo.ts            Entry point (npx aecdo)
-  src/commands/           validate, summary, explore, configure, upload, status, download, process
+  src/commands/           validate, summary, sheets, page, explore, configure, upload, status, download, process
   src/lib/                Schema loading, output utilities, API client, auth, config
 examples/               Sample JSON-LD files
 .claude/skills/aecdo/   Claude Code skill (auto-installed by postinstall)
