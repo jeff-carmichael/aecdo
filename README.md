@@ -16,6 +16,16 @@ AEC projects produce hundreds of drawing sheets — floor plans, sections, detai
 
 ### Install
 
+**Standalone binary** (macOS and Linux, no Node.js required):
+
+```bash
+curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.sh | sh
+```
+
+This downloads the right build for your OS and CPU from [GitHub Releases](https://github.com/jeff-carmichael/aecdo/releases), verifies its SHA256 checksum, and installs `aecdo` to `/usr/local/bin` (using `sudo` if needed). Set `AECDO_VERSION=v0.3.0` to pin a release or `AECDO_INSTALL_DIR=~/.local/bin` to install elsewhere. Windows users can download `aecdo-windows-x64.zip` from the releases page.
+
+**From source:**
+
 > **Coming soon:** `npm install -g aecdo` — the package will be published to npm as the primary installation method. For now, install from source:
 
 ```bash
@@ -279,6 +289,7 @@ ontology/               Schema definitions (versioned)
     diagram.mmd            Mermaid class diagram of the ontology
 cli/                    CLI tool (TypeScript, compiled to dist/)
   bin/aecdo.ts            Entry point (npx aecdo)
+  bin/standalone.ts       Entry point for Bun standalone binaries (embeds schema + version)
   src/commands/           validate, summary, sheets, page, explore, configure, upload, status, download, process
   src/lib/                Schema loading, output utilities, API client, auth, config
 examples/               Sample JSON-LD files
@@ -286,6 +297,18 @@ examples/               Sample JSON-LD files
 CONTRIBUTING.md         How to contribute (especially schema changes)
 CHANGELOG.md            Version history
 ```
+
+## Building standalone binaries
+
+Requires [Bun](https://bun.sh). Binaries embed the schema, so they run without `node_modules` or the `ontology/` directory.
+
+```bash
+npm install
+bun run build:bin        # current platform → dist-bin/aecdo
+bun run build:bin:all    # darwin-x64, darwin-arm64, linux-x64, linux-arm64, windows-x64 → dist-bin/<target>/
+```
+
+Pushing a `v*` tag (matching `package.json`'s version) runs `.github/workflows/release.yml`, which builds all targets, packages them as `.tar.gz` / `.zip`, writes `checksums.txt`, and publishes a GitHub Release.
 
 ## For AI Agents
 

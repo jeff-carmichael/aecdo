@@ -14,5 +14,6 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["bin/**/*.ts", "src/**/*.ts"]
+  "include": ["bin/**/*.ts", "src/**/*.ts"],
+  "exclude": ["bin/standalone.ts", "bin/embed-assets.ts"]
 }

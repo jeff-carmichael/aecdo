@@ -57,6 +57,15 @@ npx aecdo status <jobId> --wait              # poll until done
 npx aecdo download <jobId> -o result.jsonld  # download completed result
 ```
 
+### Standalone binaries (Bun)
+
+```bash
+bun run build:bin       # dist-bin/aecdo for the current platform
+bun run build:bin:all   # cross-compile all release targets into dist-bin/<target>/
+```
+
+`cli/bin/standalone.ts` is the Bun entry: it imports `embed-assets.ts` (bundles `package.json` version and the default schema into `cli/src/lib/embedded.ts`) before `aecdo.ts`. Both files are excluded from `tsc`. Any new runtime file read must also be embedded there or it will break the binary. Releases: push a `v*` tag matching `package.json` → `.github/workflows/release.yml`; users install with `install.sh`.
+
 After `npm install -g aecdo` (once published), `aecdo` works directly without `npx`.
 
 API credentials are stored at `~/.aecdo/config.json` (0o600 permissions). Tokens are cached at `~/.aecdo/token.json` (4-hour validity).
