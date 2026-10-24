@@ -24,7 +24,8 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `cli/src/lib/spreadsheet.ts`, `cli/src/lib/zip.ts` — dependency-free `.xlsx`/`.csv`/`.tsv` read and write; xlsx edits patch the sheet XML so formatting survives
 - `cli/src/lib/update-check.ts` — daily background check for newer GitHub releases (detached worker + cache at `~/.aecdo/update-check.json`, notice on stderr)
 - `package.json` — at repo root, npm-publishable as "aecdo"
-- `examples/sample-drawing-set.jsonld` — validates against the schema
+- `examples/sample-drawing-set.jsonld` — validates against the schema (small; used by unit tests)
+- `examples/maple-grove-library.jsonld` — detailed 19-sheet demo set (fictional library) for demos of `explore` and the assistant; `cli/src/lib/schema.test.ts` validates every file in `examples/`
 - `.claude/skills/aecdo/SKILL.md` — installable Claude Code skill
 - `scripts/postinstall.mjs` — copies the skill to `~/.claude/skills/` on a global npm install
 - `cli/bin/standalone.ts`, `cli/bin/embed-assets.ts` — Bun entry for standalone binaries (embeds schema + version)

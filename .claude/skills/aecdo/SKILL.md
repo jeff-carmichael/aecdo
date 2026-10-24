@@ -138,6 +138,8 @@ Loads the file once, validates it, shows the sheet list, then drops into a drill
 
 Humans can also type `@claude …` or `@chatgpt …` at the explore prompt to ask an AI assistant about the current view. The assistant can navigate, append notes to `notes.md`, and add rows or cells to a spreadsheet (`.xlsx`, `.csv`, `.tsv`) in the current folder. Set it up with `aecdo configure ai` (Sign in with ChatGPT, or an OpenAI/Anthropic API key; stored in `~/.aecdo/llm.json`). Both commands are interactive; agents should not run them.
 
+For a richer file to try commands on, `examples/maple-grove-library.jsonld` is a 19-sheet demo set (fictional library, all disciplines) with door, window, finish, equipment, and panel schedules.
+
 **Agents / non-interactive use:** `explore` detects when stdin is not a TTY or when `--format json` is passed and falls back to listing sheets, so it won't hang on the prompt. Prefer `sheets` and `page` for scripted workflows.
 
 ### Validate all JSON-LD files in a directory
