@@ -97,6 +97,7 @@ A101 › Ground Floor Plan › Walls> q
 
 ```bash
 aecdo configure                              # one-time: enter API credentials and region
+aecdo process                                # pick a PDF in this folder with the arrow keys
 aecdo process plans.pdf                      # upload, wait, save plans.jsonld next to the PDF
 aecdo process plans.pdf -o result.jsonld     # save to a different path
 aecdo process plans.pdf --then summary       # save, then summarize
@@ -104,6 +105,20 @@ aecdo process plans.pdf --stdout             # print the JSON-LD instead of savi
 ```
 
 `process` saves the result by default and overwrites an existing file at that path.
+
+Run `process` (or `upload`) with no file in a terminal to choose from the PDFs in the current folder: use ↑/↓ to move, type to filter, Enter to select, and Esc to cancel. In scripts and pipes (stdin or stderr not a terminal) a missing file is still an error.
+
+### Tab completion
+
+`aecdo completion <bash|zsh|fish>` prints a completion script; with no argument it uses your `$SHELL`. After installing it, `aecdo process <Tab>` offers only PDFs (and folders), and `summary`/`explore`/etc. offer only `.jsonld`/`.json` files.
+
+```bash
+echo 'eval "$(aecdo completion bash)"' >> ~/.bashrc                 # bash
+echo 'eval "$(aecdo completion zsh)"' >> ~/.zshrc                   # zsh
+aecdo completion fish > ~/.config/fish/completions/aecdo.fish       # fish
+```
+
+Open a new terminal afterwards.
 
 `upload`, `status <jobId> --wait`, and `download <jobId>` run each step separately. Run `aecdo --help` for all options.
 

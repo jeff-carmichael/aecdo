@@ -16,6 +16,8 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `cli/src/lib/config.ts` — API credential storage and region-to-endpoint mapping
 - `cli/src/lib/auth.ts` — OAuth token management with caching
 - `cli/src/lib/api.ts` — HTTP client for the DrawingBot API
+- `cli/src/lib/picker.ts` — arrow-key list picker (raw-mode stdin, draws on stderr) used when `process`/`upload` get no file in a TTY
+- `cli/src/commands/completion.ts` — bash/zsh/fish completion scripts for `aecdo completion`
 - `cli/src/lib/update-check.ts` — daily background check for newer GitHub releases (detached worker + cache at `~/.aecdo/update-check.json`, notice on stderr)
 - `package.json` — at repo root, npm-publishable as "aecdo"
 - `examples/sample-drawing-set.jsonld` — validates against the schema

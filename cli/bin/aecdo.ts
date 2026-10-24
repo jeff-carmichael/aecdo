@@ -14,6 +14,8 @@ import { status } from "../src/commands/status.js";
 import { download } from "../src/commands/download.js";
 import { processPdf } from "../src/commands/process.js";
 import { update, cleanupOldBinary } from "../src/commands/update.js";
+import { completion } from "../src/commands/completion.js";
+import { pick, listPdfs, canPrompt } from "../src/lib/picker.js";
 import { embedded } from "../src/lib/embedded.js";
 import { startUpdateNotifier, runUpdateCheckWorker, WORKER_ENV, NO_UPDATE_CHECK_FLAG } from "../src/lib/update-check.js";
 import type { DrawingSet, CommandOptions, ProcessOptions } from "../src/types.js";
@@ -33,12 +35,15 @@ Commands:
                       images → layers → items. Non-TTY / --format json falls
                       back to listing sheets.
   configure           Set up API credentials and region
-  process <pdf>       Upload a PDF, wait for processing, and save the result
-                      as <pdf name>.jsonld next to the PDF
-  upload <pdf>        Upload a PDF and return the job ID
+  process [pdf]       Upload a PDF, wait for processing, and save the result
+                      as <pdf name>.jsonld next to the PDF. With no file in a
+                      terminal, pick a PDF from the current folder.
+  upload [pdf]        Upload a PDF and return the job ID (picker as above)
   status <jobId>      Check the status of a processing job
   download <jobId>    Download the result of a completed job
   update              Update aecdo to the latest release
+  completion [shell]  Print a tab-completion script for bash, zsh, or fish
+                      (detected from $SHELL if omitted)
 
 Options:
   --help, -h          Show this help message
@@ -64,6 +69,7 @@ Examples:
   aecdo page drawings.jsonld 0 --format json
   aecdo explore drawings.jsonld
   aecdo configure
+  aecdo process
   aecdo process plans.pdf
   aecdo process plans.pdf --then summary
   aecdo process plans.pdf -o result.jsonld
@@ -72,6 +78,8 @@ Examples:
   aecdo status <jobId> --wait
   aecdo download <jobId> -o result.jsonld
   aecdo update
+  eval "$(aecdo completion bash)"      # add to ~/.bashrc (zsh: ~/.zshrc)
+  aecdo completion fish > ~/.config/fish/completions/aecdo.fish
 `;
 
 async function getVersion(): Promise<string> {
@@ -119,6 +127,16 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "completion") {
+    try {
+      completion(rest[0]);
+    } catch (err) {
+      console.error(`Error: ${(err as Error).message}`);
+      process.exit(1);
+    }
+    return;
+  }
+
   if (command === "update") {
     await update({ currentVersion: await getVersion(), standalone });
     return;
@@ -160,7 +178,20 @@ async function main(): Promise<void> {
     switch (command) {
       case "process":
       case "upload": {
-        const filePath = options.positionals[0];
+        let filePath = options.positionals[0];
+        if (!filePath && canPrompt()) {
+          const pdfs = await listPdfs(process.cwd());
+          if (pdfs.length === 0) {
+            console.error("Error: No input file specified, and no PDF files found in the current folder.");
+            process.exit(1);
+          }
+          const picked = await pick(pdfs, { title: `Select a PDF to ${command}:` });
+          if (picked === null) {
+            console.error("Cancelled.");
+            process.exit(130);
+          }
+          filePath = picked;
+        }
         if (!filePath) {
           console.error("Error: No input file specified.");
           console.error('Run "aecdo --help" for usage information.');
