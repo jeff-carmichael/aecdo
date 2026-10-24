@@ -13,6 +13,7 @@ import { upload } from "../src/commands/upload.js";
 import { status } from "../src/commands/status.js";
 import { download } from "../src/commands/download.js";
 import { processPdf } from "../src/commands/process.js";
+import { update, cleanupOldBinary } from "../src/commands/update.js";
 import { embedded } from "../src/lib/embedded.js";
 import { startUpdateNotifier, runUpdateCheckWorker, WORKER_ENV, NO_UPDATE_CHECK_FLAG } from "../src/lib/update-check.js";
 import type { DrawingSet, CommandOptions, ProcessOptions } from "../src/types.js";
@@ -36,6 +37,7 @@ Commands:
   upload <pdf>        Upload a PDF and return the job ID
   status <jobId>      Check the status of a processing job
   download <jobId>    Download the result of a completed job
+  update              Update aecdo to the latest release
 
 Options:
   --help, -h          Show this help message
@@ -65,6 +67,7 @@ Examples:
   aecdo upload plans.pdf
   aecdo status <jobId> --wait
   aecdo download <jobId> -o result.jsonld
+  aecdo update
 `;
 
 async function getVersion(): Promise<string> {
@@ -83,14 +86,15 @@ async function main(): Promise<void> {
   const rawArgs = process.argv.slice(2);
   const args = rawArgs.filter((a) => a !== NO_UPDATE_CHECK_FLAG);
 
-  try {
-    startUpdateNotifier({
-      currentVersion: await getVersion(),
-      standalone: embedded.version !== undefined,
-      args: rawArgs,
-    });
-  } catch {
-    // update checks must never break a command
+  const standalone = embedded.version !== undefined;
+  if (standalone && process.platform === "win32") await cleanupOldBinary();
+
+  if (args[0] !== "update") {
+    try {
+      startUpdateNotifier({ currentVersion: await getVersion(), standalone, args: rawArgs });
+    } catch {
+      // update checks must never break a command
+    }
   }
 
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
@@ -108,6 +112,11 @@ async function main(): Promise<void> {
 
   if (command === "configure") {
     await configure();
+    return;
+  }
+
+  if (command === "update") {
+    await update({ currentVersion: await getVersion(), standalone });
     return;
   }
 

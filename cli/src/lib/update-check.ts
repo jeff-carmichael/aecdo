@@ -107,7 +107,7 @@ export async function runUpdateCheckWorker(
 export function formatUpdateBanner(current: string, latest: string, standalone: boolean): string {
   const rule = "─".repeat(50);
   const how = standalone
-    ? "Re-run the install script to upgrade:\n  curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.sh | sh"
+    ? "Run 'aecdo update' to upgrade."
     : "Run 'npm install -g aecdo@latest' to upgrade.";
   return `\n${rule}\nUpdate available! v${current} → v${latest}\n${how}\nSet NO_UPDATE_CHECK=1 or pass ${NO_UPDATE_CHECK_FLAG} to hide this.\n${rule}\n`;
 }
