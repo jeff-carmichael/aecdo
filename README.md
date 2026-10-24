@@ -30,6 +30,69 @@ aecdo explore drawings.jsonld                # browse interactively
 
 Add `--format json` to any of these for machine-readable output.
 
+### Explore interactively
+
+`explore` opens a sheet list, then lets you drill down: sheet → drawings, tables, notes, and images → layers → items. Type a number to open an entry, `back` (or `..`) to go up, `top` for the sheet list, `all` to print a whole sheet, and `quit` to exit.
+
+```
+✓ sample-drawing-set.jsonld is valid against AECDO schema.
+
+  A101 - Ground Floor Plan (page 0)
+  A201 - Building Sections (page 1)
+
+  Enter a sheet number or page index to open it.
+  "ls" reprints the current list, "quit" exits.
+
+sheet> A101
+
+════════════════════════════════════════════════════════════
+  Sheet A101 — Ground Floor Plan (page 0)
+════════════════════════════════════════════════════════════
+
+  Drawings (1):
+     1. Ground Floor Plan [plan, 1/4" = 1'-0"] — 3 layers, 3 items
+
+  Tables (1):
+     2. Door Schedule — 3 rows
+
+  Notes (1):
+     3. 1. All dimensions are to face of finish unless noted otherw…
+
+  Images (1):
+     4. [logo] Firm logo in title block
+
+A101> 1
+
+  Drawing: Ground Floor Plan [plan, 1/4" = 1'-0"] (sheet A101)
+    id:   urn:uuid:22222222-2222-2222-2222-222222222222
+    bbox: [72, 108, 720, 540]
+    → Building Section A (A201, page 1)
+
+  Layers (3):
+     1. Walls — 1 item
+     2. Doors & Windows — 1 item
+     3. Annotations — 1 item
+
+A101 › Ground Floor Plan> 1
+
+  Layer: Walls
+    bbox: [85, 120, 700, 520]
+
+  Items (1):
+     1. [THING] Exterior Wall
+
+A101 › Ground Floor Plan › Walls> 1
+
+      [THING] Exterior Wall
+        id:   urn:uuid:44444444-4444-4444-4444-444444444444
+        bbox: [85, 120, 700, 130]
+        data:
+          material: CMU 8"
+          thickness: 8
+
+A101 › Ground Floor Plan › Walls> q
+```
+
 ### Process a PDF with the DrawingBot API
 
 ```bash
