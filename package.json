@@ -40,6 +40,8 @@
     "aecdo": "node dist/bin/aecdo.js"
   },
   "dependencies": {
+    "@earendil-works/pi-agent-core": "^1.4.0",
+    "@earendil-works/pi-ai": "^1.4.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1"
   },

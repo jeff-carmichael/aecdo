@@ -9,6 +9,7 @@ import { explore } from "../src/commands/explore.js";
 import { sheets } from "../src/commands/sheets.js";
 import { page } from "../src/commands/page.js";
 import { configure } from "../src/commands/configure.js";
+import { configureAi } from "../src/commands/configure-ai.js";
 import { upload } from "../src/commands/upload.js";
 import { status } from "../src/commands/status.js";
 import { download } from "../src/commands/download.js";
@@ -32,9 +33,14 @@ Commands:
   sheets <file>       List all sheets (non-interactive; agent-friendly)
   page <file> <id>    Print one sheet by sheet number or page index
   explore <file>      Browse interactively (humans): sheet → drawings/tables/notes/
-                      images → layers → items. Non-TTY / --format json falls
-                      back to listing sheets.
-  configure           Set up API credentials and region
+                      images → layers → items. Type "@claude …" or "@chatgpt …"
+                      to ask an AI assistant about the current view; it can
+                      navigate, take notes in notes.md, and fill in a
+                      spreadsheet (.xlsx/.csv/.tsv) in the current folder.
+                      Non-TTY / --format json falls back to listing sheets.
+  configure           Set up DrawingBot API credentials and region
+  configure ai        Sign in with ChatGPT or add an OpenAI/Anthropic API key
+                      for the explore assistant
   process [pdf]       Upload a PDF, wait for processing, and save the result
                       as <pdf name>.jsonld next to the PDF. With no file in a
                       terminal, pick a PDF from the current folder.
@@ -69,6 +75,7 @@ Examples:
   aecdo page drawings.jsonld 0 --format json
   aecdo explore drawings.jsonld
   aecdo configure
+  aecdo configure ai
   aecdo process
   aecdo process plans.pdf
   aecdo process plans.pdf --then summary
@@ -123,7 +130,8 @@ async function main(): Promise<void> {
   const rest = args.slice(1);
 
   if (command === "configure") {
-    await configure();
+    if (rest[0] === "ai") await configureAi();
+    else await configure();
     return;
   }
 

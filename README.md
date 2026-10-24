@@ -26,7 +26,7 @@ Windows: download `aecdo-windows-x64.zip` from [Releases](https://github.com/jef
 aecdo configure
 ```
 
-Enter the Client ID and Client Secret from your [DrawingBot API](https://aecdrawingbot.com/api) account and pick a region. They are saved to `~/.aecdo/config.json`.
+Enter the Client ID and Client Secret from your [DrawingBot API](https://aecdrawingbot.com/api) account and pick a region. They are saved to `~/.aecdo/config.json`. To use `@claude` or `@chatgpt` inside `explore`, also run `aecdo configure ai` (see [Ask Claude or ChatGPT while you explore](#ask-claude-or-chatgpt-while-you-explore)).
 
 ### 2. Process a PDF
 
@@ -100,6 +100,7 @@ Add `--format json` to any of these for machine-readable output.
 
   Enter a sheet number or page index to open it.
   "ls" reprints the current list, "quit" exits.
+  "@claude …" or "@chatgpt …" asks an AI assistant about this view.
 
 sheet> A101
 
@@ -150,6 +151,32 @@ A101 › Ground Floor Plan › Walls> 1
 
 A101 › Ground Floor Plan › Walls> q
 ```
+
+### Ask Claude or ChatGPT while you explore
+
+Inside `explore`, start a line with `@claude` or `@chatgpt` (also `@gpt`) to ask an AI assistant about what you're looking at. It sees the current view (the sheet, drawing, or layer on screen) and can:
+
+- **navigate** the drawing set with the same commands you type, so you watch it move;
+- **read** any other sheet without moving your view;
+- **take notes** by appending Markdown to `notes.md` in the current folder;
+- **fill in a spreadsheet** in the current folder: it looks for an existing `.xlsx`, `.csv`, or `.tsv` and works in that file's layout, or creates a new one. Before its first edit to an existing spreadsheet it asks `[y/N]`. Excel files are edited in place, so formatting, formulas, and other tabs are kept, and cells that hold formulas are never overwritten.
+
+```
+A101> @claude add every door in the schedule to doors.xlsx and note anything unusual
+```
+
+Press Ctrl+C to stop an answer. Each assistant keeps the conversation until you quit `explore`. File access is limited to the folder you ran `explore` from.
+
+Set it up once with:
+
+```bash
+aecdo configure ai
+```
+
+- **ChatGPT:** choose *Sign in with ChatGPT* to use your ChatGPT Plus or Pro plan (usage counts against your plan, and you can cap it per app in ChatGPT's settings), or enter an OpenAI API key.
+- **Claude:** enter an [Anthropic API key](https://console.anthropic.com/). Anthropic doesn't allow third-party tools to sign in with Claude Pro/Max accounts, so a key is the only option.
+
+`OPENAI_API_KEY` and `ANTHROPIC_API_KEY` environment variables work too. Credentials and model choices are saved to `~/.aecdo/llm.json` (readable only by you). The assistant needs the standalone binary or, for npm installs, Node.js 22.19 or newer. It is built on the open-source [pi](https://github.com/earendil-works/pi) `pi-ai` and `pi-agent-core` libraries.
 
 ### Updating
 

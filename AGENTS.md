@@ -18,6 +18,10 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `cli/src/lib/api.ts` — HTTP client for the DrawingBot API
 - `cli/src/lib/picker.ts` — arrow-key list picker (raw-mode stdin, draws on stderr) used when `process`/`upload` get no file in a TTY
 - `cli/src/commands/completion.ts` — bash/zsh/fish completion scripts for `aecdo completion`
+- `cli/src/lib/llm.ts` — AI assistant setup on pi-ai: Claude/ChatGPT mapping, default models, credential store at `~/.aecdo/llm.json`; pi is imported lazily (needs Node 22.19+)
+- `cli/src/lib/assistant.ts` — the `@claude`/`@chatgpt` agent in `explore` (pi-agent-core): system prompt, current-view context, and tools (navigate, read sheets, notes, spreadsheets) limited to the current folder
+- `cli/src/commands/configure-ai.ts` — `aecdo configure ai` (Sign in with ChatGPT, API keys, model choice)
+- `cli/src/lib/spreadsheet.ts`, `cli/src/lib/zip.ts` — dependency-free `.xlsx`/`.csv`/`.tsv` read and write; xlsx edits patch the sheet XML so formatting survives
 - `cli/src/lib/update-check.ts` — daily background check for newer GitHub releases (detached worker + cache at `~/.aecdo/update-check.json`, notice on stderr)
 - `package.json` — at repo root, npm-publishable as "aecdo"
 - `examples/sample-drawing-set.jsonld` — validates against the schema
@@ -54,7 +58,7 @@ npx aecdo explore examples/sample-drawing-set.jsonld   # interactive drill-down 
 
 Agent-friendly, non-interactive commands: `validate`, `summary`, `sheets`, `page` — all support `--format json`. `configure` is human-interactive by design. `explore` detects non-TTY stdin or `--format json` and falls back to listing sheets so it won't hang in scripts.
 
-`explore` is a drill-down navigator (`Explorer` class in `cli/src/commands/explore.ts`): sheet list → sheet contents (numbered drawings, tables, notes, images) → drawing layers → layer items → item detail. `back`/`..` goes up, `top` resets, `all` prints the full sheet via `printPage`. The `Explorer` takes an injectable logger so navigation is unit-tested without a TTY.
+`explore` is a drill-down navigator (`Explorer` class in `cli/src/commands/explore.ts`): sheet list → sheet contents (numbered drawings, tables, notes, images) → drawing layers → layer items → item detail. `back`/`..` goes up, `top` resets, `all` prints the full sheet via `printPage`. The `Explorer` takes an injectable logger so navigation is unit-tested without a TTY. Lines starting with `@claude`/`@chatgpt` go to the AI assistant (`cli/src/lib/assistant.ts`), which reads `Explorer.context()` and drives `Explorer.navigate()`; its tests use pi-ai's scripted `fauxProvider`, so no network or keys are needed.
 
 ### API commands (requires DrawingBot API credentials)
 
@@ -76,7 +80,7 @@ bun run build:bin       # dist-bin/aecdo for the current platform
 bun run build:bin:all   # cross-compile all release targets into dist-bin/<target>/
 ```
 
-`cli/bin/standalone.ts` is the Bun entry: it imports `embed-assets.ts` (bundles `package.json` version and the default schema into `cli/src/lib/embedded.ts`) before `aecdo.ts`. Both files are excluded from `tsc`. Any new runtime file read must also be embedded there or it will break the binary. Users install with `install.sh`.
+`cli/bin/standalone.ts` is the Bun entry: it imports `embed-assets.ts` (bundles `package.json` version and the default schema into `cli/src/lib/embedded.ts`, and registers pi's OAuth flows, which a compiled binary can't load dynamically) before `aecdo.ts`. Both files are excluded from `tsc`. Any new runtime file read must also be embedded there or it will break the binary. Users install with `install.sh`.
 
 API credentials are stored at `~/.aecdo/config.json` (0o600 permissions). Tokens are cached at `~/.aecdo/token.json` (4-hour validity).
 
@@ -85,7 +89,7 @@ API credentials are stored at `~/.aecdo/config.json` (0o600 permissions). Tokens
 - TypeScript with strict mode, compiled via `tsc`
 - ES modules (`import`/`export`), no CommonJS
 - No comments unless explaining a non-obvious "why"
-- Minimal dependencies (ajv for validation, native fetch for API calls)
+- Minimal dependencies (ajv for validation, native fetch for API calls, pi-ai/pi-agent-core for the AI assistant)
 - Lint with `npm run lint` (ESLint flat config in `eslint.config.js`, `typescript-eslint` type-checked rules); CI enforces it
 - Use Node.js built-in test runner (`node --test`); tests live next to source as `cli/src/**/*.test.ts` and run via `npm test`
 
