@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-24
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
 - Background update notifications: once every 24 hours a detached process checks GitHub Releases for a newer version and caches the result in `~/.aecdo/update-check.json`. When the cache shows a newer release, a notice prints to stderr after the command finishes, so commands are never delayed and piped stdout stays clean. Skipped when stderr is not a TTY or `CI` is set; opt out with `NO_UPDATE_CHECK=1`, `AECDO_NO_UPDATE_CHECK=1`, or `--no-update-check`.
 - New `aecdo update` command: downloads the latest release for the current platform, verifies it against the release's `checksums.txt`, and replaces the running standalone binary (on Windows the old `.exe` is moved aside and removed on the next run). npm installs are told to run `npm install -g aecdo@latest`. The update notice now suggests `aecdo update` for standalone installs.
