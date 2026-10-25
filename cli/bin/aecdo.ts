@@ -35,8 +35,10 @@ Commands:
   explore <file>      Browse interactively (humans): sheet → drawings/tables/notes/
                       images → layers → items. Type "@claude …" or "@chatgpt …"
                       to ask an AI assistant about the current view; it can
-                      navigate, take notes in notes.md, and fill in a
-                      spreadsheet (.xlsx/.csv/.tsv) in the current folder.
+                      navigate, open the page view, take notes in notes.md,
+                      and fill in a spreadsheet (.xlsx/.csv/.tsv) in the
+                      current folder. An AGENTS.md in the folder adds
+                      your own instructions for the assistant.
                       Type "view" to open the PDF page with the current
                       drawing, layer, or item outlined in red (--pdf <file>
                       if the PDF isn't next to the .jsonld).

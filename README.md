@@ -174,6 +174,16 @@ Inside `explore`, start a line with `@claude` or `@chatgpt` (also `@gpt`) to ask
 A101> @claude add every door in the schedule to doors.xlsx and note anything unusual
 ```
 
+To give the assistant standing instructions for a project, put an `AGENTS.md` in the folder you run `explore` from, for example:
+
+```markdown
+- Log every coordination issue as a row in rfi-log.xlsx (Sheet, Item, Issue).
+- Check door hardware sets against the hardware schedule on A601.
+- Use our office terms: "RCP" for reflected ceiling plan.
+```
+
+It's read when you first ask an assistant something in a session (restart `explore` after editing it), and the assistant prints `Using AGENTS.md from this folder`.
+
 Press Ctrl+C to stop an answer. Each assistant keeps the conversation until you quit `explore`. File access is limited to the folder you ran `explore` from.
 
 Set it up once with:
@@ -276,6 +286,8 @@ classDiagram
 | **Table** | A schedule or table with pipe-delimited content |
 | **Note** | A general notes text block |
 | **Image** | A raster image on a sheet (`logo`, `photo`, `detail-raster`, `diagram`, `other`); image bytes are not stored |
+
+Every `bbox` is `[xmin, ymin, xmax, ymax]` in PDF points (1/72 inch), measured from the top-left corner of the page as displayed (after any rotation), with y increasing downward. Values are not normalized, so the range follows the page size: a 36 × 24 in ARCH D sheet runs 0–2592 × 0–1728.
 
 ## Using with Claude Code
 

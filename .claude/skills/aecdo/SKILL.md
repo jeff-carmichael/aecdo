@@ -136,7 +136,7 @@ aecdo explore examples/sample-drawing-set.jsonld
 
 Loads the file once, validates it, shows the sheet list, then drops into a drill-down prompt. Type a sheet number (e.g. `A101`) or page index (e.g. `0`) to open a sheet: it lists the drawings, tables, notes, and images on that sheet as a numbered menu. Pick a number to dive in — a drawing opens its layers, a layer opens its items, and an item, table, note, or image prints its full details. Type `back` (or `..`) to go up a level, `top` to return to the sheet list, `all` on a sheet to print everything at once, `view` to open the PDF page with the current drawing, layer, or item outlined in red (needs the source PDF next to the `.jsonld`, or `--pdf <file>`), `ls` to reprint the current list, and `quit` to exit.
 
-Humans can also type `@claude …` or `@chatgpt …` at the explore prompt to ask an AI assistant about the current view. The assistant can navigate, open the page view with a red box (like `view`), append notes to `notes.md`, and add rows or cells to a spreadsheet (`.xlsx`, `.csv`, `.tsv`) in the current folder. Set it up with `aecdo configure ai` (Sign in with ChatGPT, or an OpenAI/Anthropic API key; stored in `~/.aecdo/llm.json`). Both commands are interactive; agents should not run them.
+Humans can also type `@claude …` or `@chatgpt …` at the explore prompt to ask an AI assistant about the current view. The assistant can navigate, open the page view with a red box (like `view`), append notes to `notes.md`, and add rows or cells to a spreadsheet (`.xlsx`, `.csv`, `.tsv`) in the current folder. An `AGENTS.md` in the folder where `explore` runs is added to the assistant's instructions. Set it up with `aecdo configure ai` (Sign in with ChatGPT, or an OpenAI/Anthropic API key; stored in `~/.aecdo/llm.json`). Both commands are interactive; agents should not run them.
 
 For a richer file to try commands on, `examples/maple-grove-library.jsonld` is a 19-sheet demo set (fictional library, all disciplines) with door, window, finish, equipment, and panel schedules.
 
@@ -147,6 +147,12 @@ For a richer file to try commands on, `examples/maple-grove-library.jsonld` is a
 ```bash
 for f in *.jsonld; do aecdo validate "$f" --format json; done
 ```
+
+## Data model
+
+A file is a **DrawingSet → Sheet → Drawing → Layer → Item** tree, with Tables, Notes, and Images directly on each Sheet. `pageIndex` is the zero-based page in the source PDF. Items are `tag` (annotations, symbols), `thing` (physical elements), or `area` (regions); their `data` object is freeform. Table `content` is pipe-delimited rows separated by newlines. `references` hold `@id`s of other entities (e.g. a section tag pointing to its section drawing).
+
+Every `bbox` is `[xmin, ymin, xmax, ymax]` in PDF points (1/72 inch) from the top-left corner of the page as displayed (after any rotation), y increasing downward, not normalized. Divide by 72 for inches; on a 72 DPI render of the page, one pixel is one point. Use bboxes to tell where things sit relative to each other (e.g. which tags fall inside a drawing's box).
 
 ## Common Options
 

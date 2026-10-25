@@ -19,7 +19,7 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `cli/src/lib/picker.ts` — arrow-key list picker (raw-mode stdin, draws on stderr) used when `process`/`upload` get no file in a TTY
 - `cli/src/commands/completion.ts` — bash/zsh/fish completion scripts for `aecdo completion`
 - `cli/src/lib/llm.ts` — AI assistant setup on pi-ai: Claude/ChatGPT mapping, default models, credential store at `~/.aecdo/llm.json`; pi is imported lazily (needs Node 22.19+)
-- `cli/src/lib/assistant.ts` — the `@claude`/`@chatgpt` agent in `explore` (pi-agent-core): system prompt, current-view context, and tools (navigate, read sheets, notes, spreadsheets) limited to the current folder
+- `cli/src/lib/assistant.ts` — the `@claude`/`@chatgpt` agent in `explore` (pi-agent-core): system prompt, current-view context, and tools (navigate, read sheets, `show_page`, notes, spreadsheets) limited to the current folder; appends an `AGENTS.md` from the cwd (if any) to the system prompt
 - `cli/src/commands/configure-ai.ts` — `aecdo configure ai` (Sign in with ChatGPT, API keys, model choice)
 - `cli/src/lib/page-view.ts` — `view` in `explore`: finds the source PDF, copies the page with pdf-lib, draws the red bbox (top-left PDF points, rotation-aware), rasterizes with `pdftoppm`/`mutool` when installed
 - `cli/src/lib/spreadsheet.ts`, `cli/src/lib/zip.ts` — dependency-free `.xlsx`/`.csv`/`.tsv` read and write; xlsx edits patch the sheet XML so formatting survives
@@ -40,7 +40,7 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 Hierarchy: **DrawingSet → Sheet → Drawing → Layer → Item**, plus Table, Note, and Image at the sheet level.
 
 - All `@id` fields are UUID URNs (`urn:uuid:...`)
-- `bbox` is always `[xmin, ymin, xmax, ymax]` (4-element number array)
+- `bbox` is always `[xmin, ymin, xmax, ymax]` (4-element number array) in PDF points (1/72 in), measured from the top-left of the page as displayed (after /Rotate), y down; not normalized
 - Item types: `tag` (annotations/symbols), `thing` (physical elements), `area` (regions)
 - Drawing types: `plan`, `section`, `elevation`, `detail`
 - Item `data` is a freeform object — contents vary by what was extracted
@@ -60,7 +60,7 @@ npx aecdo explore examples/sample-drawing-set.jsonld   # interactive drill-down 
 
 Agent-friendly, non-interactive commands: `validate`, `summary`, `sheets`, `page` — all support `--format json`. `configure` is human-interactive by design. `explore` detects non-TTY stdin or `--format json` and falls back to listing sheets so it won't hang in scripts.
 
-`explore` is a drill-down navigator (`Explorer` class in `cli/src/commands/explore.ts`): sheet list → sheet contents (numbered drawings, tables, notes, images) → drawing layers → layer items → item detail. `back`/`..` goes up, `top` resets, `all` prints the full sheet via `printPage`. The `Explorer` takes an injectable logger so navigation is unit-tested without a TTY. Lines starting with `@claude`/`@chatgpt` go to the AI assistant (`cli/src/lib/assistant.ts`), which reads `Explorer.context()` and drives `Explorer.navigate()`; its tests use pi-ai's scripted `fauxProvider`, so no network or keys are needed.
+`explore` is a drill-down navigator (`Explorer` class in `cli/src/commands/explore.ts`): sheet list → sheet contents (numbered drawings, tables, notes, images) → drawing layers → layer items → item detail. `back`/`..` goes up, `top` resets, `all` prints the full sheet via `printPage`. `view`/`/view` (handled in the input loop by `PageViewer`, not `Explorer.handle`) opens the PDF page with `Explorer.viewTarget()` outlined in red; the assistant reaches it through its `show_page` tool. The `Explorer` takes an injectable logger so navigation is unit-tested without a TTY. Lines starting with `@claude`/`@chatgpt` go to the AI assistant (`cli/src/lib/assistant.ts`), which reads `Explorer.context()` and drives `Explorer.navigate()`; its tests use pi-ai's scripted `fauxProvider`, so no network or keys are needed.
 
 ### API commands (requires DrawingBot API credentials)
 
@@ -91,7 +91,7 @@ API credentials are stored at `~/.aecdo/config.json` (0o600 permissions). Tokens
 - TypeScript with strict mode, compiled via `tsc`
 - ES modules (`import`/`export`), no CommonJS
 - No comments unless explaining a non-obvious "why"
-- Minimal dependencies (ajv for validation, native fetch for API calls, pi-ai/pi-agent-core for the AI assistant)
+- Minimal dependencies (ajv for validation, native fetch for API calls, pi-ai/pi-agent-core for the AI assistant, pdf-lib for `view`)
 - Lint with `npm run lint` (ESLint flat config in `eslint.config.js`, `typescript-eslint` type-checked rules); CI enforces it
 - Use Node.js built-in test runner (`node --test`); tests live next to source as `cli/src/**/*.test.ts` and run via `npm test`
 
