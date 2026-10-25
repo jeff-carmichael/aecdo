@@ -1,16 +1,19 @@
 # AECDO — AEC Drawing Ontology
 
-An open schema and CLI for structured data extracted from Architecture, Engineering, and Construction (AEC) drawings.
+An open schema and open-source CLI for structured data extracted from Architecture, Engineering, and Construction (AEC) drawings.
 
-Tools like [AEC DrawingBot](https://aecdrawingbot.com) use AI to turn drawing sets (floor plans, sections, details, schedules) into JSON-LD files. AECDO defines that format and provides:
+- **The schema** defines a JSON-LD format for drawing sets: sheets, drawings, layers, items like door tags and walls, schedules, and notes, each with its location on the page.
+- **The `aecdo` CLI** works with any JSON-LD file that matches the schema, whichever tool produced it. Validate and summarize files, explore them sheet by sheet, see any selection outlined on the PDF page, and ask Claude or ChatGPT about the drawings.
+- **A [Claude Code skill](.claude/skills/aecdo/SKILL.md)** lets AI agents work with the data.
 
-- **A schema** for validating extracted drawing data
-- **A CLI** to process PDFs through the [DrawingBot API](https://aecdrawingbot.com/api), explore the results sheet by sheet, see any selection outlined on the PDF page, and ask Claude or ChatGPT about the drawings
-- **A [Claude Code skill](.claude/skills/aecdo/SKILL.md)** so AI agents can work with the data
+The CLI also includes an optional wrapper for the [DrawingBot](https://aecdrawingbot.com) API, which turns PDFs into AECDO files.
+
+> [!IMPORTANT]
+> **The DrawingBot API isn't available yet.** `aecdo process`, `upload`, `status`, `download`, and `configure` will work once it launches. Everything else works today with any AECDO JSON-LD file, including the [demo set](examples/maple-grove-library.jsonld).
 
 ## 📖 [Read the Getting Started guide](https://jeff-carmichael.github.io/aecdo/)
 
-The guide covers installing on every platform, processing PDFs, exploring a drawing set, the AI assistant, a walkthrough of the demo set, the data model and bbox coordinates, and using `aecdo` with Claude Code. Its source is in [`docs/`](docs/).
+The guide covers installing on every platform, exploring a drawing set, the AI assistant, a walkthrough of the demo set, the data model and bbox coordinates, using `aecdo` with Claude Code, and processing PDFs. Its source is in [`docs/`](docs/).
 
 ## Install
 
@@ -31,12 +34,12 @@ See [Install and update](https://jeff-carmichael.github.io/aecdo/install.html) f
 ## Quick start
 
 ```bash
-aecdo configure            # connect your DrawingBot API account (once)
-aecdo process              # pick a PDF in this folder; saves plans.jsonld next to plans.pdf
-aecdo explore plans.jsonld # browse it; type "view" to see the page, "@claude …" to ask
+aecdo explore maple-grove-library.jsonld            # browse the 19-sheet demo set
+aecdo validate plans.jsonld                          # check your own file against the schema
+aecdo explore plans.jsonld                           # type "view" to see the page, "@claude …" to ask
 ```
 
-No account yet? Try the 19-sheet demo set: `aecdo explore examples/maple-grove-library.jsonld`, and follow the [demo walkthrough](https://jeff-carmichael.github.io/aecdo/demo.html). Run `aecdo --help` for every command.
+Download the demo set from [`examples/maple-grove-library.jsonld`](examples/maple-grove-library.jsonld) and follow the [demo walkthrough](https://jeff-carmichael.github.io/aecdo/demo.html) for a first tour. Run `aecdo --help` for every command.
 
 ## Schema
 
@@ -46,7 +49,7 @@ Current version: **v0.3.0** — [`ontology/v0.3.0/aecdo.schema.json`](ontology/v
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, schema change process, and releases.
 
-AECDO is an open standard: [AEC DrawingBot](https://aecdrawingbot.com) is its main producer, but any tool can produce or consume conforming files.
+AECDO is an open standard: any tool can produce or consume conforming files.
 
 ## License
 

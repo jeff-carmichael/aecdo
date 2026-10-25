@@ -4,7 +4,7 @@ title: Demo walkthrough
 
 # Demo walkthrough: Maple Grove Library
 
-The repo includes a detailed demo drawing set you can explore without a DrawingBot account: the 100% construction documents for **Maple Grove Branch Library**, a fictional two-story, 36,000 SF public library. It has 19 sheets across general, civil, architectural, structural, mechanical, plumbing, and electrical, with about 1,000 extracted items and 28 schedules and tables.
+The repo includes a detailed demo drawing set you can explore right away, with no account: the 100% construction documents for **Maple Grove Branch Library**, a fictional two-story, 36,000 SF public library. It has 19 sheets across general, civil, architectural, structural, mechanical, plumbing, and electrical, with about 1,000 extracted items and 28 schedules and tables.
 
 The set has **two coordination mistakes hidden in it** on purpose. This walkthrough shows you how to find them by hand, then with the AI assistant.
 

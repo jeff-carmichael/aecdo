@@ -31,7 +31,7 @@ Then start Claude Code in a folder with your `.jsonld` files and ask in plain la
 ```
 > Summarize plans.jsonld and list every sheet with more than 50 items
 > Check every door tag in plans.jsonld against the door schedule and write the mismatches to door-issues.csv
-> Process the PDFs in this folder that don't have a .jsonld yet
+> Which sheets in plans.jsonld have tables but no drawings?
 ```
 
 Claude uses the skill automatically when your request involves drawing data. It's allowed to run `aecdo` commands and read files; Claude Code still asks you before anything else.
@@ -46,8 +46,8 @@ Agents should stick to the commands that print and exit, with `--format json`:
 | `aecdo summary <file> --format json` | Counts of sheets, drawings, item types, tables, notes, images |
 | `aecdo sheets <file> --format json` | Every sheet's number, title, and page index |
 | `aecdo page <file> <sheet> --format json` | The full data for one sheet |
-| `aecdo process <pdf>` | Saves `<pdf>.jsonld` next to the PDF; progress goes to stderr |
-| `aecdo upload <pdf>` | The job ID, on stdout |
+| `aecdo process <pdf>` | Saves `<pdf>.jsonld` next to the PDF; progress goes to stderr (DrawingBot API, [coming soon](process.md)) |
+| `aecdo upload <pdf>` | The job ID, on stdout (DrawingBot API, coming soon) |
 
 Things to know:
 

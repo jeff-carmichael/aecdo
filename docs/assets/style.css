@@ -231,6 +231,17 @@ summary { cursor: pointer; font-weight: 600; }
   place-items: center;
 }
 
+.notice {
+  margin: 0 0 28px;
+  padding: 12px 16px;
+  font-size: 15px;
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+}
+.notice strong { display: block; margin-bottom: 2px; }
+
 .mermaid { margin: 0 0 1.2em; overflow-x: auto; }
 
 .pagefoot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 14px; color: var(--muted); }

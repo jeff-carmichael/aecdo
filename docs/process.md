@@ -2,13 +2,15 @@
 title: Process PDFs
 ---
 
-# Process PDFs
+# Process PDFs with the DrawingBot API
 
-`aecdo process` sends a PDF drawing set to the DrawingBot API, waits while it's processed, and saves the extracted data as a `.jsonld` file next to the PDF.
+> **Coming soon.** The DrawingBot API isn't available yet, so the commands on this page (`configure`, `process`, `upload`, `status`, `download`) can't be used today. Everything else in `aecdo` works now on any AECDO file.
 
-## Connect your DrawingBot account
+`aecdo` doesn't extract data from PDFs itself. It works with AECDO JSON-LD files from any source. For convenience, it includes a small wrapper for the [DrawingBot](https://aecdrawingbot.com) API, one service that produces AECDO files: `aecdo process` uploads a PDF, waits while it's processed, and saves the result as a `.jsonld` file next to the PDF.
 
-You need a DrawingBot API account. Get your **Client ID** and **Client Secret** from [aecdrawingbot.com/api](https://aecdrawingbot.com/api), then run:
+## Connect your account
+
+You'll need a DrawingBot API account. Get your **Client ID** and **Client Secret** from [aecdrawingbot.com/api](https://aecdrawingbot.com/api), then run:
 
 ```bash
 aecdo configure
@@ -43,7 +45,7 @@ aecdo process plans.pdf
 `process` then:
 
 1. uploads the PDF and prints the job ID;
-2. shows live progress while DrawingBot works through the sheets;
+2. shows live progress while the sheets are processed;
 3. downloads the result and saves it as **`plans.jsonld` next to `plans.pdf`**, printing the path it saved to.
 
 Keeping the `.jsonld` next to the PDF matters: that's where [`view`](explore.md#see-it-on-the-page-view) looks for the PDF later.
@@ -85,30 +87,6 @@ aecdo download "$JOB" --then explore     # or open it straight away
 Results stay available to download for **7 days**. After that, process the PDF again.
 
 > In scripts and pipes there is no picker: a missing file name is an error, so a script can never hang waiting for input.
-
-## Tab completion
-
-Set up tab completion once and `aecdo process <Tab>` offers only PDFs (and folders), while `summary`, `explore`, and the other file commands offer only `.jsonld` and `.json` files. Commands, options, and values like `--format json` and `--then summary` complete too.
-
-**bash** (add to `~/.bashrc`):
-
-```bash
-echo 'eval "$(aecdo completion bash)"' >> ~/.bashrc
-```
-
-**zsh**, the default on macOS (add to `~/.zshrc`):
-
-```bash
-echo 'eval "$(aecdo completion zsh)"' >> ~/.zshrc
-```
-
-**fish**:
-
-```bash
-aecdo completion fish > ~/.config/fish/completions/aecdo.fish
-```
-
-Open a new terminal afterwards. `aecdo completion` with no shell name prints the script for the shell in your `$SHELL`. PowerShell completion isn't available yet.
 
 ## Check the result
 

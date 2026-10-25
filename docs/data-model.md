@@ -19,7 +19,7 @@ A **DrawingSet** (one PDF) contains **Sheets** (pages). Each sheet contains **Dr
 
 ```mermaid
 ---
-title: AEC DrawingBot Ontology
+title: AEC Drawing Ontology
 ---
 
 classDiagram
@@ -171,9 +171,17 @@ To draw a bbox on an image of the page rendered at a given DPI, multiply each va
 
 This is exactly how [`view`](explore.md#see-it-on-the-page-view) draws its red box. If the box lands in the wrong place, or `view` warns that it "runs past the page", the file was probably made with different units.
 
-## Validating your own files
+## Producing your own files
 
-Any tool can produce AECDO files. To check one:
+AECDO is an open standard, and `aecdo` works with any file that matches the schema, whatever produced it: your own extraction pipeline, a script that converts another tool's output, or a commercial service. To make a file `aecdo` can use:
+
+1. Follow the structure above, starting from [`sample-drawing-set.jsonld`](https://github.com/jeff-carmichael/aecdo/blob/main/examples/sample-drawing-set.jsonld).
+2. Give every object a unique `urn:uuid:` `@id`.
+3. Write each `bbox` in PDF points from the top-left of the page, as described above, so `view` lines up.
+4. Set `filename` to the source PDF's name, and save the `.jsonld` next to the PDF with the same base name, so `view` can find it.
+5. Check it with `aecdo validate`.
+
+To check a file:
 
 ```bash
 aecdo validate my-file.jsonld

@@ -101,7 +101,7 @@ Each item has a type:
 - **TAG**: an annotation or symbol, such as a door tag, room tag, grid bubble, or keynote.
 - **AREA**: a region, such as a room or zone.
 
-What's under `data:` depends on what DrawingBot found: a wall might have `material` and `thickness`, a room tag a `number` and `name`.
+What's under `data:` depends on what the tool that made the file extracted: a wall might have `material` and `thickness`, a room tag a `number` and `name`.
 
 ## See it on the page: view
 
@@ -121,7 +121,7 @@ Type `view` (or `/view`) to open the current sheet's page from the original PDF 
 
 `view` needs the original PDF. It looks:
 
-1. next to the `.jsonld` with the same name (`plans.pdf` for `plans.jsonld`), which is where [`aecdo process`](process.md) saves the result;
+1. next to the `.jsonld` with the same name (`plans.pdf` for `plans.jsonld`), which is also where [`aecdo process`](process.md) saves its results;
 2. by the PDF file name stored in the drawing set, in the `.jsonld`'s folder and the current folder.
 
 If your PDF is somewhere else, tell `explore` where it is, either when you start:
