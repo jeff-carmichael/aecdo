@@ -154,7 +154,7 @@ A101 › Ground Floor Plan › Walls> q
 
 ### Ask Claude or ChatGPT while you explore
 
-Inside `explore`, start a line with `@claude` or `@chatgpt` (also `@gpt`) to ask an AI assistant about what you're looking at. It sees the current view (the sheet, drawing, or layer on screen) and can:
+Inside `explore`, start a line with `@claude` or `@chatgpt` (also `@gpt`) to ask an AI assistant about what you're looking at. The name turns cyan as you type it when it matches an assistant. It sees the current view (the sheet, drawing, or layer on screen) and can:
 
 - **navigate** the drawing set with the same commands you type, so you watch it move;
 - **read** any other sheet without moving your view;
