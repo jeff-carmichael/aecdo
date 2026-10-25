@@ -31,6 +31,7 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `scripts/postinstall.mjs` — copies the skill to `~/.claude/skills/` on a global npm install
 - `cli/bin/standalone.ts`, `cli/bin/embed-assets.ts` — Bun entry for standalone binaries (embeds schema + version)
 - `install.sh` — end-user installer for the standalone binary (`curl … | sh`)
+- `install.ps1` — Windows installer (`irm … | iex`): installs to `%LOCALAPPDATA%\Programs\aecdo`, adds it to the user PATH; downloads via PowerShell so SmartScreen doesn't block the unsigned exe
 - `.github/workflows/consistency.yml` — PR checks (build + test, lint, diagram, changelog)
 - `.github/workflows/release.yml` — builds and publishes binaries when a `v*` tag is pushed
 - `eslint.config.js` — ESLint flat config
@@ -82,7 +83,7 @@ bun run build:bin       # dist-bin/aecdo for the current platform
 bun run build:bin:all   # cross-compile all release targets into dist-bin/<target>/
 ```
 
-`cli/bin/standalone.ts` is the Bun entry: it imports `embed-assets.ts` (bundles `package.json` version and the default schema into `cli/src/lib/embedded.ts`, and registers pi's OAuth flows, which a compiled binary can't load dynamically) before `aecdo.ts`. Both files are excluded from `tsc`. Any new runtime file read must also be embedded there or it will break the binary. Users install with `install.sh`.
+`cli/bin/standalone.ts` is the Bun entry: it imports `embed-assets.ts` (bundles `package.json` version and the default schema into `cli/src/lib/embedded.ts`, and registers pi's OAuth flows, which a compiled binary can't load dynamically) before `aecdo.ts`. Both files are excluded from `tsc`. Any new runtime file read must also be embedded there or it will break the binary. Users install with `install.sh` (macOS/Linux) or `install.ps1` (Windows).
 
 API credentials are stored at `~/.aecdo/config.json` (0o600 permissions). Tokens are cached at `~/.aecdo/token.json` (4-hour validity).
 

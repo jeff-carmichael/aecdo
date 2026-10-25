@@ -16,7 +16,25 @@ macOS and Linux:
 curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.sh | sh
 ```
 
-Windows: download `aecdo-windows-x64.zip` from [Releases](https://github.com/jeff-carmichael/aecdo/releases).
+Windows (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex
+```
+
+This puts `aecdo.exe` in `%LOCALAPPDATA%\Programs\aecdo` and adds that folder to your PATH, so open a new terminal and run `aecdo --help`. No administrator rights are needed. Set `AECDO_VERSION` (e.g. `v0.3.2`) or `AECDO_INSTALL_DIR` before running it to change the version or folder.
+
+<details>
+<summary>Installing from the zip instead, and the "Windows protected your PC" warning</summary>
+
+You can also download `aecdo-windows-x64.zip` from [Releases](https://github.com/jeff-carmichael/aecdo/releases). Because `aecdo.exe` is not code-signed yet, Windows SmartScreen may show "Windows protected your PC" the first time you run a copy downloaded in a browser. The PowerShell installer above avoids this. For the zip, either:
+
+- Click **More info**, then **Run anyway**. Windows remembers this for that file.
+- Or, before extracting, right-click the zip, choose **Properties**, tick **Unblock**, and click **OK**. You can also run `Unblock-File .\aecdo.exe` in PowerShell after extracting.
+
+`aecdo` is a command-line tool, so double-clicking it only flashes a window. Open PowerShell or Windows Terminal in the folder and run `.\aecdo.exe --help`, or move `aecdo.exe` to a folder on your PATH.
+
+</details>
 
 ## Getting started
 
@@ -199,7 +217,7 @@ aecdo configure ai
 
 ### Updating
 
-Run `aecdo update` to replace the installed binary with the latest release. It downloads the build for your platform, checks it against the release's `checksums.txt`, and swaps it in. If the binary is in a folder you can't write to (such as `/usr/local/bin`), run `sudo aecdo update`. npm installs print `npm install -g aecdo@latest` instead.
+Run `aecdo update` to replace the installed binary with the latest release. It downloads the build for your platform, checks it against the release's `checksums.txt`, and swaps it in. If the binary is in a folder you can't write to (such as `/usr/local/bin`), run `sudo aecdo update`. On Windows, installs from `install.ps1` go in your user folder, so no administrator terminal is needed. npm installs print `npm install -g aecdo@latest` instead.
 
 
 Once a day, `aecdo` checks [GitHub Releases](https://github.com/jeff-carmichael/aecdo/releases) in the background for a newer version. The check never delays a command: it refreshes a cache at `~/.aecdo/update-check.json`, and the next run prints a notice to stderr suggesting `aecdo update` (so piped stdout stays clean). It is skipped when stderr is not a terminal or `CI` is set. Turn it off with `NO_UPDATE_CHECK=1` or `--no-update-check`.
