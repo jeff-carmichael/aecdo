@@ -13,7 +13,7 @@
 
 - [ ] `npm test` and `npm run lint` pass
 - [ ] `CHANGELOG.md` has an entry under `[Unreleased]` (required by CI for `ontology/` or `cli/src/` changes)
-- [ ] New or changed commands: `--help` text, README Usage, and `.claude/skills/aecdo/SKILL.md` updated
+- [ ] New or changed commands: `--help` text, the user guide in `docs/`, and `.claude/skills/aecdo/SKILL.md` updated
 - [ ] Schema changes: walked the checklist in [CONTRIBUTING.md](https://github.com/jeff-carmichael/aecdo/blob/main/CONTRIBUTING.md#files-that-must-be-updated-for-a-schema-change)
 - [ ] New runtime file reads are embedded in `cli/bin/embed-assets.ts` (so the standalone binary still works)
 

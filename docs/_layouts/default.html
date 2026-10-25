@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
+  <meta name="description" content="{{ page.description | default: site.description }}">
+  <link rel="stylesheet" href="{{ '/assets/style.css' | relative_url }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ '/' | relative_url }}">AECDO <span>Guide</span></a>
+    <button class="menu-toggle" aria-expanded="false" aria-controls="sidenav">Menu</button>
+    <a class="gh" href="https://github.com/{{ site.repository }}">GitHub</a>
+  </header>
+  <div class="shell">
+    <nav id="sidenav" class="sidenav" aria-label="Guide pages">
+      <ol>
+        {% for item in site.nav %}
+        {% assign item_url = item.url | relative_url %}
+        {% assign page_url = page.url | relative_url %}
+        <li><a href="{{ item_url }}"{% if item_url == page_url %} aria-current="page"{% endif %}>{{ item.title }}</a></li>
+        {% endfor %}
+      </ol>
+      <p class="sidenav-foot"><a href="https://github.com/{{ site.repository }}/releases">Releases</a> · <a href="https://github.com/{{ site.repository }}/blob/main/CHANGELOG.md">Changelog</a></p>
+    </nav>
+    <main class="content">
+      {{ content }}
+      <footer class="pagefoot">
+        {% for item in site.nav %}
+          {% assign item_url = item.url | relative_url %}
+          {% assign page_url = page.url | relative_url %}
+          {% if item_url == page_url %}
+            {% assign prev_index = forloop.index0 | minus: 1 %}
+            {% assign next_index = forloop.index0 | plus: 1 %}
+            <div class="pager">
+              {% if prev_index >= 0 %}{% assign prev = site.nav[prev_index] %}<a class="prev" href="{{ prev.url | relative_url }}">← {{ prev.title }}</a>{% else %}<span></span>{% endif %}
+              {% if next_index < site.nav.size %}{% assign next = site.nav[next_index] %}<a class="next" href="{{ next.url | relative_url }}">{{ next.title }} →</a>{% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+        <p><a href="https://github.com/{{ site.repository }}/edit/main/docs/{{ page.path }}">Edit this page on GitHub</a> · AECDO is licensed under Apache 2.0.</p>
+      </footer>
+    </main>
+  </div>
+  <script>
+    document.querySelector(".menu-toggle").addEventListener("click", (e) => {
+      const open = document.body.classList.toggle("nav-open");
+      e.currentTarget.setAttribute("aria-expanded", String(open));
+    });
+    for (const pre of document.querySelectorAll("main pre")) {
+      if (pre.closest(".language-mermaid") || pre.querySelector(".language-mermaid")) continue;
+      const btn = document.createElement("button");
+      btn.className = "copy";
+      btn.type = "button";
+      btn.textContent = "Copy";
+      btn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(pre.querySelector("code")?.innerText ?? pre.innerText);
+          btn.textContent = "Copied";
+        } catch {
+          btn.textContent = "Press Ctrl+C";
+        }
+        setTimeout(() => (btn.textContent = "Copy"), 1500);
+      });
+      const wrap = document.createElement("div");
+      wrap.className = "has-copy";
+      pre.replaceWith(wrap);
+      wrap.append(btn, pre);
+    }
+  </script>
+  {% if page.mermaid %}
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+    for (const code of document.querySelectorAll("code.language-mermaid, div.language-mermaid code")) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      (code.closest("div.language-mermaid") ?? code.closest("pre")).replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "neutral" });
+    await mermaid.run();
+  </script>
+  {% endif %}
+</body>
+</html>

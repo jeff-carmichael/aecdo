@@ -6,3 +6,7 @@ coverage/
 .DS_Store
 Thumbs.db
 dist-bin/
+
+# Jekyll preview of docs/
+docs/_site/
+docs/.jekyll-cache/
