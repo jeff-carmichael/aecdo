@@ -277,6 +277,8 @@ classDiagram
 | **Note** | A general notes text block |
 | **Image** | A raster image on a sheet (`logo`, `photo`, `detail-raster`, `diagram`, `other`); image bytes are not stored |
 
+Every `bbox` is `[xmin, ymin, xmax, ymax]` in PDF points (1/72 inch), measured from the top-left corner of the page as displayed (after any rotation), with y increasing downward. Values are not normalized, so the range follows the page size: a 36 × 24 in ARCH D sheet runs 0–2592 × 0–1728.
+
 ## Using with Claude Code
 
 Copy the skill into your Claude Code skills folder:

@@ -148,6 +148,12 @@ For a richer file to try commands on, `examples/maple-grove-library.jsonld` is a
 for f in *.jsonld; do aecdo validate "$f" --format json; done
 ```
 
+## Data model
+
+A file is a **DrawingSet → Sheet → Drawing → Layer → Item** tree, with Tables, Notes, and Images directly on each Sheet. `pageIndex` is the zero-based page in the source PDF. Items are `tag` (annotations, symbols), `thing` (physical elements), or `area` (regions); their `data` object is freeform. Table `content` is pipe-delimited rows separated by newlines. `references` hold `@id`s of other entities (e.g. a section tag pointing to its section drawing).
+
+Every `bbox` is `[xmin, ymin, xmax, ymax]` in PDF points (1/72 inch) from the top-left corner of the page as displayed (after any rotation), y increasing downward, not normalized. Divide by 72 for inches; on a 72 DPI render of the page, one pixel is one point. Use bboxes to tell where things sit relative to each other (e.g. which tags fall inside a drawing's box).
+
 ## Common Options
 
 | Flag | Description |
