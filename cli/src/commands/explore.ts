@@ -20,6 +20,7 @@ import {
   type AssistantInfo,
   type AssistantName,
 } from "../lib/llm.js";
+import { enableMentionHighlight, colorEnabled } from "../lib/mention-highlight.js";
 import { createAssistantSession, type AssistantSession } from "../lib/assistant.js";
 import type { MutableModels } from "@earendil-works/pi-ai";
 import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image, CommandOptions } from "../types.js";
@@ -484,7 +485,16 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
   explorer.help();
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const ask = (q: string) => new Promise<string>((res) => rl.question(q, res));
+  let editing = false;
+  const ask = (q: string) =>
+    new Promise<string>((res) => {
+      editing = true;
+      rl.question(q, (answer) => {
+        editing = false;
+        res(answer);
+      });
+    });
+  if (colorEnabled()) enableMentionHighlight(rl, () => editing);
   const assistant = new AssistantBridge(data, filePath, explorer, ask);
 
   let closed = false;
