@@ -21,7 +21,9 @@ title: Troubleshooting
 **`aecdo update` says permission denied**
 : On macOS and Linux, run `sudo aecdo update`. On Windows, if you installed into a protected folder yourself, run it from an administrator terminal.
 
-## Processing PDFs
+## Processing PDFs (DrawingBot API)
+
+The DrawingBot API isn't available yet; these apply once it is.
 
 **`No input file specified`**
 : You ran `process` or `upload` without a file name outside an interactive terminal (in a script, or with input piped in). Pass the PDF's name.
@@ -29,7 +31,7 @@ title: Troubleshooting
 **`No input file specified, and no PDF files found in the current folder`**
 : The picker lists PDFs in the current folder only. `cd` to the folder with your drawings, or pass a path: `aecdo process ~/Downloads/plans.pdf`.
 
-**`No configuration found`, or sign-in errors from DrawingBot**
+**`No configuration found`, or sign-in errors from the API**
 : Run `aecdo configure` and re-enter your Client ID and Client Secret from [DrawingBot API](https://aecdrawingbot.com/api).
 
 **`Result expired (7-day retention)`**

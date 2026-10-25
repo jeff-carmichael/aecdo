@@ -25,6 +25,12 @@
       <p class="sidenav-foot"><a href="https://github.com/{{ site.repository }}/releases">Releases</a> · <a href="https://github.com/{{ site.repository }}/blob/main/CHANGELOG.md">Changelog</a></p>
     </nav>
     <main class="content">
+      {% if site.api_notice %}
+      <div class="notice" role="note">
+        <strong>The DrawingBot API isn't available yet.</strong>
+        <code>aecdo process</code>, <code>upload</code>, <code>status</code>, <code>download</code>, and <code>configure</code> will work once it launches. Everything else in <code>aecdo</code> works today with any JSON-LD file that matches the AECDO schema.
+      </div>
+      {% endif %}
       {{ content }}
       <footer class="pagefoot">
         {% for item in site.nav %}

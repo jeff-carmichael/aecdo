@@ -73,6 +73,30 @@ npm link          # makes the aecdo command available everywhere
 
 `npm install` also copies the [Claude Code skill](agents.md) into `~/.claude/skills/aecdo/`.
 
+## Tab completion
+
+Set up tab completion once and `aecdo process <Tab>` offers only PDFs (and folders), while `summary`, `explore`, and the other file commands offer only `.jsonld` and `.json` files. Commands, options, and values like `--format json` and `--then summary` complete too.
+
+**bash** (add to `~/.bashrc`):
+
+```bash
+echo 'eval "$(aecdo completion bash)"' >> ~/.bashrc
+```
+
+**zsh**, the default on macOS (add to `~/.zshrc`):
+
+```bash
+echo 'eval "$(aecdo completion zsh)"' >> ~/.zshrc
+```
+
+**fish**:
+
+```bash
+aecdo completion fish > ~/.config/fish/completions/aecdo.fish
+```
+
+Open a new terminal afterwards. `aecdo completion` with no shell name prints the script for the shell in your `$SHELL`. PowerShell completion isn't available yet.
+
 ## Updating
 
 ```bash
@@ -105,8 +129,8 @@ To turn it off, set `NO_UPDATE_CHECK=1` in your environment, or add `--no-update
 
 | File | What's in it |
 |------|--------------|
-| `~/.aecdo/config.json` | Your DrawingBot Client ID, Client Secret, and region (readable only by you) |
-| `~/.aecdo/token.json` | A cached DrawingBot sign-in token, valid for 4 hours |
+| `~/.aecdo/config.json` | DrawingBot API credentials, if you use [`process`](process.md) (readable only by you) |
+| `~/.aecdo/token.json` | A cached DrawingBot API sign-in token, valid for 4 hours |
 | `~/.aecdo/llm.json` | AI assistant sign-ins, API keys, and model choices (readable only by you) |
 | `~/.aecdo/update-check.json` | When `aecdo` last checked for updates, and what it found |
 

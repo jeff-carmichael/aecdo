@@ -1,6 +1,10 @@
 title: AECDO Guide
-description: Install the aecdo CLI, turn PDF drawing sets into structured data, and explore them with an AI assistant.
+description: Install the open-source aecdo CLI and explore, check, and ask an AI assistant about structured data from construction drawings.
 repository: jeff-carmichael/aecdo
+
+# Shows the "DrawingBot API isn't available yet" notice on every page.
+# Set to false once the API launches.
+api_notice: true
 baseurl: /aecdo
 url: https://jeff-carmichael.github.io
 
@@ -29,8 +33,6 @@ nav:
     url: /
   - title: Install and update
     url: /install.html
-  - title: Process PDFs
-    url: /process.html
   - title: Explore a drawing set
     url: /explore.html
   - title: AI assistant
@@ -41,5 +43,7 @@ nav:
     url: /data-model.html
   - title: Claude Code and agents
     url: /agents.html
+  - title: Process PDFs (soon)
+    url: /process.html
   - title: Troubleshooting
     url: /troubleshooting.html
