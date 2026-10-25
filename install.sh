@@ -35,7 +35,7 @@ detect_target() {
   case "$os" in
     Linux) os=linux ;;
     Darwin) os=darwin ;;
-    MINGW* | MSYS* | CYGWIN*) fail "Windows is not supported by this script; download aecdo-windows-x64.zip from https://github.com/$REPO/releases" ;;
+    MINGW* | MSYS* | CYGWIN*) fail "Windows is not supported by this script; in PowerShell run: irm https://raw.githubusercontent.com/$REPO/main/install.ps1 | iex" ;;
     *) fail "unsupported OS: $os" ;;
   esac
 

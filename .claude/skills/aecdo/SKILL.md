@@ -16,6 +16,12 @@ Check whether it's installed with `aecdo --version`. If not, install the standal
 curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.sh | sh
 ```
 
+On Windows, in PowerShell (installs to `%LOCALAPPDATA%\Programs\aecdo` and adds it to the user PATH; open a new terminal afterwards):
+
+```powershell
+irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex
+```
+
 Inside a clone of the aecdo repo, you can instead run `npm install && npm run build` and use `npx aecdo` in place of `aecdo`.
 
 ## Commands

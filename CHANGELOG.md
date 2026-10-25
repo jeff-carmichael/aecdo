@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - New test checks that every file in `examples/` validates against the schema and that its `@id`s are unique and its `references` resolve.
 
 ### CLI
+- New Windows installer: `irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex` in PowerShell downloads the latest release, checks its SHA-256 checksum, installs `aecdo.exe` to `%LOCALAPPDATA%\Programs\aecdo` (no admin rights), and adds that folder to the user PATH. Set `AECDO_VERSION` or `AECDO_INSTALL_DIR` to override. Installing this way avoids the "Windows protected your PC" SmartScreen prompt, which the unsigned exe triggers when the zip is downloaded in a browser. The README explains that prompt and how to get past it for the zip.
 - README and the Claude Code skill now explain bbox units, and the skill gains a short data-model section for agents.
 - The `@claude`/`@chatgpt` assistant now reads an `AGENTS.md` (any capitalization) from the folder you run `explore` in and follows it as your standing instructions for that project, e.g. which checks to run or which spreadsheet to log issues in. It prints "Using AGENTS.md from this folder" when it does. Read once per assistant session, up to 20,000 characters; it can't widen what the assistant's tools may do.
 - The `@claude`/`@chatgpt` assistant is told the bbox units (PDF points from the top-left), so it can reason about where things sit on a sheet and how big they are.
