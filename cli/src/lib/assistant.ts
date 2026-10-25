@@ -75,7 +75,7 @@ export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" |
 The open file is ${basename(host.filePath)} (${sheetCount} sheets), extracted from a PDF drawing set by AEC DrawingBot.
 Its data follows the AEC Drawing Ontology: DrawingSet → Sheet → Drawing (plan, section, elevation, detail) → Layer → Item.
 Items are "tag" (annotations, symbols), "thing" (physical elements) or "area" (regions); their "data" object holds whatever was extracted.
-Sheets also hold tables (pipe-delimited rows), notes and images. bbox values are [xmin, ymin, xmax, ymax] on the sheet.
+Sheets also hold tables (pipe-delimited rows), notes and images. bbox values are [xmin, ymin, xmax, ymax] on the sheet in PDF points (72 per inch) from the top-left corner of the page, y down.
 
 Each user message starts with <current_view>, the part of the set the user is looking at right now. Treat it as "this page".
 You can move around with the navigate tool, using the same commands the user types: a sheet number or page index from the sheet list, an entry number from the current list, "back", "top", or "all". The user sees every move.

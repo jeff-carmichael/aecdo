@@ -6,11 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Schema
+- `BBox` description in `ontology/v0.3.0` now states the coordinate system DrawingBot already uses: PDF points (1/72 in), unscaled, from the top-left corner of the page as displayed (crop box, after /Rotate), with y increasing downward, as `[xmin, ymin, xmax, ymax]` corners. Documentation only; no validation change.
+
 ### Examples
 - New `examples/maple-grove-library.jsonld`: a detailed demo set for a fictional two-story, 36,000 SF branch library (19 sheets across general, civil, architectural, structural, mechanical, plumbing, and electrical; about 1,000 items, 28 tables). Door tags, room tags, and callouts reference the matching schedules and drawings, so `explore` and the `@claude`/`@chatgpt` assistant can follow them. It includes two deliberate coordination issues to find in a demo: door 209B is on the second floor plan but missing from the door schedule, and door 105A calls for hardware set 9, which doesn't exist.
 - New test checks that every file in `examples/` validates against the schema and that its `@id`s are unique and its `references` resolve.
 
 ### CLI
+- The `@claude`/`@chatgpt` assistant is told the bbox units (PDF points from the top-left), so it can reason about where things sit on a sheet and how big they are.
 - New `view` command in `explore` (also `/view`): opens the current sheet's page from the source PDF with the current selection outlined in red. On a drawing it outlines the drawing, on a layer the layer (or its items when the layer has no bbox), and after you open an item, table, note, or image, that entry. bbox values are read as PDF points from the top-left of the page as displayed; a box that runs past the page prints a warning. The PDF is found next to the `.jsonld` (`plans.pdf` for `plans.jsonld`) or by the set's `filename`; otherwise pass `--pdf <file>` or type `view <path>`. `process --then explore` uses the uploaded PDF. The page is saved as a PNG when `pdftoppm` (Poppler) or `mutool` (MuPDF) is installed, or as a one-page PDF otherwise, in the system temp folder (`aecdo-view/`), and opened in the default viewer. Uses the MIT-licensed `pdf-lib` (new dependency, pure JavaScript, loaded only by `view`; about 450 KB in the standalone binary).
 - The `@claude`/`@chatgpt` assistant has a new `show_page` tool that does the same as `view`, so "show me door 105A" navigates to the door and opens the page with it outlined. The assistant only opens the image for you; it does not see it.
 - `explore` now colors `@claude`, `@chatgpt`, or `@gpt` as you type it at the start of a line, so you can see the mention will reach an assistant. Unknown names stay plain. Respects `NO_COLOR` and non-color terminals.

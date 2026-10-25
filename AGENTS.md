@@ -40,7 +40,7 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 Hierarchy: **DrawingSet → Sheet → Drawing → Layer → Item**, plus Table, Note, and Image at the sheet level.
 
 - All `@id` fields are UUID URNs (`urn:uuid:...`)
-- `bbox` is always `[xmin, ymin, xmax, ymax]` (4-element number array)
+- `bbox` is always `[xmin, ymin, xmax, ymax]` (4-element number array) in PDF points (1/72 in), measured from the top-left of the page as displayed (after /Rotate), y down; not normalized
 - Item types: `tag` (annotations/symbols), `thing` (physical elements), `area` (regions)
 - Drawing types: `plan`, `section`, `elevation`, `detail`
 - Item `data` is a freeform object — contents vary by what was extracted

@@ -285,7 +285,7 @@
     },
     "BBox": {
       "type": "array",
-      "description": "Bounding box as [xmin, ymin, xmax, ymax].",
+      "description": "Bounding box as [xmin, ymin, xmax, ymax]: the min and max corners, not x/y/width/height. Units are PDF points (1/72 inch), unscaled and not normalized. The origin is the top-left corner of the page as displayed (the crop box, after any /Rotate is applied), with y increasing downward. The range depends on the page size; e.g. a 36 × 24 in ARCH D sheet runs 0–2592 × 0–1728. On a page image rendered at 72 DPI, one pixel equals one point.",
       "items": {
         "type": "number"
       },
