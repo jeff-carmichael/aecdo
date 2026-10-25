@@ -78,7 +78,7 @@ export async function processPdf(filePath: string, opts: ProcessOptions): Promis
         await summary(data, `job:${jobId}`, opts);
         break;
       case "explore":
-        await explore(data, `job:${jobId}`, opts);
+        await explore(data, `job:${jobId}`, { ...opts, pdf: opts.pdf ?? resolved });
         break;
       default:
         throw new Error(`Unknown --then command: "${opts.then}". Use validate, summary, or explore.`);

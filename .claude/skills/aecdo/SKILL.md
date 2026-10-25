@@ -134,7 +134,7 @@ Prints everything on a sheet — drawings, layers, items with their data and ref
 aecdo explore examples/sample-drawing-set.jsonld
 ```
 
-Loads the file once, validates it, shows the sheet list, then drops into a drill-down prompt. Type a sheet number (e.g. `A101`) or page index (e.g. `0`) to open a sheet: it lists the drawings, tables, notes, and images on that sheet as a numbered menu. Pick a number to dive in — a drawing opens its layers, a layer opens its items, and an item, table, note, or image prints its full details. Type `back` (or `..`) to go up a level, `top` to return to the sheet list, `all` on a sheet to print everything at once, `ls` to reprint the current list, and `quit` to exit.
+Loads the file once, validates it, shows the sheet list, then drops into a drill-down prompt. Type a sheet number (e.g. `A101`) or page index (e.g. `0`) to open a sheet: it lists the drawings, tables, notes, and images on that sheet as a numbered menu. Pick a number to dive in — a drawing opens its layers, a layer opens its items, and an item, table, note, or image prints its full details. Type `back` (or `..`) to go up a level, `top` to return to the sheet list, `all` on a sheet to print everything at once, `view` to open the PDF page with the current drawing, layer, or item outlined in red (needs the source PDF next to the `.jsonld`, or `--pdf <file>`), `ls` to reprint the current list, and `quit` to exit.
 
 Humans can also type `@claude …` or `@chatgpt …` at the explore prompt to ask an AI assistant about the current view. The assistant can navigate, append notes to `notes.md`, and add rows or cells to a spreadsheet (`.xlsx`, `.csv`, `.tsv`) in the current folder. Set it up with `aecdo configure ai` (Sign in with ChatGPT, or an OpenAI/Anthropic API key; stored in `~/.aecdo/llm.json`). Both commands are interactive; agents should not run them.
 
@@ -156,6 +156,7 @@ for f in *.jsonld; do aecdo validate "$f" --format json; done
 | `--pretty` | Pretty-print JSON output |
 | `-o, --output <file>` | Write to file instead of stdout |
 | `--schema <path>` | Use a custom schema file for validation |
+| `--pdf <file>` | `explore` only: source PDF for `view` (default: `<name>.pdf` next to the `.jsonld`, or the set's `filename`) |
 | `--no-update-check` | Skip the daily background check for a newer release (or set `NO_UPDATE_CHECK=1`). Update notices go to stderr only, so stdout JSON is never affected. |
 
 ## API Options

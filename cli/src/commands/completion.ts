@@ -33,6 +33,7 @@ const OPTIONS = [
   "--wait",
   "--then",
   "--stdout",
+  "--pdf",
   "--no-update-check",
 ];
 
@@ -72,7 +73,7 @@ _aecdo() {
   case "$prev" in
     --format) COMPREPLY=($(compgen -W "json text" -- "$cur")); return ;;
     --then) COMPREPLY=($(compgen -W "validate summary explore" -- "$cur")); return ;;
-    -o|--output|--schema) compopt -o filenames 2>/dev/null; COMPREPLY=($(compgen -f -- "$cur")); return ;;
+    -o|--output|--schema|--pdf) compopt -o filenames 2>/dev/null; COMPREPLY=($(compgen -f -- "$cur")); return ;;
     --poll) return ;;
   esac
 
@@ -118,6 +119,7 @@ ${commands}
     '--wait[Wait for job completion]'
     '--then[Pipe the result into a command]:command:(validate summary explore)'
     '--stdout[Print the result instead of saving it]'
+    '--pdf[Source PDF for view in explore]:pdf file:_files -g "*.(pdf|PDF)"'
     '--no-update-check[Skip the daily update check]'
   )
 
@@ -190,6 +192,7 @@ function fishScript(): string {
     "complete -c aecdo -l wait -d 'Wait for job completion'",
     "complete -c aecdo -l then -x -a 'validate summary explore' -d 'Pipe the result into a command'",
     "complete -c aecdo -l stdout -d 'Print the result instead of saving it'",
+    "complete -c aecdo -l pdf -r -F -d 'Source PDF for view in explore'",
     "complete -c aecdo -l no-update-check -d 'Skip the daily update check'",
   ];
   return lines.join("\n") + "\n";

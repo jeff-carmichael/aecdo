@@ -1,5 +1,5 @@
 import { createInterface } from "node:readline";
-import { spawn } from "node:child_process";
+import { openWithDefaultApp } from "../lib/open.js";
 import { pick, canPrompt } from "../lib/picker.js";
 import {
   ASSISTANTS,
@@ -71,22 +71,6 @@ function askSecret(question: string): Promise<string> {
   });
 }
 
-function openBrowser(url: string): void {
-  const [cmd, args] =
-    process.platform === "darwin"
-      ? ["open", [url]]
-      : process.platform === "win32"
-        ? ["cmd", ["/c", "start", "", url]]
-        : ["xdg-open", [url]];
-  try {
-    const child = spawn(cmd, args, { stdio: "ignore", detached: true });
-    child.on("error", () => undefined);
-    child.unref();
-  } catch {
-    // the URL is printed too, so a missing opener is fine
-  }
-}
-
 const interaction: AuthInteraction = {
   async prompt(p: AuthPrompt): Promise<string> {
     if (p.type === "secret") return askSecret(`${p.message} `);
@@ -102,7 +86,7 @@ const interaction: AuthInteraction = {
     switch (event.type) {
       case "auth_url":
         console.log(`\nOpening your browser to sign in. If it doesn't open, visit:\n  ${event.url}\n`);
-        openBrowser(event.url);
+        openWithDefaultApp(event.url);
         break;
       case "device_code":
         console.log(`\nEnter code ${event.userCode} at ${event.verificationUri}\n`);
