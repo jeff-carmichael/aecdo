@@ -90,7 +90,7 @@ Add `--format json` to any of these for machine-readable output.
 
 ### Explore interactively
 
-`explore` opens a sheet list, then lets you drill down: sheet → drawings, tables, notes, and images → layers → items. Type a number to open an entry, `back` (or `..`) to go up, `top` for the sheet list, `all` to print a whole sheet, and `quit` to exit.
+`explore` opens a sheet list, then lets you drill down: sheet → drawings, tables, notes, and images → layers → items. Type a number to open an entry, `back` (or `..`) to go up, `top` for the sheet list, `all` to print a whole sheet, `view` to see the page, and `quit` to exit.
 
 ```
 ✓ sample-drawing-set.jsonld is valid against AECDO schema.
@@ -152,12 +152,21 @@ A101 › Ground Floor Plan › Walls> 1
 A101 › Ground Floor Plan › Walls> q
 ```
 
+### See the page with the selection outlined
+
+Type `view` (or `/view`) inside `explore` to open the current sheet's page from the source PDF with a red box around what you're looking at: the drawing, the layer, or the last item, table, note, or image you opened. On a sheet with nothing selected it shows the whole page.
+
+`explore` looks for the PDF next to the `.jsonld` (`plans.pdf` for `plans.jsonld`, which is where `aecdo process` saves it) and then by the `filename` stored in the set. If it's somewhere else, start with `aecdo explore plans.jsonld --pdf path/to/plans.pdf`, or type `view path/to/plans.pdf` once.
+
+The page opens in your default image viewer as a PNG when [Poppler](https://poppler.freedesktop.org/) (`pdftoppm`) or MuPDF (`mutool`) is installed (`brew install poppler`, `apt install poppler-utils`), and otherwise as a one-page PDF in your PDF viewer. The files go in your temp folder under `aecdo-view/`. Boxes are read as PDF points from the top-left corner of the page.
+
 ### Ask Claude or ChatGPT while you explore
 
 Inside `explore`, start a line with `@claude` or `@chatgpt` (also `@gpt`) to ask an AI assistant about what you're looking at. The name turns cyan as you type it when it matches an assistant. It sees the current view (the sheet, drawing, or layer on screen) and can:
 
 - **navigate** the drawing set with the same commands you type, so you watch it move;
 - **read** any other sheet without moving your view;
+- **show you the page** with a red box around something, the same as typing `view` (e.g. `@claude show me door 105A`);
 - **take notes** by appending Markdown to `notes.md` in the current folder;
 - **fill in a spreadsheet** in the current folder: it looks for an existing `.xlsx`, `.csv`, or `.tsv` and works in that file's layout, or creates a new one. Before its first edit to an existing spreadsheet it asks `[y/N]`. Excel files are edited in place, so formatting, formulas, and other tabs are kept, and cells that hold formulas are never overwritten.
 

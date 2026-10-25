@@ -33,6 +33,8 @@ export interface AssistantHost {
   /** A full line of status output (tool activity, errors). */
   print(line: string): void;
   confirm(question: string): Promise<boolean>;
+  /** Opens the current page from the source PDF with the selection outlined, like the user typing "view". */
+  showPage?(): Promise<string>;
 }
 
 export const DEFAULT_NOTES_FILE = "notes.md";
@@ -66,7 +68,7 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" | "data">, info: AssistantInfo): string {
+export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" | "data" | "showPage">, info: AssistantInfo): string {
   const sheetCount = host.data.sheets?.length ?? 0;
   return `You are ${info.label}, working inside "aecdo explore", a terminal browser for construction drawing sets.
 
@@ -78,7 +80,8 @@ Sheets also hold tables (pipe-delimited rows), notes and images. bbox values are
 Each user message starts with <current_view>, the part of the set the user is looking at right now. Treat it as "this page".
 You can move around with the navigate tool, using the same commands the user types: a sheet number or page index from the sheet list, an entry number from the current list, "back", "top", or "all". The user sees every move.
 Use list_sheets and read_sheet to look at other sheets without moving the user.
-
+${host.showPage ? `show_page opens the current sheet's page from the source PDF in the user's image viewer, with the current drawing, layer, or last-opened item, table, note, or image outlined in red (same as the user typing "view"). Use it when the user asks to see, show, or find something on the drawing: navigate to it first (open the item for a red box around it), then call show_page. You can't see the image yourself.
+` : ""}
 You can write files in the current folder (${host.cwd}):
 - append_note adds Markdown to ${DEFAULT_NOTES_FILE} (or another .md file). Use it when the user asks you to note, record or remember something.
 - Spreadsheets: ${SPREADSHEET_EXTENSIONS.join(", ")}. Use list_spreadsheets first and work in the user's existing file and layout when there is one; read it before writing so new rows match its columns. Only create a new spreadsheet if none fits or the user asks.
@@ -121,6 +124,19 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
   const value = cellValueSchema(T);
 
   const tools: AgentTool[] = [
+    ...(host.showPage
+      ? [
+          defineTool({
+            name: "show_page",
+            label: "Show page",
+            description:
+              "Open the current sheet's PDF page in the user's image viewer with the current selection outlined in red (the drawing, layer, or the last item, table, note, or image opened). Navigate to the target first. Returns what was opened, or why it couldn't be.",
+            parameters: T.Object({}),
+            executionMode: "sequential",
+            execute: async () => text(await host.showPage!()),
+          }),
+        ]
+      : []),
     defineTool({
       name: "navigate",
       label: "Navigate",

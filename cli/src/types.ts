@@ -81,6 +81,8 @@ export interface CommandOptions {
   pretty?: boolean;
   output?: string;
   schema?: string;
+  /** explore: the source PDF, for "view" */
+  pdf?: string;
 }
 
 export type ApiRegion = "us-west-2";

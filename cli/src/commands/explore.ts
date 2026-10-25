@@ -1,4 +1,5 @@
 import { createInterface } from "node:readline";
+import { basename } from "node:path";
 import { validate } from "./validate.js";
 import {
   findSheet,
@@ -22,6 +23,16 @@ import {
 } from "../lib/llm.js";
 import { enableMentionHighlight, colorEnabled } from "../lib/mention-highlight.js";
 import { createAssistantSession, type AssistantSession } from "../lib/assistant.js";
+import {
+  findSourcePdf,
+  renderPageView,
+  sourcePdfCandidates,
+  unionBBox,
+  type BBox,
+  type PageViewRequest,
+  type PageViewResult,
+} from "../lib/page-view.js";
+import { openWithDefaultApp } from "../lib/open.js";
 import type { MutableModels } from "@earendil-works/pi-ai";
 import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image, CommandOptions } from "../types.js";
 
@@ -36,6 +47,25 @@ type SheetEntry =
   | { kind: "table"; value: Table }
   | { kind: "note"; value: Note }
   | { kind: "image"; value: Image };
+
+export interface ViewTarget {
+  sheet: Sheet;
+  /** What the red box outlines, e.g. "drawing Ground Floor Plan". */
+  label: string;
+  bbox?: BBox;
+  /** True when nothing is selected on a sheet, so there is no box to draw. */
+  wholePage?: boolean;
+}
+
+const VIEW_COMMANDS = new Set(["view", "/view"]);
+
+/** Parses "view" or "/view [pdf path]". */
+export function parseViewCommand(input: string): { pdf?: string } | null {
+  const m = /^(\S+)(?:\s+([\s\S]+))?$/.exec(input.trim());
+  if (!m || !VIEW_COMMANDS.has(m[1].toLowerCase())) return null;
+  const pdf = m[2]?.trim().replace(/^(["'])(.*)\1$/, "$2");
+  return pdf ? { pdf } : {};
+}
 
 const ITEM_PREVIEW_LIMIT = 60;
 
@@ -101,6 +131,7 @@ export class Explorer {
   private stack: View[] = [{ kind: "sheets" }];
   private resolve: RefResolver;
   private lastShown: unknown;
+  private selection?: { view: View; label: string; bbox?: BBox };
 
   constructor(
     private data: DrawingSet,
@@ -168,6 +199,30 @@ export class Explorer {
     return this.lastShown === undefined ? ctx : { ...ctx, shown: this.lastShown };
   }
 
+  /** What "view" should show: the current sheet's page, outlining the current selection or level. */
+  viewTarget(): ViewTarget | { error: string } {
+    const v = this.view;
+    if (v.kind === "sheets") return { error: "Open a sheet first, then type \"view\"." };
+    const sel = this.selection?.view === v ? this.selection : undefined;
+    if (sel) return { sheet: v.sheet, label: sel.label, bbox: sel.bbox };
+    switch (v.kind) {
+      case "sheet":
+        return { sheet: v.sheet, label: `sheet ${v.sheet.sheetNumber}`, wholePage: true };
+      case "drawing":
+        return { sheet: v.sheet, label: `drawing ${drawingName(v.drawing)}`, bbox: v.drawing.bbox };
+      case "layer":
+        return {
+          sheet: v.sheet,
+          label: `layer ${v.layer.name}`,
+          bbox: v.layer.bbox ?? unionBBox((v.layer.items ?? []).map((i) => i.bbox)),
+        };
+    }
+  }
+
+  private select(label: string, bbox: BBox | undefined): void {
+    this.selection = { view: this.view, label, bbox };
+  }
+
   private capture(fn: () => void): string[] {
     const lines: string[] = [];
     const log = this.log;
@@ -189,6 +244,9 @@ export class Explorer {
       this.log('  "back" (or "..") goes up a level, "top" returns to the sheet list.');
     }
     if (this.view.kind === "sheet") this.log('  "all" prints everything on this sheet.');
+    if (this.view.kind !== "sheets") {
+      this.log('  "view" opens this page from the PDF with the current selection outlined in red.');
+    }
     this.log('  "ls" reprints the current list, "quit" exits.');
     this.log('  "@claude …" or "@chatgpt …" asks an AI assistant about this view.');
     this.log();
@@ -205,17 +263,23 @@ export class Explorer {
       this.help();
       return true;
     }
+    if (parseViewCommand(answer)) {
+      this.log('"view" can\'t be run from here; the assistant uses its show_page tool instead.');
+      return true;
+    }
     if (cmd === "list" || cmd === "ls") {
       this.render();
       return true;
     }
     if (cmd === "back" || cmd === ".." || cmd === "b" || cmd === "up") {
       if (this.stack.length > 1) this.stack.pop();
+      this.selection = undefined;
       this.render();
       return true;
     }
     if (cmd === "top" || cmd === "home") {
       this.stack = [{ kind: "sheets" }];
+      this.selection = undefined;
       this.render();
       return true;
     }
@@ -270,14 +334,17 @@ export class Explorer {
         return;
       case "table":
         this.lastShown = entry.value;
+        this.select(`table ${entry.value.label ?? entry.value.title ?? "Untitled Table"}`, entry.value.bbox);
         printTable(entry.value);
         break;
       case "note":
         this.lastShown = entry.value;
+        this.select(`note "${truncate(entry.value.content, 40)}"`, entry.value.bbox);
         printNote(entry.value);
         break;
       case "image":
         this.lastShown = entry.value;
+        this.select(`image ${entry.value.caption ?? entry.value.role}`, entry.value.bbox);
         printImage(entry.value);
         break;
     }
@@ -302,6 +369,7 @@ export class Explorer {
       return;
     }
     this.lastShown = item;
+    this.select(`item ${truncate(itemLabel(item), 40)}`, item.bbox);
     printItem(item, this.resolve);
     this.log();
   }
@@ -402,7 +470,8 @@ class AssistantBridge {
     private data: DrawingSet,
     private filePath: string,
     private explorer: Explorer,
-    private ask: (q: string) => Promise<string>
+    private ask: (q: string) => Promise<string>,
+    private viewer?: PageViewer
   ) {}
 
   async run(mention: Mention): Promise<void> {
@@ -451,6 +520,7 @@ class AssistantBridge {
         filePath: this.filePath,
         cwd: process.cwd(),
         view: this.explorer,
+        showPage: this.viewer ? async () => (await this.viewer!.show(this.explorer)).join("\n") : undefined,
         write: (text) => process.stdout.write(text),
         print: (line) => console.log(line),
         confirm: async (q) => /^y(es)?$/i.test((await this.ask(q)).trim()),
@@ -461,6 +531,84 @@ class AssistantBridge {
     );
     this.sessions.set(info.name, session);
     return session;
+  }
+}
+
+export interface PageViewerDeps {
+  render?: (req: PageViewRequest) => Promise<PageViewResult>;
+  open?: (path: string) => void;
+  exists?: (path: string) => boolean;
+  log?: (line?: string) => void;
+}
+
+/** Handles "view" in explore: finds the source PDF, renders the page with the red box, opens it. */
+export class PageViewer {
+  private pdfPath?: string;
+
+  constructor(
+    private data: DrawingSet,
+    private filePath: string,
+    private explicitPdf?: string,
+    private deps: PageViewerDeps = {}
+  ) {}
+
+  /** Prints what happened and returns the same lines, so the assistant can report them. */
+  async show(explorer: Explorer, pdfArg?: string): Promise<string[]> {
+    const lines: string[] = [];
+    const print = this.deps.log ?? console.log;
+    const log = (line: string) => {
+      lines.push(line);
+      print(line);
+    };
+    const target = explorer.viewTarget();
+    if ("error" in target) {
+      log(target.error);
+      return lines;
+    }
+
+    const pdf = this.locatePdf(pdfArg);
+    if (!pdf.path) {
+      log(pdfArg ? `Can't find "${pdfArg}".` : "Can't find the source PDF for this drawing set. Looked for:");
+      if (!pdfArg) for (const c of pdf.looked) log(`  ${c}`);
+      log('Type "view <path to pdf>", or start explore with --pdf <file>.');
+      return lines;
+    }
+
+    if (!target.bbox && !target.wholePage) {
+      log(`No bounding box for ${target.label}; showing the whole page.`);
+    }
+
+    try {
+      const result = await (this.deps.render ?? renderPageView)({
+        pdfPath: pdf.path,
+        pageIndex: target.sheet.pageIndex,
+        bbox: target.bbox,
+        name: target.sheet.sheetNumber,
+      });
+      this.pdfPath = pdf.path;
+      if (result.outsidePage) {
+        const { width, height } = result.outsidePage;
+        log(`Note: the box [${target.bbox!.join(", ")}] runs past the page (${Math.round(width)} × ${Math.round(height)} pt), so it may be in different units.`);
+      }
+      const what = target.bbox ? ` with ${target.label} in red` : "";
+      log(`Opening sheet ${target.sheet.sheetNumber} (page ${target.sheet.pageIndex}) of ${basename(pdf.path)}${what}:`);
+      log(`  ${result.path}`);
+      (this.deps.open ?? openWithDefaultApp)(result.path);
+    } catch (err) {
+      log(`Couldn't render the page: ${(err as Error).message}`);
+    }
+    return lines;
+  }
+
+  private locatePdf(pdfArg?: string): { path?: string; looked: string[] } {
+    const exists = this.deps.exists;
+    if (pdfArg) {
+      const looked = sourcePdfCandidates(this.filePath, this.data, pdfArg);
+      return { path: findSourcePdf(looked, exists), looked };
+    }
+    if (this.pdfPath) return { path: this.pdfPath, looked: [this.pdfPath] };
+    const looked = sourcePdfCandidates(this.filePath, this.data, this.explicitPdf);
+    return { path: findSourcePdf(looked, exists), looked };
   }
 }
 
@@ -495,7 +643,8 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
       });
     });
   if (colorEnabled()) enableMentionHighlight(rl, () => editing);
-  const assistant = new AssistantBridge(data, filePath, explorer, ask);
+  const viewer = new PageViewer(data, filePath, opts.pdf);
+  const assistant = new AssistantBridge(data, filePath, explorer, ask, viewer);
 
   let closed = false;
   rl.on("close", () => (closed = true));
@@ -515,6 +664,11 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
     const mention = parseMention(input);
     if (mention) {
       await assistant.run(mention);
+      continue;
+    }
+    const view = parseViewCommand(input);
+    if (view) {
+      await viewer.show(explorer, view.pdf);
       continue;
     }
     running = explorer.handle(input);

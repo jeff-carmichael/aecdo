@@ -37,6 +37,9 @@ Commands:
                       to ask an AI assistant about the current view; it can
                       navigate, take notes in notes.md, and fill in a
                       spreadsheet (.xlsx/.csv/.tsv) in the current folder.
+                      Type "view" to open the PDF page with the current
+                      drawing, layer, or item outlined in red (--pdf <file>
+                      if the PDF isn't next to the .jsonld).
                       Non-TTY / --format json falls back to listing sheets.
   configure           Set up DrawingBot API credentials and region
   configure ai        Sign in with ChatGPT or add an OpenAI/Anthropic API key
@@ -66,6 +69,8 @@ API Options:
   --wait              Wait for job completion (used with status)
   --then <command>    Pipe result into: validate, summary, explore
   --stdout            process: print the result to stdout instead of saving it
+  --pdf <file>        explore: source PDF for "view" (default: <name>.pdf
+                      next to the .jsonld, or the set's filename)
 
 Examples:
   aecdo validate drawings.jsonld
@@ -163,6 +168,7 @@ async function main(): Promise<void> {
         wait: { type: "boolean", default: false },
         then: { type: "string" },
         stdout: { type: "boolean", default: false },
+        pdf: { type: "string" },
       },
       allowPositionals: true,
     });
@@ -180,6 +186,7 @@ async function main(): Promise<void> {
     wait: options.values.wait,
     then: options.values.then,
     stdout: options.values.stdout,
+    pdf: options.values.pdf,
   };
 
   try {
@@ -261,6 +268,7 @@ async function main(): Promise<void> {
           pretty: opts.pretty,
           output: opts.output,
           schema: opts.schema,
+          pdf: opts.pdf,
         };
 
         switch (command) {

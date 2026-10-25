@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createModels, fauxProvider, fauxAssistantMessage, fauxToolCall, fauxText } from "@earendil-works/pi-ai";
-import { Explorer } from "../commands/explore.js";
-import { createAssistantSession, resolveInCwd, wrapPrompt, type AssistantHost } from "./assistant.js";
+import { createModels, fauxProvider, fauxAssistantMessage, fauxToolCall, fauxText, Type } from "@earendil-works/pi-ai";
+import { Explorer, PageViewer } from "../commands/explore.js";
+import { buildTools, createAssistantSession, resolveInCwd, wrapPrompt, type AssistantHost } from "./assistant.js";
 import { ASSISTANTS } from "./llm.js";
 import type { DrawingSet } from "../types.js";
 
@@ -101,4 +101,52 @@ test("file tools stay inside the current folder", () => {
   assert.throws(() => resolveInCwd("/work", "/etc/passwd.md", [".md"]), /outside the current folder/);
   assert.throws(() => resolveInCwd("/work", "set.jsonld", [".md"]), /must end in/);
   assert.equal(resolveInCwd("/work", "sub/notes.md", [".md"]), "/work/sub/notes.md");
+});
+
+test("the assistant can open the page view with the item outlined", async () => {
+  const { explorer, host, faux, models } = setup();
+  const opened: string[] = [];
+  const bboxes: unknown[] = [];
+  const viewer = new PageViewer(data, host.filePath, undefined, {
+    log: () => undefined,
+    exists: () => true,
+    open: (p) => opened.push(p),
+    render: (req) => {
+      bboxes.push(req.bbox);
+      return Promise.resolve({ path: "/tmp/A101.png", pdfPath: "/tmp/A101.pdf", pageCount: 2 });
+    },
+  });
+  host.showPage = async () => (await viewer.show(explorer)).join("\n");
+  let toolResult = "";
+
+  faux.setResponses([
+    fauxAssistantMessage(
+      [
+        fauxToolCall("navigate", { command: "A101" }),
+        fauxToolCall("navigate", { command: "1" }),
+        fauxToolCall("navigate", { command: "1" }),
+        fauxToolCall("navigate", { command: "1" }),
+        fauxToolCall("show_page", {}),
+      ],
+      { stopReason: "toolUse" }
+    ),
+    (context) => {
+      const last = context.messages.at(-1) as { content: { text?: string }[] };
+      toolResult = last.content.map((c) => c.text ?? "").join("");
+      return fauxAssistantMessage([fauxText("Opened it.")]);
+    },
+  ]);
+
+  const session = await createAssistantSession(host, ASSISTANTS.claude, models, faux.getModel());
+  await session.ask("show me the exterior wall");
+  assert.deepEqual(bboxes, [[85, 120, 700, 130]]);
+  assert.deepEqual(opened, ["/tmp/A101.png"]);
+  assert.match(toolResult, /with item Exterior Wall in red/);
+});
+
+test("show_page is only offered when the host supports it", () => {
+  const { host } = setup();
+  const names = (h: AssistantHost) => buildTools(h, Type).map((t) => t.name);
+  assert.ok(!names(host).includes("show_page"));
+  assert.ok(names({ ...host, showPage: () => Promise.resolve("") }).includes("show_page"));
 });
