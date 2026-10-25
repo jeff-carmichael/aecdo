@@ -34,6 +34,7 @@ Fill in the PR template checklist when you open the PR.
 - **`ontology/`** — The schema definitions (versioned). This is the core of the project.
 - **`cli/`** — TypeScript CLI for working with AECDO JSON-LD files (compiled to `dist/` via `npm run build`).
 - **`examples/`** — Sample JSON-LD files used for testing and documentation.
+- **`docs/`** — The user guide, published with GitHub Pages at https://jeff-carmichael.github.io/aecdo/ (see [The user guide](#the-user-guide)).
 - **`.claude/skills/aecdo/SKILL.md`** — Claude Code skill for AI agents working with drawing data.
 
 ## Contributing to the Ontology/Schema
@@ -106,7 +107,8 @@ Whenever you add, remove, rename, or restructure a type or field, walk this chec
 - Any other files under `examples/` — bump `@context` URLs
 
 **Docs & metadata:**
-- `README.md` — schema version references, Mermaid diagram, Types table
+- `README.md` — schema version references
+- `docs/data-model.md` — Mermaid diagram, Types table, and example (the user guide's data model page)
 - `package.json` — `exports` paths for `./schema` and `./context`
 - `scripts/generate-diagram.mjs` and `.githooks/pre-commit` — schema/diagram paths and the `typeOrder` list of classes
 - `CHANGELOG.md` — a `Schema` entry under the new version describing what changed and why
@@ -171,7 +173,7 @@ If a command reads a file at runtime, embed it in `cli/bin/embed-assets.ts` too,
 4. Export from `cli/src/index.ts`
 5. Add tests next to the source (`cli/src/commands/yourcommand.test.ts`)
 6. Support `--format json` if the command produces output, so agents can use it
-7. Document it in `.claude/skills/aecdo/SKILL.md` and the README's Usage section
+7. Document it in `.claude/skills/aecdo/SKILL.md` and on the matching page of the user guide in `docs/`
 8. Add a `CHANGELOG.md` entry under `[Unreleased]`
 
 ### Code Style
@@ -181,6 +183,15 @@ If a command reads a file at runtime, embed it in `cli/bin/embed-assets.ts` too,
 - Node.js >= 18 (use built-in test runner, `parseArgs`, native `fetch`, etc.)
 - No comments unless explaining a non-obvious "why"
 - Minimal dependencies
+
+## The user guide
+
+The getting-started guide in `docs/` is a small [Jekyll](https://jekyllrb.com/) site that GitHub Pages builds straight from the `main` branch's `docs/` folder, so there's no build step or workflow to maintain. Each page is a Markdown file; the sidebar order lives in `nav` in `docs/_config.yml`, and the layout and styles are in `docs/_layouts/default.html` and `docs/assets/style.css`.
+
+- Link between pages with relative `.md` links (`[Explore](explore.md#see-it-on-the-page-view)`); Pages turns them into `.html` links.
+- When a command or option changes, update the page that describes it. The README stays short and links to the guide.
+- Avoid `{{` and `{%` in page text: Jekyll reads them as template tags.
+- To preview locally (optional; needs Ruby): `gem install jekyll jekyll-relative-links kramdown-parser-gfm webrick`, then `cd docs && jekyll serve` and open http://localhost:4000/aecdo/.
 
 ## Release Process
 

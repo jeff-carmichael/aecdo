@@ -1,0 +1,171 @@
+---
+title: Explore a drawing set
+---
+
+# Explore a drawing set
+
+`aecdo explore` lets you walk through a drawing set the way you'd flip through the sheets: pick a sheet, open a drawing, open a layer, open an item. At any point you can type `view` to see what you've selected outlined on the PDF page.
+
+```bash
+aecdo explore plans.jsonld
+```
+
+It first checks the file against the schema, then lists the sheets.
+
+## Moving around
+
+A drawing set is organized in levels:
+
+**Sheet list → sheet → drawing → layer → item**
+
+A sheet holds drawings (plans, sections, elevations, details) plus tables (schedules), notes, and images. Each drawing has layers, such as Walls, Doors, Door Tags, or Room Tags, and each layer holds the items found on it.
+
+At every level, the prompt shows where you are, and you type one of these:
+
+| Type | To |
+|------|----|
+| a sheet number or page index (`A101`, `3`) | open a sheet, from the sheet list |
+| a number from the list (`1`, `4`) | open that drawing, table, note, image, layer, or item |
+| `back`, `..`, or `b` | go up one level |
+| `top` | go back to the sheet list |
+| `ls` | print the current list again |
+| `all` | print everything on the current sheet at once |
+| `view` | open the PDF page with the current selection outlined in red |
+| `help` or `?` | show these commands |
+| `@claude …` or `@chatgpt …` | ask the [AI assistant](assistant.md) |
+| `quit`, `q`, or Ctrl+D | exit |
+
+Here's a short session with the demo set:
+
+```
+sheet> A101
+
+════════════════════════════════════════════════════════════
+  Sheet A101 — First Floor Plan (page 3)
+════════════════════════════════════════════════════════════
+
+  Drawings (2):
+     1. First Floor Plan [plan, 1/8" = 1'-0"] — 10 layers, 214 items
+     2. Key Plan [plan] — 1 layer, 1 item
+
+  Tables (1):
+     3. Wall Types — 6 rows
+
+  Notes (2):
+     4. GENERAL NOTES: 1. All dimensions are to face of stud or fac…
+     5. KEYNOTES: 4.01 Brick veneer over CMU; 8.12 Aluminum storefr…
+
+  Images (2):
+     6. [logo] Hollis Reyes Architects logo in title block
+     7. [diagram] North arrow and graphic scale
+
+A101> 1
+
+  Drawing: First Floor Plan [plan, 1/8" = 1'-0"] (sheet A101)
+    bbox: [140, 110, 1760, 1450]
+    → Building Section 1 (A301, page 7)
+    → South Elevation (A201, page 6)
+    …
+
+  Layers (10):
+     1. Grids & Dimensions — 16 items
+     2. Walls — 27 items
+     3. Doors — 26 items
+     4. Door Tags — 26 items
+     …
+
+A101 › First Floor Plan> 4
+
+  Layer: Door Tags
+  Items (26):
+     1. [TAG] Door tag 101A
+     …
+     5. [TAG] Door tag 105A
+     …
+
+A101 › First Floor Plan › Door Tags> 5
+
+      [TAG] Door tag 105A
+        id:   urn:uuid:7aeb9824-195b-5531-801e-4de1b6c983d0
+        bbox: [408.5, 747.5, 428.5, 767.5]
+        data:
+          mark: 105A
+        → urn:uuid:36d56ab4-…
+```
+
+Lines starting with `→` are **references**: a drawing's callouts to other drawings (a section cut, an elevation marker), or an item's links to related things, such as a door tag pointing at the door schedule.
+
+Each item has a type:
+
+- **THING**: a physical element, such as a wall, door, window, or fixture.
+- **TAG**: an annotation or symbol, such as a door tag, room tag, grid bubble, or keynote.
+- **AREA**: a region, such as a room or zone.
+
+What's under `data:` depends on what DrawingBot found: a wall might have `material` and `thickness`, a room tag a `number` and `name`.
+
+## See it on the page: view
+
+Type `view` (or `/view`) to open the current sheet's page from the original PDF with a **red box** around what you're looking at:
+
+| Where you are | What's outlined |
+|---------------|-----------------|
+| On a sheet, nothing opened yet | Nothing; you see the whole page |
+| After opening a table, note, or image | That table, note, or image |
+| Inside a drawing | The whole drawing |
+| Inside a layer | The layer (or all of its items, if the layer has no box of its own) |
+| After opening an item | That item |
+
+`aecdo` prints which sheet and page it's opening and where it saved the image, then opens it in your default viewer.
+
+### Finding the PDF
+
+`view` needs the original PDF. It looks:
+
+1. next to the `.jsonld` with the same name (`plans.pdf` for `plans.jsonld`), which is where [`aecdo process`](process.md) saves the result;
+2. by the PDF file name stored in the drawing set, in the `.jsonld`'s folder and the current folder.
+
+If your PDF is somewhere else, tell `explore` where it is, either when you start:
+
+```bash
+aecdo explore plans.jsonld --pdf ~/Downloads/plans-rev3.pdf
+```
+
+or once during the session:
+
+```
+A101> view ~/Downloads/plans-rev3.pdf
+```
+
+### Image or PDF
+
+If [Poppler](https://poppler.freedesktop.org/) (`pdftoppm`) or MuPDF (`mutool`) is installed, the page opens as a PNG image, which opens fastest. Otherwise it opens as a one-page PDF in your PDF viewer, which works just as well. To install Poppler:
+
+```bash
+brew install poppler            # macOS (Homebrew)
+sudo apt install poppler-utils  # Debian, Ubuntu
+```
+
+On Windows, the one-page PDF opens in your default PDF viewer, so there's nothing to install.
+
+The files go in your system's temp folder, under `aecdo-view/`.
+
+If the box is drawn in the wrong place, or `aecdo` warns that it "runs past the page", the file's coordinates may use different units. See [Data model and bbox](data-model.md#bbox-coordinates).
+
+## Quick looks without exploring
+
+These commands print and exit, which is handy in scripts or when you know what you want:
+
+```bash
+aecdo summary plans.jsonld          # counts of sheets, drawings, item types, tables, notes, images
+aecdo sheets plans.jsonld           # one line per sheet: number, title, page
+aecdo page plans.jsonld A101        # everything on one sheet (by sheet number or page index)
+aecdo validate plans.jsonld         # check the file against the schema
+```
+
+Add `--format json` to any of them for machine-readable output (`--pretty` to indent it), and `-o file` to write it to a file:
+
+```bash
+aecdo page plans.jsonld A601 --format json --pretty -o a601.json
+```
+
+`explore` itself notices when it isn't running in a terminal (in a script, or with `--format json`) and just prints the sheet list instead of waiting for input.

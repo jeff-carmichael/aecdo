@@ -25,6 +25,7 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `cli/src/lib/spreadsheet.ts`, `cli/src/lib/zip.ts` — dependency-free `.xlsx`/`.csv`/`.tsv` read and write; xlsx edits patch the sheet XML so formatting survives
 - `cli/src/lib/update-check.ts` — daily background check for newer GitHub releases (detached worker + cache at `~/.aecdo/update-check.json`, notice on stderr)
 - `package.json` — at repo root, npm-publishable as "aecdo"
+- `docs/` — user guide (Jekyll, served by GitHub Pages from `main`/`docs` at https://jeff-carmichael.github.io/aecdo/); one Markdown page per topic, sidebar order in `docs/_config.yml`; README is short and links here
 - `examples/sample-drawing-set.jsonld` — validates against the schema (small; used by unit tests)
 - `examples/maple-grove-library.jsonld` — detailed 19-sheet demo set (fictional library) for demos of `explore` and the assistant; `cli/src/lib/schema.test.ts` validates every file in `examples/`
 - `.claude/skills/aecdo/SKILL.md` — installable Claude Code skill
@@ -107,7 +108,7 @@ npm run diagram:check  # only if ontology/ changed
 ```
 
 - Any change under `ontology/` or `cli/src/` needs a `CHANGELOG.md` entry under `[Unreleased]` — CI fails without one.
-- New or changed command: update the `HELP` text in `cli/bin/aecdo.ts`, the README Usage section, and `.claude/skills/aecdo/SKILL.md`.
+- New or changed command: update the `HELP` text in `cli/bin/aecdo.ts`, the matching page of the user guide in `docs/`, and `.claude/skills/aecdo/SKILL.md`.
 - Schema change: follow the "Files That Must Be Updated" checklist in CONTRIBUTING.md.
 - `dist/` and `dist-bin/` are build output and gitignored — never commit them.
 - Don't push tags or create GitHub releases unless a maintainer asks; see Releases below.

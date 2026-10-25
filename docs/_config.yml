@@ -1,0 +1,45 @@
+title: AECDO Guide
+description: Install the aecdo CLI, turn PDF drawing sets into structured data, and explore them with an AI assistant.
+repository: jeff-carmichael/aecdo
+baseurl: /aecdo
+url: https://jeff-carmichael.github.io
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter_opts:
+    disable: true
+
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: false
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+
+nav:
+  - title: Getting started
+    url: /
+  - title: Install and update
+    url: /install.html
+  - title: Process PDFs
+    url: /process.html
+  - title: Explore a drawing set
+    url: /explore.html
+  - title: AI assistant
+    url: /assistant.html
+  - title: Demo walkthrough
+    url: /demo.html
+  - title: Data model and bbox
+    url: /data-model.html
+  - title: Claude Code and agents
+    url: /agents.html
+  - title: Troubleshooting
+    url: /troubleshooting.html

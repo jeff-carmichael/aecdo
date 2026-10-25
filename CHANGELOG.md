@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Docs
+- New getting-started guide at https://jeff-carmichael.github.io/aecdo/, built by GitHub Pages from `docs/`: install and update on each platform (including the Windows SmartScreen warning), processing PDFs, tab completion, exploring and `view`, the `@claude`/`@chatgpt` assistant and `AGENTS.md`, a walkthrough of the Maple Grove demo set, the data model and bbox units, using `aecdo` with Claude Code, and troubleshooting. The README is now a short overview that links to it.
+
 ### Schema
 - `BBox` description in `ontology/v0.3.0` now states the coordinate system DrawingBot already uses: PDF points (1/72 in), unscaled, from the top-left corner of the page as displayed (crop box, after /Rotate), with y increasing downward, as `[xmin, ymin, xmax, ymax]` corners. Documentation only; no validation change.
 
