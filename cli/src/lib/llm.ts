@@ -4,14 +4,28 @@ import { join } from "node:path";
 import { getConfigDir } from "./config.js";
 import type { Credential, CredentialInfo, CredentialStore, MutableModels, Model, Api } from "@earendil-works/pi-ai";
 
-export type AssistantName = "claude" | "chatgpt";
+export type AssistantName = "claude" | "chatgpt" | "openrouter" | "gemini" | "grok" | "deepseek" | "kimi";
+
+export type ProviderId = "anthropic" | "openai" | "openrouter";
 
 export interface AssistantInfo {
   name: AssistantName;
   label: string;
-  provider: "anthropic" | "openai";
+  provider: ProviderId;
   defaultModel: string;
   mentions: string[];
+  /** A fixed-model shortcut that goes through another assistant's provider (OpenRouter). */
+  shortcut?: boolean;
+}
+
+export const PROVIDER_LABELS: Record<ProviderId, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  openrouter: "OpenRouter",
+};
+
+function openrouterShortcut(name: AssistantName, label: string, model: string): AssistantInfo {
+  return { name, label, provider: "openrouter", defaultModel: model, mentions: [name], shortcut: true };
 }
 
 export const ASSISTANTS: Record<AssistantName, AssistantInfo> = {
@@ -29,7 +43,37 @@ export const ASSISTANTS: Record<AssistantName, AssistantInfo> = {
     defaultModel: "gpt-5.5",
     mentions: ["chatgpt", "gpt", "openai"],
   },
+  openrouter: {
+    name: "openrouter",
+    label: "OpenRouter",
+    provider: "openrouter",
+    defaultModel: "~anthropic/claude-sonnet-latest",
+    mentions: ["openrouter", "or"],
+  },
+  gemini: openrouterShortcut("gemini", "Gemini", "~google/gemini-pro-latest"),
+  grok: openrouterShortcut("grok", "Grok", "~x-ai/grok-latest"),
+  deepseek: openrouterShortcut("deepseek", "DeepSeek", "~deepseek/deepseek-pro-latest"),
+  kimi: openrouterShortcut("kimi", "Kimi", "~moonshotai/kimi-latest"),
 };
+
+/** Shown first in the OpenRouter model picker; all of these handle the assistant's tool calls. */
+export const OPENROUTER_RECOMMENDED = [
+  "~anthropic/claude-sonnet-latest",
+  "~anthropic/claude-opus-latest",
+  "openai/gpt-5.5",
+  "~google/gemini-pro-latest",
+  "~x-ai/grok-latest",
+];
+
+/** Assistants with their own model setting, i.e. not the fixed-model shortcuts. */
+export function configurableAssistants(): AssistantInfo[] {
+  return Object.values(ASSISTANTS).filter((a) => !a.shortcut);
+}
+
+/** Every @name that reaches an assistant, for completion and hints. */
+export function allMentions(): string[] {
+  return Object.values(ASSISTANTS).flatMap((a) => a.mentions);
+}
 
 export const APP_NAME = "aecdo";
 
@@ -110,6 +154,7 @@ export async function getDeviceId(path = llmConfigPath()): Promise<string> {
 }
 
 export async function getAssistantModelId(name: AssistantName, path = llmConfigPath()): Promise<string> {
+  if (ASSISTANTS[name].shortcut) return ASSISTANTS[name].defaultModel;
   return (await readLlmConfig(path)).models?.[name] ?? ASSISTANTS[name].defaultModel;
 }
 
@@ -129,10 +174,11 @@ export function assistantForMention(word: string): AssistantInfo | undefined {
  * older Node versions and keeps startup fast.
  */
 export async function createLlmModels(store: CredentialStore = new FileCredentialStore()): Promise<MutableModels> {
-  const [pi, anthropic, openai] = await Promise.all([
+  const [pi, anthropic, openai, openrouter] = await Promise.all([
     import("@earendil-works/pi-ai"),
     import("@earendil-works/pi-ai/providers/anthropic"),
     import("@earendil-works/pi-ai/providers/openai"),
+    import("@earendil-works/pi-ai/providers/openrouter"),
   ]);
   const models = pi.createModels({
     credentials: store,
@@ -140,6 +186,7 @@ export async function createLlmModels(store: CredentialStore = new FileCredentia
   });
   models.setProvider(anthropic.anthropicProvider());
   models.setProvider(openai.openaiProvider());
+  models.setProvider(openrouter.openrouterProvider());
   return models;
 }
 
@@ -154,5 +201,9 @@ export async function resolveAssistantModel(models: MutableModels, name: Assista
 }
 
 export async function isAssistantConfigured(models: MutableModels, name: AssistantName): Promise<boolean> {
-  return (await models.checkAuth(ASSISTANTS[name].provider)) !== undefined;
+  return isProviderConfigured(models, ASSISTANTS[name].provider);
+}
+
+export async function isProviderConfigured(models: MutableModels, provider: ProviderId): Promise<boolean> {
+  return (await models.checkAuth(provider)) !== undefined;
 }

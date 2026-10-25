@@ -33,8 +33,9 @@ Commands:
   sheets <file>       List all sheets (non-interactive; agent-friendly)
   page <file> <id>    Print one sheet by sheet number or page index
   explore <file>      Browse interactively (humans): sheet → drawings/tables/notes/
-                      images → layers → items. Type "@claude …" or "@chatgpt …"
-                      to ask an AI assistant about the current view; it can
+                      images → layers → items. Type "@claude …", "@chatgpt …", or
+                      "@openrouter …" (also @gemini, @grok, @deepseek,
+                      @kimi; Tab completes the name) to ask an AI assistant about the current view; it can
                       navigate, open the page view, take notes in notes.md,
                       and fill in a spreadsheet (.xlsx/.csv/.tsv) in the
                       current folder. An AGENTS.md in the folder adds
@@ -44,8 +45,8 @@ Commands:
                       if the PDF isn't next to the .jsonld).
                       Non-TTY / --format json falls back to listing sheets.
   configure           Set up DrawingBot API credentials and region
-  configure ai        Sign in with ChatGPT or add an OpenAI/Anthropic API key
-                      for the explore assistant
+  configure ai        Sign in with ChatGPT or OpenRouter, or add an OpenAI,
+                      Anthropic, or OpenRouter API key for the explore assistant
   process [pdf]       Upload a PDF, wait for processing, and save the result
                       as <pdf name>.jsonld next to the PDF. With no file in a
                       terminal, pick a PDF from the current folder.

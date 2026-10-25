@@ -17,11 +17,12 @@ import {
   assistantForMention,
   createLlmModels,
   isAssistantConfigured,
+  isProviderConfigured,
   resolveAssistantModel,
   type AssistantInfo,
   type AssistantName,
 } from "../lib/llm.js";
-import { enableMentionHighlight, colorEnabled } from "../lib/mention-highlight.js";
+import { enableMentionHighlight, colorEnabled, completeMention } from "../lib/mention-highlight.js";
 import { createAssistantSession, type AssistantSession } from "../lib/assistant.js";
 import {
   findSourcePdf,
@@ -461,6 +462,16 @@ export function nodeSupportsAssistant(version = process.versions.node, isBun = "
   return major > 22 || (major === 22 && minor >= 19);
 }
 
+export async function notSetUpMessage(models: MutableModels, info: AssistantInfo): Promise<string> {
+  const run = 'Run "aecdo configure ai" to sign in or add an API key.';
+  if (info.shortcut) return `@${info.name} goes through OpenRouter, which isn't set up yet. ${run}`;
+  const viaOpenRouter =
+    info.provider !== "openrouter" && (await isProviderConfigured(models, "openrouter").catch(() => false))
+      ? " Or ask @openrouter (@or), which is already set up."
+      : "";
+  return `${info.label} isn't set up yet. ${run}${viaOpenRouter}`;
+}
+
 class AssistantBridge {
   private models?: MutableModels;
   private sessions = new Map<AssistantName, AssistantSession>();
@@ -477,8 +488,8 @@ class AssistantBridge {
   async run(mention: Mention): Promise<void> {
     const info = mention.assistant;
     if (!info) {
-      const names = Object.values(ASSISTANTS).map((a) => `@${a.name}`).join(" or ");
-      console.log(`Unknown assistant "@${mention.word}". Try ${names}.`);
+      const names = Object.values(ASSISTANTS).map((a) => `@${a.name}`).join(", ");
+      console.log(`Unknown assistant "@${mention.word}". Try one of ${names}.`);
       return;
     }
     if (!mention.text) {
@@ -510,7 +521,7 @@ class AssistantBridge {
 
     this.models ??= await createLlmModels();
     if (!(await isAssistantConfigured(this.models, info.name))) {
-      console.log(`${info.label} isn't set up yet. Run "aecdo configure ai" to sign in or add an API key.`);
+      console.log(await notSetUpMessage(this.models, info));
       return undefined;
     }
     const model = await resolveAssistantModel(this.models, info.name);
@@ -632,7 +643,7 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
   explorer.render();
   explorer.help();
 
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const rl = createInterface({ input: process.stdin, output: process.stdout, completer: completeMention });
   let editing = false;
   const ask = (q: string) =>
     new Promise<string>((res) => {
