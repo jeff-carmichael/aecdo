@@ -12,7 +12,9 @@ import {
   createLlmModels,
   ASSISTANTS,
 } from "./llm.js";
-import { parseMention, nodeSupportsAssistant } from "../commands/explore.js";
+import { parseMention, nodeSupportsAssistant, notSetUpMessage } from "../commands/explore.js";
+import { modelChoices } from "../commands/configure-ai.js";
+import type { MutableModels } from "@earendil-works/pi-ai";
 
 function tempConfig(): string {
   return join(mkdtempSync(join(tmpdir(), "aecdo-llm-")), "llm.json");
@@ -59,6 +61,9 @@ test("parses @mentions", () => {
   assert.equal(assistantForMention("ChatGPT")?.name, "chatgpt");
   assert.equal(assistantForMention("gpt")?.name, "chatgpt");
   assert.equal(assistantForMention("bard"), undefined);
+  assert.equal(assistantForMention("OpenRouter")?.name, "openrouter");
+  assert.equal(assistantForMention("or")?.name, "openrouter");
+  assert.equal(assistantForMention("gemini")?.provider, "openrouter");
 
   const m = parseMention("@claude, what's on this sheet?");
   assert.equal(m?.assistant?.name, "claude");
@@ -74,4 +79,29 @@ test("checks the Node version pi needs", () => {
   assert.equal(nodeSupportsAssistant("22.11.0", false), false);
   assert.equal(nodeSupportsAssistant("20.18.0", false), false);
   assert.equal(nodeSupportsAssistant("20.18.0", true), true);
+});
+
+test("OpenRouter shortcuts use their fixed model", async () => {
+  const path = tempConfig();
+  await setAssistantModelId("gemini", "openai/gpt-5.5", path);
+  assert.equal(await getAssistantModelId("gemini", path), "~google/gemini-pro-latest");
+  assert.equal(await getAssistantModelId("openrouter", path), ASSISTANTS.openrouter.defaultModel);
+});
+
+test("OpenRouter model picker puts recommended models first and hides batch variants", () => {
+  const catalog = ["z/other", "openai/gpt-5.5", "z/other:batch", "~anthropic/claude-sonnet-latest"];
+  assert.deepEqual(modelChoices("openrouter", catalog, "~anthropic/claude-sonnet-latest"), [
+    "~anthropic/claude-sonnet-latest",
+    "openai/gpt-5.5",
+    "z/other",
+  ]);
+  assert.deepEqual(modelChoices("anthropic", ["a", "b", "c"], "b"), ["b", "c", "a"]);
+});
+
+test("not-set-up message points to OpenRouter when it is ready", async () => {
+  const fake = (ready: string[]) =>
+    ({ checkAuth: (p: string) => Promise.resolve(ready.includes(p) ? { type: "api_key" } : undefined) }) as unknown as MutableModels;
+  assert.match(await notSetUpMessage(fake(["openrouter"]), ASSISTANTS.claude), /@openrouter/);
+  assert.doesNotMatch(await notSetUpMessage(fake([]), ASSISTANTS.claude), /@openrouter/);
+  assert.match(await notSetUpMessage(fake([]), ASSISTANTS.grok), /goes through OpenRouter/);
 });

@@ -32,7 +32,7 @@ At every level, the prompt shows where you are, and you type one of these:
 | `all` | print everything on the current sheet at once |
 | `view` | open the PDF page with the current selection outlined in red |
 | `help` or `?` | show these commands |
-| `@claude …` or `@chatgpt …` | ask the [AI assistant](assistant.md) |
+| `@claude …`, `@chatgpt …`, `@openrouter …` (and more) | ask the [AI assistant](assistant.md); Tab completes the name |
 | `quit`, `q`, or Ctrl+D | exit |
 
 Here's a short session with the demo set:

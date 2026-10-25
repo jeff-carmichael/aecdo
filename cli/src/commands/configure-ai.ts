@@ -4,6 +4,9 @@ import { pick, canPrompt } from "../lib/picker.js";
 import {
   ASSISTANTS,
   APP_NAME,
+  OPENROUTER_RECOMMENDED,
+  PROVIDER_LABELS,
+  configurableAssistants,
   FileCredentialStore,
   createLlmModels,
   getAssistantModelId,
@@ -19,6 +22,8 @@ const ACTIONS = {
   chatgptLogin: "Sign in with ChatGPT (uses your ChatGPT plan)",
   openaiKey: "Enter an OpenAI API key (ChatGPT, billed per use)",
   anthropicKey: "Enter an Anthropic API key (Claude, billed per use)",
+  openrouterLogin: "Sign in with OpenRouter (Gemini, Grok, Claude, GPT and more)",
+  openrouterKey: "Enter an OpenRouter API key",
   model: "Choose a model",
   logout: "Sign out / remove a key",
   done: "Done",
@@ -100,34 +105,50 @@ const interaction: AuthInteraction = {
 };
 
 async function describe(models: MutableModels): Promise<void> {
-  console.log("\nAI assistants (use @claude or @chatgpt inside aecdo explore):");
-  for (const a of Object.values(ASSISTANTS)) {
+  const assistants = configurableAssistants();
+  console.log(`\nAI assistants (use ${assistants.map((a) => `@${a.name}`).join(", ")} inside aecdo explore):`);
+  for (const a of assistants) {
     const auth = await models.checkAuth(a.provider).catch(() => undefined);
     const how = !auth ? "not set up" : auth.type === "oauth" ? "signed in" : `API key (${auth.source ?? "stored"})`;
-    console.log(`  ${a.label.padEnd(8)} ${how.padEnd(36)} model: ${await getAssistantModelId(a.name)}`);
+    console.log(`  ${a.label.padEnd(10)} ${how.padEnd(36)} model: ${await getAssistantModelId(a.name)}`);
   }
+  const shortcuts = Object.values(ASSISTANTS).filter((a) => a.shortcut);
+  console.log(`  Shortcuts through OpenRouter: ${shortcuts.map((a) => `@${a.name}`).join(", ")}`);
   console.log();
 }
 
 async function chooseAssistant(title: string): Promise<AssistantName | null> {
-  const labels = Object.values(ASSISTANTS).map((a) => a.label);
-  const picked = await pick(labels, { title });
-  return Object.values(ASSISTANTS).find((a) => a.label === picked)?.name ?? null;
+  const assistants = configurableAssistants();
+  const picked = await pick(assistants.map((a) => a.label), { title });
+  return assistants.find((a) => a.label === picked)?.name ?? null;
 }
 
 async function chooseModel(models: MutableModels, name: AssistantName): Promise<void> {
   const info = ASSISTANTS[name];
   const current = await getAssistantModelId(name);
-  const ids = models.getModels(info.provider).map((m) => m.id).reverse();
-  const ordered = [current, ...ids.filter((id) => id !== current)];
-  const picked = await pick(ordered, { title: `${info.label} model (type to filter):` });
+  const ids = modelChoices(info.provider, models.getModels(info.provider).map((m) => m.id), current);
+  const picked = await pick(ids, { title: `${info.label} model (type to filter):` });
   if (!picked) return;
   await setAssistantModelId(name, picked);
 }
 
+/**
+ * Current model first. For OpenRouter, the recommended models come next and batch-only
+ * variants are left out, since the full catalog has hundreds of entries.
+ */
+export function modelChoices(provider: string, catalog: string[], current: string): string[] {
+  let ids = [...catalog].reverse();
+  if (provider === "openrouter") {
+    ids = ids.filter((id) => !id.endsWith(":batch"));
+    const recommended = OPENROUTER_RECOMMENDED.filter((id) => ids.includes(id));
+    ids = [...recommended, ...ids.filter((id) => !recommended.includes(id))];
+  }
+  return [current, ...ids.filter((id) => id !== current)];
+}
+
 async function saveApiKey(models: MutableModels, store: FileCredentialStore, name: AssistantName): Promise<void> {
   const info = ASSISTANTS[name];
-  const key = (await askSecret(`${info.label === "Claude" ? "Anthropic" : "OpenAI"} API key: `)).trim();
+  const key = (await askSecret(`${PROVIDER_LABELS[info.provider]} API key: `)).trim();
   if (!key) {
     console.log("No key entered; nothing changed.");
     return;
@@ -167,6 +188,14 @@ export async function configureAi(): Promise<void> {
           break;
         case ACTIONS.anthropicKey:
           await saveApiKey(models, store, "claude");
+          break;
+        case ACTIONS.openrouterLogin:
+          await models.login("openrouter", "oauth", interaction);
+          console.log("Signed in with OpenRouter.");
+          await chooseModel(models, "openrouter");
+          break;
+        case ACTIONS.openrouterKey:
+          await saveApiKey(models, store, "openrouter");
           break;
         case ACTIONS.model: {
           const name = await chooseAssistant("Which assistant?");

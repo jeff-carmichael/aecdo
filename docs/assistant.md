@@ -4,12 +4,13 @@ title: AI assistant
 
 # AI assistant in explore
 
-Inside `aecdo explore`, start a line with **`@claude`** or **`@chatgpt`** to ask an AI assistant about the drawing set. It sees what's on your screen, can move around the set for you, open pages with things outlined, take notes, and fill in spreadsheets.
+Inside `aecdo explore`, start a line with **`@claude`**, **`@chatgpt`**, or **`@openrouter`** to ask an AI assistant about the drawing set. It sees what's on your screen, can move around the set for you, open pages with things outlined, take notes, and fill in spreadsheets.
 
 ```
 A101> @claude which rooms on this floor don't have a door tag?
 A601> @chatgpt compare the door schedule to the door tags on A101 and A102
 sheet> @claude show me door 105A
+sheet> @gemini list the rooms with no finish in the room finish schedule
 ```
 
 ## Set it up
@@ -21,6 +22,7 @@ You need one of these:
 | **ChatGPT** | *Sign in with ChatGPT* using a ChatGPT Plus or Pro plan | Counts against your plan's usage |
 | **ChatGPT** | An [OpenAI API key](https://platform.openai.com/api-keys) | Billed per use by OpenAI |
 | **Claude** | An [Anthropic API key](https://console.anthropic.com/) | Billed per use by Anthropic |
+| **OpenRouter** (many models: Claude, GPT, Gemini, Grok, DeepSeek, Kimi, …) | *Sign in with OpenRouter*, or an [OpenRouter API key](https://openrouter.ai/settings/keys) | Billed per use from your OpenRouter credits |
 
 Run:
 
@@ -31,23 +33,38 @@ aecdo configure ai
 and pick from the menu with the arrow keys:
 
 - **Sign in with ChatGPT (uses your ChatGPT plan)** opens your browser to sign in. You can cap how much `aecdo` may use in ChatGPT's settings.
-- **Enter an OpenAI API key** or **Enter an Anthropic API key** asks you to paste the key (it isn't shown as you type).
-- **Choose a model** picks which model each assistant uses. The defaults are Claude Sonnet 5.5 for `@claude` and GPT-5.5 for `@chatgpt`.
+- **Sign in with OpenRouter** opens your browser; OpenRouter then creates an API key for `aecdo`, which you can see and revoke in your OpenRouter account.
+- **Enter an OpenAI API key**, **Enter an Anthropic API key**, or **Enter an OpenRouter API key** asks you to paste the key (it isn't shown as you type).
+- **Choose a model** picks which model each assistant uses. The defaults are Claude Sonnet 5.5 for `@claude`, GPT-5.5 for `@chatgpt`, and OpenRouter's latest Claude Sonnet (`~anthropic/claude-sonnet-latest`) for `@openrouter`. OpenRouter has hundreds of models, so a few recommended ones are listed first; type to filter the rest. The assistant needs a model that supports tool calls to navigate and read sheets, so stick to the recommended ones if you're unsure.
 - **Sign out / remove a key** forgets a sign-in or key.
 
 > **Why no "Sign in with Claude"?** Anthropic doesn't allow third-party tools to use Claude Pro or Max subscriptions, so `@claude` needs an API key. If you have a Claude subscription, you can use [Claude Code](agents.md) with `aecdo` instead.
 
-Sign-ins, keys, and model choices are saved in `~/.aecdo/llm.json`, readable only by you. You can also set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in your environment instead.
+Sign-ins, keys, and model choices are saved in `~/.aecdo/llm.json`, readable only by you. You can also set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENROUTER_API_KEY` in your environment instead.
+
+### OpenRouter shortcuts
+
+Once OpenRouter is set up, these names also work. Each uses OpenRouter's always-current model for that family:
+
+| Mention | Model |
+|---------|-------|
+| `@openrouter` or `@or` | the model you chose in `aecdo configure ai` |
+| `@gemini` | Google Gemini Pro (`~google/gemini-pro-latest`) |
+| `@grok` | xAI Grok (`~x-ai/grok-latest`) |
+| `@deepseek` | DeepSeek Pro (`~deepseek/deepseek-pro-latest`) |
+| `@kimi` | Moonshot Kimi (`~moonshotai/kimi-latest`) |
+
+`@claude` and `@chatgpt` always go straight to Anthropic and OpenAI, never through OpenRouter. If you only have OpenRouter, use `@or`.
 
 The assistant works with the installed `aecdo` program. If you [built from source](install.md#build-from-source), it needs Node.js 22.19 or newer.
 
 ## Asking questions
 
-Type `@claude` or `@chatgpt` (or `@gpt`) at the start of a line, then your question. The name turns cyan as you type it when it matches an assistant, so you know the line will go to the assistant and not be read as a command.
+Type `@claude`, `@chatgpt` (or `@gpt`), `@openrouter` (or `@or`), or one of the [shortcuts](#openrouter-shortcuts) at the start of a line, then your question. Type `@` and a few letters, then press **Tab**, to complete the name. The name turns cyan as you type it when it matches an assistant, so you know the line will go to the assistant and not be read as a command.
 
 The assistant gets the current view as context: the sheet list, the sheet, the drawing, or the layer you're on. So "this floor", "these doors", or "this layer" mean what's on your screen.
 
-- **It remembers the conversation** until you quit `explore`. `@claude` and `@chatgpt` each keep their own conversation.
+- **It remembers the conversation** until you quit `explore`. Each name (`@claude`, `@chatgpt`, `@gemini`, …) keeps its own conversation.
 - **Press Ctrl+C** to stop an answer partway through.
 - Answers appear as they're written. When the assistant navigates, you see your view change; when it writes a note or a spreadsheet, it prints a line saying which file.
 
@@ -96,8 +113,8 @@ How it works:
 
 ## Privacy and safety
 
-- **What's sent:** your questions, plus the parts of the drawing set the assistant needs (the current view and any sheets it reads), go to OpenAI or Anthropic, depending on which assistant you ask. Your PDF itself isn't sent.
+- **What's sent:** your questions, plus the parts of the drawing set the assistant needs (the current view and any sheets it reads), go to OpenAI or Anthropic, depending on which assistant you ask. With `@openrouter` and the shortcuts, they go to OpenRouter and on to the company that runs the model; OpenRouter's privacy settings control which providers may receive them. Your PDF itself isn't sent.
 - **File access** is limited to the folder you ran `explore` from. There it can only read and write spreadsheets and add to Markdown notes. It can't run commands or reach other folders.
-- **Nothing is sent** unless you start a line with `@claude` or `@chatgpt`.
+- **Nothing is sent** unless you start a line with an assistant's name, like `@claude`.
 
 The assistant is built on the open-source [pi](https://github.com/earendil-works/pi) libraries (`pi-ai` and `pi-agent-core`).

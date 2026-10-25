@@ -1,5 +1,5 @@
 import type { Interface } from "node:readline";
-import { assistantForMention } from "./llm.js";
+import { allMentions, assistantForMention } from "./llm.js";
 
 const MENTION = /^(\s*)@([a-z]+)(?![a-z])/i;
 
@@ -9,6 +9,17 @@ export function highlightMention(line: string, color = "\x1b[1;36m", reset = "\x
   if (!m || !assistantForMention(m[2])) return line;
   const end = m[0].length;
   return `${m[1]}${color}${line.slice(m[1].length, end)}${reset}${line.slice(end)}`;
+}
+
+/** readline completer: Tab after a leading "@" offers the assistant names that match. */
+export function completeMention(line: string): [string[], string] {
+  const m = /^\s*@([a-z]*)$/i.exec(line);
+  if (!m) return [[], line];
+  const typed = m[1].toLowerCase();
+  const hits = allMentions()
+    .filter((name) => name.startsWith(typed))
+    .map((name) => `@${name} `);
+  return [hits, line.trimStart()];
 }
 
 export function colorEnabled(stream: NodeJS.WriteStream = process.stdout, env = process.env): boolean {
@@ -24,7 +35,7 @@ interface ReadlineInternals {
 }
 
 /**
- * Colors a valid @claude / @chatgpt at the start of the line while the user types.
+ * Colors a valid @claude / @chatgpt / @openrouter … at the start of the line while the user types.
  * `editing` must be true only while a prompt is waiting for input, so redraws never
  * land in the middle of other output.
  */

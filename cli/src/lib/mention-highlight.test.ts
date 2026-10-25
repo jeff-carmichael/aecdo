@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { highlightMention, colorEnabled } from "./mention-highlight.js";
+import { highlightMention, colorEnabled, completeMention } from "./mention-highlight.js";
 
 const C = "<";
 const R = ">";
@@ -9,6 +9,8 @@ test("highlights a leading mention of a known assistant", () => {
   assert.equal(highlightMention("@claude what is here?", C, R), "<@claude> what is here?");
   assert.equal(highlightMention("  @ChatGPT, hi", C, R), "  <@ChatGPT>, hi");
   assert.equal(highlightMention("@gpt", C, R), "<@gpt>");
+  assert.equal(highlightMention("@or hi", C, R), "<@or> hi");
+  assert.equal(highlightMention("@gemini hi", C, R), "<@gemini> hi");
 });
 
 test("leaves unknown, partial, and non-leading mentions alone", () => {
@@ -25,4 +27,12 @@ test("color is off for non-TTY output, NO_COLOR, and dumb terminals", () => {
   assert.equal(colorEnabled(tty, { NO_COLOR: "1" }), false);
   assert.equal(colorEnabled(tty, { TERM: "dumb" }), false);
   assert.equal(colorEnabled({ isTTY: false } as NodeJS.WriteStream, {}), false);
+});
+
+test("Tab completes a leading @mention", () => {
+  assert.deepEqual(completeMention("@cl"), [["@claude "], "@cl"]);
+  assert.deepEqual(completeMention("  @OP"), [["@openai ", "@openrouter "], "@OP"]);
+  assert.ok(completeMention("@")[0].includes("@grok "));
+  assert.deepEqual(completeMention("@claude hi"), [[], "@claude hi"]);
+  assert.deepEqual(completeMention("A1"), [[], "A1"]);
 });
