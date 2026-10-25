@@ -187,7 +187,7 @@ Once a day, `aecdo` checks [GitHub Releases](https://github.com/jeff-carmichael/
 
 ## Schema
 
-Current version: **v0.3.0** — [`ontology/v0.3.0/aecdo.schema.json`](ontology/v0.3.0/aecdo.schema.json). See [`examples/sample-drawing-set.jsonld`](examples/sample-drawing-set.jsonld) for a complete file.
+Current version: **v0.3.0** — [`ontology/v0.3.0/aecdo.schema.json`](ontology/v0.3.0/aecdo.schema.json). See [`examples/sample-drawing-set.jsonld`](examples/sample-drawing-set.jsonld) for a minimal complete file, and [`examples/maple-grove-library.jsonld`](examples/maple-grove-library.jsonld) for a detailed 19-sheet demo set (try `aecdo explore examples/maple-grove-library.jsonld`).
 
 ```mermaid
 ---

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Examples
+- New `examples/maple-grove-library.jsonld`: a detailed demo set for a fictional two-story, 36,000 SF branch library (19 sheets across general, civil, architectural, structural, mechanical, plumbing, and electrical; about 1,000 items, 28 tables). Door tags, room tags, and callouts reference the matching schedules and drawings, so `explore` and the `@claude`/`@chatgpt` assistant can follow them. It includes two deliberate coordination issues to find in a demo: door 209B is on the second floor plan but missing from the door schedule, and door 105A calls for hardware set 9, which doesn't exist.
+- New test checks that every file in `examples/` validates against the schema and that its `@id`s are unique and its `references` resolve.
+
 ### CLI
 - AI assistant in `aecdo explore`: start a line with `@claude` or `@chatgpt` (also `@gpt`) to ask about the current view. The assistant gets the sheet, drawing, or layer on screen as context, can navigate with the same commands a user types, read other sheets, append Markdown notes to `notes.md`, and read, fill in, or create spreadsheets (`.xlsx`, `.csv`, `.tsv`) in the current folder. It asks before its first edit to an existing spreadsheet, keeps `.xlsx` formatting, formulas, and other tabs, and never overwrites formula cells. Ctrl+C stops an answer. Built on the MIT-licensed `@earendil-works/pi-ai` and `@earendil-works/pi-agent-core` (new dependencies, loaded only when the assistant is used); needs Node.js 22.19+ for npm installs.
 - New `aecdo configure ai`: Sign in with ChatGPT (uses the ChatGPT plan), or save an OpenAI or Anthropic API key, choose each assistant's model, or sign out. Settings go to `~/.aecdo/llm.json` (0600). `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` also work. Claude Pro/Max sign-in is not offered because Anthropic doesn't allow it in third-party tools.
