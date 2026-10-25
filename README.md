@@ -166,6 +166,7 @@ Inside `explore`, start a line with `@claude` or `@chatgpt` (also `@gpt`) to ask
 
 - **navigate** the drawing set with the same commands you type, so you watch it move;
 - **read** any other sheet without moving your view;
+- **show you the page** with a red box around something, the same as typing `view` (e.g. `@claude show me door 105A`);
 - **take notes** by appending Markdown to `notes.md` in the current folder;
 - **fill in a spreadsheet** in the current folder: it looks for an existing `.xlsx`, `.csv`, or `.tsv` and works in that file's layout, or creates a new one. Before its first edit to an existing spreadsheet it asks `[y/N]`. Excel files are edited in place, so formatting, formulas, and other tabs are kept, and cells that hold formulas are never overwritten.
 

@@ -264,7 +264,7 @@ export class Explorer {
       return true;
     }
     if (parseViewCommand(answer)) {
-      this.log('"view" opens an image window, so only you can run it: type it at the prompt.');
+      this.log('"view" can\'t be run from here; the assistant uses its show_page tool instead.');
       return true;
     }
     if (cmd === "list" || cmd === "ls") {
@@ -470,7 +470,8 @@ class AssistantBridge {
     private data: DrawingSet,
     private filePath: string,
     private explorer: Explorer,
-    private ask: (q: string) => Promise<string>
+    private ask: (q: string) => Promise<string>,
+    private viewer?: PageViewer
   ) {}
 
   async run(mention: Mention): Promise<void> {
@@ -519,6 +520,7 @@ class AssistantBridge {
         filePath: this.filePath,
         cwd: process.cwd(),
         view: this.explorer,
+        showPage: this.viewer ? async () => (await this.viewer!.show(this.explorer)).join("\n") : undefined,
         write: (text) => process.stdout.write(text),
         print: (line) => console.log(line),
         confirm: async (q) => /^y(es)?$/i.test((await this.ask(q)).trim()),
@@ -550,12 +552,18 @@ export class PageViewer {
     private deps: PageViewerDeps = {}
   ) {}
 
-  async show(explorer: Explorer, pdfArg?: string): Promise<void> {
-    const log = this.deps.log ?? console.log;
+  /** Prints what happened and returns the same lines, so the assistant can report them. */
+  async show(explorer: Explorer, pdfArg?: string): Promise<string[]> {
+    const lines: string[] = [];
+    const print = this.deps.log ?? console.log;
+    const log = (line: string) => {
+      lines.push(line);
+      print(line);
+    };
     const target = explorer.viewTarget();
     if ("error" in target) {
       log(target.error);
-      return;
+      return lines;
     }
 
     const pdf = this.locatePdf(pdfArg);
@@ -563,7 +571,7 @@ export class PageViewer {
       log(pdfArg ? `Can't find "${pdfArg}".` : "Can't find the source PDF for this drawing set. Looked for:");
       if (!pdfArg) for (const c of pdf.looked) log(`  ${c}`);
       log('Type "view <path to pdf>", or start explore with --pdf <file>.');
-      return;
+      return lines;
     }
 
     if (!target.bbox && !target.wholePage) {
@@ -589,6 +597,7 @@ export class PageViewer {
     } catch (err) {
       log(`Couldn't render the page: ${(err as Error).message}`);
     }
+    return lines;
   }
 
   private locatePdf(pdfArg?: string): { path?: string; looked: string[] } {
@@ -634,8 +643,8 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
       });
     });
   if (colorEnabled()) enableMentionHighlight(rl, () => editing);
-  const assistant = new AssistantBridge(data, filePath, explorer, ask);
   const viewer = new PageViewer(data, filePath, opts.pdf);
+  const assistant = new AssistantBridge(data, filePath, explorer, ask, viewer);
 
   let closed = false;
   rl.on("close", () => (closed = true));
