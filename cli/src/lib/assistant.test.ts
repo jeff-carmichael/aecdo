@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createModels, fauxProvider, fauxAssistantMessage, fauxToolCall, fauxText, Type } from "@earendil-works/pi-ai";
 import { Explorer, PageViewer } from "../commands/explore.js";
-import { buildTools, createAssistantSession, resolveInCwd, wrapPrompt, type AssistantHost } from "./assistant.js";
+import { buildTools, createAssistantSession, loadFolderInstructions, resolveInCwd, withFolderInstructions, wrapPrompt, type AssistantHost } from "./assistant.js";
 import { ASSISTANTS } from "./llm.js";
 import type { DrawingSet } from "../types.js";
 
@@ -149,4 +149,29 @@ test("show_page is only offered when the host supports it", () => {
   const names = (h: AssistantHost) => buildTools(h, Type).map((t) => t.name);
   assert.ok(!names(host).includes("show_page"));
   assert.ok(names({ ...host, showPage: () => Promise.resolve("") }).includes("show_page"));
+});
+
+test("reads AGENTS.md from the folder into the system prompt", async () => {
+  const { cwd, host, faux, models, out } = setup();
+  writeFileSync(join(cwd, "agents.md"), "# Project rules\nLog every issue in rfi-log.xlsx.\n");
+  const instructions = await loadFolderInstructions(cwd);
+  assert.equal(instructions?.file, "agents.md");
+  const prompt = withFolderInstructions("base", instructions);
+  assert.match(prompt, /<project_instructions file="agents\.md">/);
+  assert.match(prompt, /Log every issue in rfi-log\.xlsx\./);
+
+  faux.setResponses([fauxAssistantMessage([fauxText("ok")])]);
+  const session = await createAssistantSession(host, ASSISTANTS.claude, models, faux.getModel());
+  await session.ask("hi");
+  assert.match(out.join(""), /Using agents\.md from this folder/);
+});
+
+test("folder instructions are optional and capped", async () => {
+  const { cwd } = setup();
+  assert.equal(await loadFolderInstructions(cwd), undefined);
+  assert.equal(withFolderInstructions("base", undefined), "base");
+  writeFileSync(join(cwd, "AGENTS.md"), "x".repeat(25_000));
+  const big = await loadFolderInstructions(cwd);
+  assert.ok(big?.truncated);
+  assert.equal(big.text.length, 20_000);
 });

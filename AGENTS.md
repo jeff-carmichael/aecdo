@@ -19,7 +19,7 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `cli/src/lib/picker.ts` — arrow-key list picker (raw-mode stdin, draws on stderr) used when `process`/`upload` get no file in a TTY
 - `cli/src/commands/completion.ts` — bash/zsh/fish completion scripts for `aecdo completion`
 - `cli/src/lib/llm.ts` — AI assistant setup on pi-ai: Claude/ChatGPT mapping, default models, credential store at `~/.aecdo/llm.json`; pi is imported lazily (needs Node 22.19+)
-- `cli/src/lib/assistant.ts` — the `@claude`/`@chatgpt` agent in `explore` (pi-agent-core): system prompt, current-view context, and tools (navigate, read sheets, `show_page`, notes, spreadsheets) limited to the current folder
+- `cli/src/lib/assistant.ts` — the `@claude`/`@chatgpt` agent in `explore` (pi-agent-core): system prompt, current-view context, and tools (navigate, read sheets, `show_page`, notes, spreadsheets) limited to the current folder; appends an `AGENTS.md` from the cwd (if any) to the system prompt
 - `cli/src/commands/configure-ai.ts` — `aecdo configure ai` (Sign in with ChatGPT, API keys, model choice)
 - `cli/src/lib/page-view.ts` — `view` in `explore`: finds the source PDF, copies the page with pdf-lib, draws the red bbox (top-left PDF points, rotation-aware), rasterizes with `pdftoppm`/`mutool` when installed
 - `cli/src/lib/spreadsheet.ts`, `cli/src/lib/zip.ts` — dependency-free `.xlsx`/`.csv`/`.tsv` read and write; xlsx edits patch the sheet XML so formatting survives

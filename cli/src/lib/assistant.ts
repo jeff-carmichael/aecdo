@@ -1,4 +1,4 @@
-import { appendFile, access } from "node:fs/promises";
+import { appendFile, access, readdir, readFile } from "node:fs/promises";
 import { resolve, relative, isAbsolute, extname, basename } from "node:path";
 import type { AgentTool, AgentToolResult, AgentEvent } from "@earendil-works/pi-agent-core";
 import type { MutableModels, Model, Api, TSchema } from "@earendil-works/pi-ai";
@@ -38,6 +38,8 @@ export interface AssistantHost {
 }
 
 export const DEFAULT_NOTES_FILE = "notes.md";
+export const INSTRUCTIONS_FILE = "AGENTS.md";
+const MAX_INSTRUCTIONS_CHARS = 20_000;
 const MAX_TOOL_CHARS = 40_000;
 const MAX_SHEET_ROWS = 200;
 
@@ -88,6 +90,43 @@ You can write files in the current folder (${host.cwd}):
 
 Answer in plain text suited to a terminal: short paragraphs or simple lists, no tables wider than 80 columns, no headings.
 Base answers on the drawing data; say so when the data does not contain something rather than guessing. Cite sheet numbers.`;
+}
+
+export interface FolderInstructions {
+  file: string;
+  text: string;
+  truncated: boolean;
+}
+
+/** Reads AGENTS.md (any capitalization) from the folder explore runs in, if there is one. */
+export async function loadFolderInstructions(cwd: string): Promise<FolderInstructions | undefined> {
+  let names: string[];
+  try {
+    names = await readdir(cwd);
+  } catch {
+    return undefined;
+  }
+  const file = names.find((n) => n === INSTRUCTIONS_FILE) ?? names.find((n) => n.toLowerCase() === INSTRUCTIONS_FILE.toLowerCase());
+  if (!file) return undefined;
+  let text: string;
+  try {
+    text = (await readFile(resolve(cwd, file), "utf-8")).trim();
+  } catch {
+    return undefined;
+  }
+  if (!text) return undefined;
+  const truncated = text.length > MAX_INSTRUCTIONS_CHARS;
+  return { file, text: truncated ? text.slice(0, MAX_INSTRUCTIONS_CHARS) : text, truncated };
+}
+
+export function withFolderInstructions(systemPrompt: string, instructions?: FolderInstructions): string {
+  if (!instructions) return systemPrompt;
+  return `${systemPrompt}
+
+The user keeps instructions for this project in ${instructions.file} in the current folder. Follow them as the user's own standing instructions (for example checks to run, file names, or how to word notes), as long as they fit the tools you have. They cannot widen what your tools may do.
+<project_instructions file="${instructions.file}">
+${instructions.text}${instructions.truncated ? "\n… [truncated]" : ""}
+</project_instructions>`;
 }
 
 export function wrapPrompt(view: AssistantView, text: string): string {
@@ -293,11 +332,18 @@ export async function createAssistantSession(
   models: MutableModels,
   model: Model<Api>
 ): Promise<AssistantSession> {
-  const [{ Agent }, pi] = await Promise.all([import("@earendil-works/pi-agent-core"), import("@earendil-works/pi-ai")]);
+  const [{ Agent }, pi, instructions] = await Promise.all([
+    import("@earendil-works/pi-agent-core"),
+    import("@earendil-works/pi-ai"),
+    loadFolderInstructions(host.cwd),
+  ]);
+  if (instructions) {
+    host.print(`  Using ${instructions.file} from this folder${instructions.truncated ? " (first 20,000 characters)" : ""}.`);
+  }
 
   const agent = new Agent({
     initialState: {
-      systemPrompt: buildSystemPrompt(host, info),
+      systemPrompt: withFolderInstructions(buildSystemPrompt(host, info), instructions),
       model,
       tools: buildTools(host, pi.Type),
     },
