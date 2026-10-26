@@ -31,6 +31,7 @@ At every level, the prompt shows where you are, and you type one of these:
 | `ls` | print the current list again |
 | `all` | print everything on the current sheet at once |
 | `view` | open the PDF page with the current selection outlined in red |
+| `markups` | list markups the assistant proposed, and save, undo, or remove them ([details](assistant.md#marking-up-the-pdf)) |
 | `help` or `?` | show these commands |
 | `@claude …`, `@chatgpt …`, `@openrouter …` (and more) | ask the [AI assistant](assistant.md); Tab completes the name |
 | `quit`, `q`, or Ctrl+D | exit |
@@ -148,6 +149,8 @@ sudo apt install poppler-utils  # Debian, Ubuntu
 On Windows, the one-page PDF opens in your default PDF viewer, so there's nothing to install.
 
 The files go in your system's temp folder, under `aecdo-view/`.
+
+`view` also shows [markups](assistant.md#marking-up-the-pdf): pending ones the assistant proposed are drawn on the page, and once you've saved some, `view` opens the page from `<name>-markups.pdf` so you see them too.
 
 If the box is drawn in the wrong place, or `aecdo` warns that it "runs past the page", the file's coordinates may use different units. See [Data model and bbox](data-model.md#bbox-coordinates).
 

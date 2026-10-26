@@ -36,13 +36,19 @@ Commands:
                       images → layers → items. Type "@claude …", "@chatgpt …", or
                       "@openrouter …" (also @gemini, @grok, @deepseek,
                       @kimi; Tab completes the name) to ask an AI assistant about the current view; it can
-                      navigate, open the page view, take notes in notes.md,
+                      navigate, open the page view, propose PDF markups,
+                      take notes in notes.md,
                       and fill in a spreadsheet (.xlsx/.csv/.tsv) in the
                       current folder. An AGENTS.md in the folder adds
                       your own instructions for the assistant.
                       Type "view" to open the PDF page with the current
                       drawing, layer, or item outlined in red (--pdf <file>
-                      if the PDF isn't next to the .jsonld).
+                      if the PDF isn't next to the .jsonld). Ask the
+                      assistant to cloud, call out, or note something and
+                      it proposes PDF markups; "markups" lists them,
+                      "markups save" writes them to <name>-markups.pdf
+                      (--in-place for the original), "markups undo" takes
+                      the last save back.
                       Non-TTY / --format json falls back to listing sheets.
   configure           Set up DrawingBot API credentials and region
   configure ai        Sign in with ChatGPT or OpenRouter, or add an OpenAI,
