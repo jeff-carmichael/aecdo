@@ -16,7 +16,7 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `cli/src/lib/config.ts` — API credential storage and region-to-endpoint mapping
 - `cli/src/lib/auth.ts` — OAuth token management with caching
 - `cli/src/lib/api.ts` — HTTP client for the DrawingBot API
-- `cli/src/lib/picker.ts` — arrow-key list picker (raw-mode stdin, draws on stderr) used when `process`/`upload` get no file in a TTY
+- `cli/src/lib/picker.ts` — arrow-key list picker (raw-mode stdin, draws on stderr) used when `process`/`upload` (PDFs) or `explore` (`.jsonld`) get no file in a TTY
 - `cli/src/commands/completion.ts` — bash/zsh/fish completion scripts for `aecdo completion`
 - `cli/src/lib/llm.ts` — AI assistant setup on pi-ai: Claude/ChatGPT mapping, default models, credential store at `~/.aecdo/llm.json`; pi is imported lazily (needs Node 22.19+)
 - `cli/src/lib/assistant.ts` — the `@claude`/`@chatgpt` agent in `explore` (pi-agent-core): system prompt, current-view context, and tools (navigate, read sheets, `show_page`, notes, spreadsheets) limited to the current folder; appends an `AGENTS.md` from the cwd (if any) to the system prompt

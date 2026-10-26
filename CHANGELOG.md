@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- `aecdo explore` with no file in an interactive terminal opens the same arrow-key picker as `process`, listing the `.jsonld` files in the current folder. In scripts, or with `--format json`, a missing file is still an error.
+
 ## [0.4.0] - 2026-10-26
 
 No schema validation changes; the CLI still validates against `ontology/v0.3.0`. `aecdo process` now saves to a file by default instead of printing to stdout (use `--stdout` for the old behavior).
