@@ -22,6 +22,12 @@ export function completeMention(line: string): [string[], string] {
   return [hits, line.trimStart()];
 }
 
+/** Colors the navigation prompt ("E601> ") so it stands out from the listing above it. */
+export function stylePrompt(prompt: string, color = "\x1b[1;32m", reset = "\x1b[0m"): string {
+  const m = /^(.*?)(\s*)$/s.exec(prompt)!;
+  return `${color}${m[1]}${reset}${m[2]}`;
+}
+
 export function colorEnabled(stream: NodeJS.WriteStream = process.stdout, env = process.env): boolean {
   return Boolean(stream.isTTY) && !env.NO_COLOR && env.TERM !== "dumb";
 }

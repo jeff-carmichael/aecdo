@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { highlightMention, colorEnabled, completeMention } from "./mention-highlight.js";
+import { highlightMention, colorEnabled, completeMention, stylePrompt } from "./mention-highlight.js";
 
 const C = "<";
 const R = ">";
@@ -35,4 +35,9 @@ test("Tab completes a leading @mention", () => {
   assert.ok(completeMention("@")[0].includes("@grok "));
   assert.deepEqual(completeMention("@claude hi"), [[], "@claude hi"]);
   assert.deepEqual(completeMention("A1"), [[], "A1"]);
+});
+
+test("colors the prompt text but not its trailing space", () => {
+  assert.equal(stylePrompt("E601> ", C, R), "<E601>> ");
+  assert.equal(stylePrompt("sheet>", C, R), "<sheet>>");
 });

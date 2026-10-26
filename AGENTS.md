@@ -25,6 +25,7 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `cli/src/commands/markups.ts` — `MarkupSession` behind the `markups` command in `explore` and the assistant's `add_markup`/`list_markups`/`remove_markup` tools; markups stay pending until the user types `markups save`, which writes `<name>-markups.pdf` (or `--in-place`)
 - `cli/src/lib/page-view.ts` — `view` in `explore`: finds the source PDF, copies the page with pdf-lib, draws the red bbox (top-left PDF points, rotation-aware), rasterizes with `pdftoppm`/`mutool` when installed
 - `cli/src/lib/spreadsheet.ts`, `cli/src/lib/zip.ts` — dependency-free `.xlsx`/`.csv`/`.tsv` read and write; xlsx edits patch the sheet XML so formatting survives
+- `cli/src/lib/table.ts` — boxed, padded table rendering for `explore`/`page`; wraps long cells to the terminal width
 - `cli/src/lib/update-check.ts` — daily background check for newer GitHub releases (detached worker + cache at `~/.aecdo/update-check.json`, notice on stderr)
 - `package.json` — at repo root, npm-publishable as "aecdo"
 - `docs/` — user guide (Jekyll, served by GitHub Pages from `main`/`docs` at https://jeff-carmichael.github.io/aecdo/); one Markdown page per topic, sidebar order in `docs/_config.yml`; README is short and links here
