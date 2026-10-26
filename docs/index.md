@@ -70,7 +70,7 @@ See [AI assistant](assistant.md).
 
 Once the DrawingBot API launches, `aecdo process plans.pdf` will also turn a PDF into an AECDO file in one step. See [Process PDFs](process.md).
 
-> **Which version do I have?** This guide describes the latest version of `aecdo`. Run `aecdo --version`. Version 0.3.2 and earlier don't have tab completion, `view`, or the AI assistant. These arrive in the next release, and `aecdo update` installs it once it's out.
+> **Which version do I have?** This guide describes the latest version of `aecdo`. Run `aecdo --version`. Version 0.3.2 and earlier don't have tab completion, `view`, markups, or the AI assistant; run `aecdo update` to get 0.4.0 or later.
 
 ## What's in this guide
 

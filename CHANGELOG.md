@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-26
+
+No schema validation changes; the CLI still validates against `ontology/v0.3.0`. `aecdo process` now saves to a file by default instead of printing to stdout (use `--stdout` for the old behavior).
+
 ### Docs
 - New getting-started guide at https://jeff-carmichael.github.io/aecdo/, built by GitHub Pages from `docs/`: install and update on each platform (including the Windows SmartScreen warning), processing PDFs, tab completion, exploring and `view`, the `@claude`/`@chatgpt` assistant and `AGENTS.md`, a walkthrough of the Maple Grove demo set, the data model and bbox units, using `aecdo` with Claude Code, and troubleshooting. The README is now a short overview that links to it.
 - README and guide now present `aecdo` as an open-source CLI for any AECDO JSON-LD file, with the DrawingBot API as an optional wrapper, and say prominently that the DrawingBot API isn't available yet (a site-wide notice, switched off with `api_notice: false` in `docs/_config.yml`). Tab completion moved to the Install page, and the guide's data model page gains a "Producing your own files" section.
