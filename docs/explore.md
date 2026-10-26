@@ -33,7 +33,8 @@ At every level, the prompt (in green, unless `NO_COLOR` is set) shows where you 
 |------|----|
 | a sheet number or page index (`A101`, `3`) | open a sheet, from the sheet list |
 | a number from the list (`1`, `4`) | open that drawing, table, note, image, layer, or item |
-| `back`, `..`, or `b` | go up one level |
+| `r1`, `r2`, … (or `r` if there's only one) | jump to a [reference](#following-references) |
+| `back`, `..`, or `b` | go up one level, or back from a jump |
 | `top` | go back to the sheet list |
 | `ls` | print the current list again |
 | `all` | print everything on the current sheet at once |
@@ -73,8 +74,8 @@ A101> 1
 
   Drawing: First Floor Plan [plan, 1/8" = 1'-0"] (sheet A101)
     bbox: [140, 110, 1760, 1450]
-    → Building Section 1 (A301, page 7)
-    → South Elevation (A201, page 6)
+    → [r1] Building Section 1 (A301, page 7)
+    → [r2] Building Section 2 (A301, page 7)
     …
 
   Layers (10):
@@ -100,10 +101,30 @@ A101 › First Floor Plan › Door Tags> 5
         bbox: [408.5, 747.5, 428.5, 767.5]
         data:
           mark: 105A
-        → urn:uuid:36d56ab4-…
+        → [r1] Table Door Schedule (A601, page 9)
+        → [r2] Door 105A (A101 › First Floor Plan › Doors)
 ```
 
-Lines starting with `→` are **references**: a drawing's callouts to other drawings (a section cut, an elevation marker), or an item's links to related things, such as a door tag pointing at the door schedule.
+### Following references
+
+Lines starting with `→` are **references**: a drawing's callouts to other drawings (a section cut, an elevation marker), or an item's links to related things, such as a door tag pointing at the door schedule and at its door.
+
+Each reference on screen has a tag, `[r1]`, `[r2]`, and so on. Type the tag to jump there: a drawing opens its layers, a schedule, note, or image prints on its sheet, and an item prints its details. Type `r` alone when there's only one reference. Type `back` to return to where you were.
+
+```
+A101 › First Floor Plan › Door Tags> r1
+
+  Jumped to Table Door Schedule (A601, page 9). "back" returns.
+
+    Door Schedule
+      ┌──────┬───────────┬───────┬───
+      │ Mark │ Room      │ Width │ …
+      …
+
+A601> back
+```
+
+After a jump, `view` outlines what you jumped to, so `r1` then `view` shows the schedule on its page. A reference to something that isn't in the file says so instead of jumping.
 
 Each item has a type:
 

@@ -35,11 +35,28 @@ export function buildRefResolver(data: DrawingSet): RefResolver {
   const map = new Map<string, string>();
   for (const s of data.sheets ?? []) {
     map.set(s["@id"], `Sheet ${s.sheetNumber} — ${s.title} (page ${s.pageIndex})`);
+    const where = `${s.sheetNumber}, page ${s.pageIndex}`;
     for (const d of s.drawings ?? []) {
-      map.set(d["@id"], `${d.label ?? d.title} (${s.sheetNumber}, page ${s.pageIndex})`);
+      const name = d.label ?? d.title ?? d["@id"];
+      map.set(d["@id"], `${name} (${where})`);
+      for (const l of d.layers) {
+        map.set(l["@id"], `Layer ${l.name} (${s.sheetNumber} › ${name})`);
+        for (const i of l.items ?? []) {
+          const label = typeof i.data.label === "string" && i.data.label ? i.data.label : i.itemType;
+          map.set(i["@id"], `${label} (${s.sheetNumber} › ${name} › ${l.name})`);
+        }
+      }
     }
+    for (const t of s.tables ?? []) map.set(t["@id"], `Table ${t.label ?? t.title ?? "Untitled Table"} (${where})`);
+    for (const n of s.notes ?? []) map.set(n["@id"], `Note "${oneLine(n.content, 40)}" (${where})`);
+    for (const img of s.images ?? []) map.set(img["@id"], `Image ${img.caption ?? img.role} (${where})`);
   }
   return (id: string) => map.get(id) ?? id;
+}
+
+function oneLine(text: string, max: number): string {
+  const line = text.replace(/\s+/g, " ").trim();
+  return line.length > max ? `${line.slice(0, max - 1)}…` : line;
 }
 
 export function printPage(sheet: Sheet, data: DrawingSet): void {
@@ -113,7 +130,8 @@ function formatValue(value: unknown): string {
   return JSON.stringify(value) ?? String(value);
 }
 
-export function printItem(item: Item, resolve: RefResolver): void {
+/** `refTag(i)` labels the i-th reference, e.g. "[r1] ", so explore can jump to it. */
+export function printItem(item: Item, resolve: RefResolver, refTag: (i: number) => string = () => ""): void {
   const typeTag = item.itemType.toUpperCase();
   const label = item.data.label ?? item["@id"];
   console.log(`\n      [${typeTag}] ${formatValue(label)}`);
@@ -129,9 +147,9 @@ export function printItem(item: Item, resolve: RefResolver): void {
   }
 
   if (item.references?.length) {
-    for (const ref of item.references) {
-      console.log(`        → ${resolve(ref)}`);
-    }
+    item.references.forEach((ref, i) => {
+      console.log(`        → ${refTag(i)}${resolve(ref)}`);
+    });
   }
 }
 

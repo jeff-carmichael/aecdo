@@ -150,3 +150,81 @@ test("PageViewer renders and opens the page, or explains a missing PDF", async (
   assert.match(missing.join("\n"), /Can't find the source PDF/);
   assert.match(missing.join("\n"), /\/plans\/set\.pdf/);
 });
+
+test("r1 follows a drawing's reference and back returns", () => {
+  const { ex, lines } = make();
+  ex.handle("A101");
+  ex.handle("1");
+  assert.match(lines.join("\n"), /→ \[r1\] Building Section A \(A201, page \d+\)/);
+  ex.handle("r1");
+  assert.equal(kindOf(ex), "drawing");
+  assert.match(ex.prompt(), /^A201 › Building Section A> $/);
+  ex.handle("back");
+  assert.match(ex.prompt(), /^A101 › Ground Floor Plan> $/);
+});
+
+test("r follows an item's only reference, and view targets the jump", () => {
+  const { ex } = make();
+  ex.handle("A101");
+  ex.handle("1");
+  ex.handle("3");
+  ex.handle("1");
+  ex.handle("r");
+  assert.match(ex.prompt(), /^A201 › Building Section A> $/);
+  const target = ex.viewTarget();
+  assert.ok(!("error" in target));
+  assert.equal(target.sheet.sheetNumber, "A201");
+  ex.handle("back");
+  assert.equal(kindOf(ex), "layer");
+});
+
+test("reference commands report when there is nothing to follow", () => {
+  const { ex, lines } = make();
+  ex.handle("A101");
+  ex.handle("r1");
+  assert.equal(kindOf(ex), "sheet");
+  assert.match(lines.at(-1)!, /^No references here/);
+  ex.handle("1");
+  ex.handle("r7");
+  assert.match(lines.at(-1)!, /^No reference "r7"\. Pick r1–r1/);
+  assert.equal(kindOf(ex), "drawing");
+});
+
+test("a reference to an id outside the file says so", () => {
+  const copy = structuredClone(data);
+  copy.sheets[0].drawings![0].references = ["urn:uuid:00000000-0000-0000-0000-000000000000"];
+  const lines: string[] = [];
+  const ex = new Explorer(copy, (l = "") => lines.push(l));
+  ex.handle(copy.sheets[0].sheetNumber);
+  ex.handle("1");
+  ex.handle("r1");
+  assert.equal(kindOf(ex), "drawing");
+  assert.match(lines.at(-1)!, /isn't in this file/);
+});
+
+test("jumping to a schedule opens it on its sheet", () => {
+  const demo = JSON.parse(
+    readFileSync(new URL("../../../examples/maple-grove-library.jsonld", import.meta.url), "utf-8")
+  ) as DrawingSet;
+  const sheet = demo.sheets.find((s) => s.sheetNumber === "A101")!;
+  const drawing = sheet.drawings![0];
+  const layerIndex = drawing.layers.findIndex((l) => l.name === "Door Tags");
+  const lines: string[] = [];
+  const ex = new Explorer(demo, (l = "") => lines.push(l));
+  ex.handle("A101");
+  ex.handle("1");
+  ex.handle(String(layerIndex + 1));
+  ex.handle("1");
+  const original = console.log;
+  console.log = () => {};
+  try {
+    ex.handle("r1");
+  } finally {
+    console.log = original;
+  }
+  assert.match(lines.join("\n"), /Jumped to Table Door Schedule \(A601, page \d+\)/);
+  assert.equal(ex.prompt(), "A601> ");
+  const target = ex.viewTarget();
+  assert.ok(!("error" in target));
+  assert.equal(target.label, "table Door Schedule");
+});
