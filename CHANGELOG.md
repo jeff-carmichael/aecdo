@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-26
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
 - `aecdo explore` with no file in an interactive terminal opens the same arrow-key picker as `process`, listing the `.jsonld` files in the current folder. In scripts, or with `--format json`, a missing file is still an error.
 - Tables in `explore` and `page` now print with aligned, padded columns and a header divider. Long cells wrap to fit the terminal width instead of running past the box.

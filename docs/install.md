@@ -20,7 +20,7 @@ To change what it installs, set these before `sh`:
 
 | Variable | What it does | Example |
 |----------|--------------|---------|
-| `AECDO_VERSION` | Install a specific release instead of the latest | `v0.4.0` |
+| `AECDO_VERSION` | Install a specific release instead of the latest | `v0.4.1` |
 | `AECDO_INSTALL_DIR` | Install somewhere else, such as a folder you own | `$HOME/.local/bin` |
 
 ```bash
@@ -44,7 +44,7 @@ This downloads the latest `aecdo-windows-x64.zip`, checks its checksum, puts `ae
 The same `AECDO_VERSION` and `AECDO_INSTALL_DIR` settings work here:
 
 ```powershell
-$env:AECDO_VERSION = "v0.4.0"
+$env:AECDO_VERSION = "v0.4.1"
 irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex
 ```
 
