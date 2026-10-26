@@ -51,7 +51,7 @@ Agents should stick to the commands that print and exit, with `--format json`:
 
 Things to know:
 
-- **Always pass a file name.** Without a terminal there's no PDF picker; a missing file is an error.
+- **Always pass a file name.** Without a terminal there's no file picker for `process`, `upload`, or `explore`; a missing file is an error.
 - **`explore` is for people.** Without a terminal, or with `--format json`, it just prints the sheet list instead of waiting for input.
 - **`configure` and `configure ai` are interactive**, so a person needs to run them once.
 - **Update notices** only go to stderr in a terminal, so they never get mixed into JSON on stdout.

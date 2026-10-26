@@ -26,7 +26,7 @@ title: Troubleshooting
 The DrawingBot API isn't available yet; these apply once it is.
 
 **`No input file specified`**
-: You ran `process` or `upload` without a file name outside an interactive terminal (in a script, or with input piped in). Pass the PDF's name.
+: You ran `process`, `upload`, or `explore` without a file name outside an interactive terminal (in a script, or with input piped in). Pass the file name.
 
 **`No input file specified, and no PDF files found in the current folder`**
 : The picker lists PDFs in the current folder only. `cd` to the folder with your drawings, or pass a path: `aecdo process ~/Downloads/plans.pdf`.
@@ -47,6 +47,9 @@ The DrawingBot API isn't available yet; these apply once it is.
 
 **`view` opens a PDF instead of an image**
 : Install Poppler (`brew install poppler` or `sudo apt install poppler-utils`) for PNG output. The PDF shows the same thing.
+
+**`No input file specified, and no .jsonld files found in the current folder`**
+: With no file name, `explore` lists `.jsonld` files in the current folder only. `cd` to the folder with your drawing sets, or pass a path: `aecdo explore ~/Downloads/plans.jsonld`.
 
 **`explore` just prints the sheet list and exits**
 : It isn't running in an interactive terminal (for example, its input is piped), or you passed `--format json`. Run it directly in a terminal.

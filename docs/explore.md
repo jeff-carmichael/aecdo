@@ -10,6 +10,13 @@ title: Explore a drawing set
 aecdo explore plans.jsonld
 ```
 
+Or go to the folder with your drawing sets and run `explore` with no file name. `aecdo` lists the `.jsonld` files in the folder, using the same picker as [`process`](process.md#process-a-pdf): **↑ / ↓** to move, **type** to filter, **Enter** to choose, **Esc** to cancel.
+
+```bash
+cd ~/Projects/my-building
+aecdo explore
+```
+
 It first checks the file against the schema, then lists the sheets.
 
 ## Moving around

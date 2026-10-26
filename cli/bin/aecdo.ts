@@ -16,7 +16,7 @@ import { download } from "../src/commands/download.js";
 import { processPdf } from "../src/commands/process.js";
 import { update, cleanupOldBinary } from "../src/commands/update.js";
 import { completion } from "../src/commands/completion.js";
-import { pick, listPdfs, canPrompt } from "../src/lib/picker.js";
+import { pick, listPdfs, listJsonld, canPrompt } from "../src/lib/picker.js";
 import { embedded } from "../src/lib/embedded.js";
 import { startUpdateNotifier, runUpdateCheckWorker, WORKER_ENV, NO_UPDATE_CHECK_FLAG } from "../src/lib/update-check.js";
 import type { DrawingSet, CommandOptions, ProcessOptions } from "../src/types.js";
@@ -32,8 +32,9 @@ Commands:
   summary <file>      Print a concise summary of a drawing set
   sheets <file>       List all sheets (non-interactive; agent-friendly)
   page <file> <id>    Print one sheet by sheet number or page index
-  explore <file>      Browse interactively (humans): sheet → drawings/tables/notes/
-                      images → layers → items. Type "@claude …", "@chatgpt …", or
+  explore [file]      Browse interactively (humans): sheet → drawings/tables/notes/
+                      images → layers → items. With no file in a terminal,
+                      pick a .jsonld file from the current folder. Type "@claude …", "@chatgpt …", or
                       "@openrouter …" (also @gemini, @grok, @deepseek,
                       @kimi; Tab completes the name) to ask an AI assistant about the current view; it can
                       navigate, open the page view, propose PDF markups,
@@ -87,6 +88,7 @@ Examples:
   aecdo sheets drawings.jsonld --format json
   aecdo page drawings.jsonld A101
   aecdo page drawings.jsonld 0 --format json
+  aecdo explore
   aecdo explore drawings.jsonld
   aecdo configure
   aecdo configure ai
@@ -248,7 +250,20 @@ async function main(): Promise<void> {
       case "sheets":
       case "page":
       case "explore": {
-        const filePath = options.positionals[0];
+        let filePath = options.positionals[0];
+        if (!filePath && command === "explore" && canPrompt() && opts.format !== "json") {
+          const sets = await listJsonld(process.cwd());
+          if (sets.length === 0) {
+            console.error("Error: No input file specified, and no .jsonld files found in the current folder.");
+            process.exit(1);
+          }
+          const picked = await pick(sets, { title: "Select a drawing set to explore:" });
+          if (picked === null) {
+            console.error("Cancelled.");
+            process.exit(130);
+          }
+          filePath = picked;
+        }
         if (!filePath) {
           console.error("Error: No input file specified.");
           console.error('Run "aecdo --help" for usage information.');

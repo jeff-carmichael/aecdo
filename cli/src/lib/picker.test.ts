@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, writeFile, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { filterItems, handleKey, renderPicker, listPdfs } from "./picker.js";
+import { filterItems, handleKey, renderPicker, listPdfs, listJsonld } from "./picker.js";
 import type { PickerState } from "./picker.js";
 
 const items = ["a-plans.pdf", "b-civil.pdf", "c-plans-rev2.pdf"];
@@ -65,6 +65,17 @@ test("listPdfs returns only PDF files, sorted naturally", async () => {
     for (const f of ["sheet10.pdf", "sheet2.PDF", "notes.txt", "result.jsonld"]) await writeFile(join(dir, f), "");
     await mkdir(join(dir, "folder.pdf"));
     assert.deepEqual(await listPdfs(dir), ["sheet2.PDF", "sheet10.pdf"]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("listJsonld returns only .jsonld files, sorted naturally", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "aecdo-picker-"));
+  try {
+    for (const f of ["set10.jsonld", "set2.JSONLD", "plans.pdf", "package.json"]) await writeFile(join(dir, f), "");
+    await mkdir(join(dir, "folder.jsonld"));
+    assert.deepEqual(await listJsonld(dir), ["set2.JSONLD", "set10.jsonld"]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
