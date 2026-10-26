@@ -40,6 +40,7 @@ import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image, Comma
 
 type View =
   | { kind: "sheets" }
+  | { kind: "group"; group: SheetGroup }
   | { kind: "sheet"; sheet: Sheet }
   | { kind: "drawing"; sheet: Sheet; drawing: Drawing }
   | { kind: "layer"; sheet: Sheet; drawing: Drawing; layer: Layer };
@@ -69,6 +70,71 @@ export function parseViewCommand(input: string): { pdf?: string } | null {
   if (!m || !VIEW_COMMANDS.has(m[1].toLowerCase())) return null;
   const pdf = m[2]?.trim().replace(/^(["'])(.*)\1$/, "$2");
   return pdf ? { pdf } : {};
+}
+
+/** Above this many sheets, the sheet list shows groups by sheet-number prefix first. */
+export const SHEET_GROUP_THRESHOLD = 25;
+
+/** US National CAD Standard discipline designators. */
+const DISCIPLINES: Record<string, string> = {
+  G: "General",
+  H: "Hazardous Materials",
+  V: "Survey / Mapping",
+  B: "Geotechnical",
+  W: "Civil Works",
+  C: "Civil",
+  L: "Landscape",
+  S: "Structural",
+  A: "Architectural",
+  I: "Interiors",
+  Q: "Equipment",
+  F: "Fire Protection",
+  FP: "Fire Protection",
+  FA: "Fire Alarm",
+  P: "Plumbing",
+  D: "Process",
+  M: "Mechanical",
+  E: "Electrical",
+  T: "Telecommunications",
+  R: "Resource",
+  X: "Other Disciplines",
+  Z: "Contractor / Shop Drawings",
+  O: "Operations",
+};
+
+export interface SheetGroup {
+  /** Leading letters of the sheet number, upper-cased; "" when there are none. */
+  prefix: string;
+  name?: string;
+  sheets: Sheet[];
+}
+
+export function sheetPrefix(sheetNumber: string): string {
+  return /^\s*([A-Za-z]+)/.exec(sheetNumber)?.[1].toUpperCase() ?? "";
+}
+
+function disciplineName(prefix: string): string | undefined {
+  return DISCIPLINES[prefix] ?? DISCIPLINES[prefix[0]];
+}
+
+/** Groups sheets by sheet-number prefix, in the order each prefix first appears. */
+export function groupSheets(sheets: Sheet[]): SheetGroup[] {
+  const groups = new Map<string, SheetGroup>();
+  for (const sheet of sheets) {
+    const prefix = sheetPrefix(sheet.sheetNumber);
+    let group = groups.get(prefix);
+    if (!group) {
+      group = { prefix, name: prefix ? disciplineName(prefix) : "Other", sheets: [] };
+      groups.set(prefix, group);
+    }
+    group.sheets.push(sheet);
+  }
+  return [...groups.values()];
+}
+
+function groupLabel(g: SheetGroup): string {
+  if (!g.prefix) return g.name ?? "Other";
+  return g.name ? `${g.prefix} - ${g.name}` : g.prefix;
 }
 
 const ITEM_PREVIEW_LIMIT = 60;
@@ -170,6 +236,8 @@ export class Explorer {
   /** The references shown with [r1], [r2] tags, and the view they belong to. */
   private refs?: { view: View; ids: string[] };
   private refIndex: Map<string, RefTarget>;
+  /** Set when the set has too many sheets to list flat. */
+  private groups?: SheetGroup[];
 
   constructor(
     private data: DrawingSet,
@@ -177,6 +245,11 @@ export class Explorer {
   ) {
     this.resolve = buildRefResolver(data);
     this.refIndex = buildRefIndex(data);
+    const sheets = data.sheets ?? [];
+    if (sheets.length > SHEET_GROUP_THRESHOLD) {
+      const groups = groupSheets(sheets);
+      if (groups.length > 1) this.groups = groups;
+    }
   }
 
   get view(): View {
@@ -185,6 +258,7 @@ export class Explorer {
 
   prompt(): string {
     const v = this.view;
+    if (v.kind === "group") return `${v.group.prefix || "other"} sheets> `;
     const parts: string[] = [];
     if (v.kind !== "sheets") parts.push(v.sheet.sheetNumber);
     if (v.kind === "drawing" || v.kind === "layer") parts.push(drawingName(v.drawing));
@@ -197,7 +271,9 @@ export class Explorer {
     this.refs = undefined;
     switch (v.kind) {
       case "sheets":
-        return this.renderSheets();
+        return this.groups ? this.renderGroups(this.groups) : this.renderSheets(this.data.sheets ?? []);
+      case "group":
+        return this.renderSheets(v.group.sheets, v.group);
       case "sheet":
         return this.renderSheet(v.sheet);
       case "drawing":
@@ -214,7 +290,9 @@ export class Explorer {
     const listing = this.capture(() => this.render()).join("\n").trim();
     switch (v.kind) {
       case "sheets":
-        return { view: "sheet list", location, listing };
+        return { view: this.groups ? "sheet groups" : "sheet list", location, listing };
+      case "group":
+        return { view: "sheet group", location, listing, group: groupLabel(v.group) };
       case "sheet":
         return { view: "sheet", location, listing, sheet: v.sheet };
       case "drawing":
@@ -242,7 +320,7 @@ export class Explorer {
   /** What "view" should show: the current sheet's page, outlining the current selection or level. */
   viewTarget(): ViewTarget | { error: string } {
     const v = this.view;
-    if (v.kind === "sheets") return { error: "Open a sheet first, then type \"view\"." };
+    if (v.kind === "sheets" || v.kind === "group") return { error: "Open a sheet first, then type \"view\"." };
     const sel = this.selection?.view === v ? this.selection : undefined;
     if (sel) return { sheet: v.sheet, label: sel.label, bbox: sel.bbox, id: sel.id };
     switch (v.kind) {
@@ -280,15 +358,19 @@ export class Explorer {
 
   help(): void {
     this.log();
-    if (this.view.kind === "sheets") {
+    const kind = this.view.kind;
+    if (kind === "sheets" && this.groups) {
+      this.log("  Enter a group number or prefix (e.g. \"A\") to list its sheets, or a sheet number to open it.");
+    } else if (kind === "sheets" || kind === "group") {
       this.log("  Enter a sheet number or page index to open it.");
+      if (kind === "group") this.log('  "back" (or "..") returns to the sheet groups.');
     } else {
       this.log("  Enter a number from the list to dive in.");
       this.log('  "back" (or "..") goes up a level, "top" returns to the sheet list.');
       this.log('  "r1", "r2", … jump to a reference (the lines marked "→ [r1]"); "back" comes back.');
     }
     if (this.view.kind === "sheet") this.log('  "all" prints everything on this sheet.');
-    if (this.view.kind !== "sheets") {
+    if (kind !== "sheets" && kind !== "group") {
       this.log('  "view" opens this page from the PDF with the current selection outlined in red.');
       this.log('  "markups" lists markups the assistant proposed; "markups save" writes them to a copy of the PDF.');
     }
@@ -335,11 +417,15 @@ export class Explorer {
 
     const v = this.view;
     const ref = REF_COMMAND.exec(answer);
-    if (ref && v.kind !== "sheets") {
+    if (ref && v.kind !== "sheets" && v.kind !== "group") {
       this.jump(ref[1] ? Number(ref[1]) : undefined, answer);
       return true;
     }
-    if (v.kind === "sheets") {
+    if (v.kind === "sheets" && this.groups) {
+      this.openGroup(this.groups, answer);
+      return true;
+    }
+    if (v.kind === "sheets" || v.kind === "group") {
       this.openSheet(answer);
       return true;
     }
@@ -372,6 +458,28 @@ export class Explorer {
     }
     this.stack.push({ kind: "sheet", sheet });
     this.render();
+  }
+
+  /** Picks a group by its number in the list or its prefix; a sheet number opens that sheet directly. */
+  private openGroup(groups: SheetGroup[], selector: string): void {
+    const sel = selector.trim().toLowerCase();
+    const group = /^\d+$/.test(sel)
+      ? groups[Number(sel) - 1]
+      : groups.find((g) => (g.prefix || "other").toLowerCase() === sel || g.name?.toLowerCase() === sel);
+    if (group) {
+      this.stack.push({ kind: "group", group });
+      this.render();
+      return;
+    }
+    if (!/^\d+$/.test(sel)) {
+      const sheet = (this.data.sheets ?? []).find((s) => s.sheetNumber.toLowerCase() === sel);
+      if (sheet) {
+        this.stack.push({ kind: "sheet", sheet });
+        this.render();
+        return;
+      }
+    }
+    this.log(`No group "${selector}". Pick 1–${groups.length}, a prefix such as "${groups[0].prefix || "other"}", or a sheet number.`);
   }
 
   private selectSheetEntry(sheet: Sheet, index: number, raw: string): void {
@@ -479,9 +587,18 @@ export class Explorer {
     }
   }
 
-  private renderSheets(): void {
+  private renderGroups(groups: SheetGroup[]): void {
+    this.log(`\n  Sheet groups (${plural(this.data.sheets?.length ?? 0, "sheet")}):`);
+    groups.forEach((g, i) => {
+      this.log(`    ${String(i + 1).padStart(2)}. ${groupLabel(g)} (${plural(g.sheets.length, "sheet")})`);
+    });
     this.log();
-    for (const s of this.data.sheets ?? []) {
+  }
+
+  private renderSheets(sheets: Sheet[], group?: SheetGroup): void {
+    this.log();
+    if (group) this.log(`  ${groupLabel(group)} (${plural(sheets.length, "sheet")}):\n`);
+    for (const s of sheets) {
       this.log(`  ${s.sheetNumber} - ${s.title} (page ${s.pageIndex})`);
     }
     this.log();

@@ -33,9 +33,11 @@ Commands:
   sheets <file>       List all sheets (non-interactive; agent-friendly)
   page <file> <id>    Print one sheet by sheet number or page index
   explore [file]      Browse interactively (humans): sheet → drawings/tables/notes/
-                      images → layers → items. With no file in a terminal,
-                      pick a .jsonld file from the current folder. Type "r1",
-                      "r2", … to jump to a reference shown as "→ [r1] …"
+                      images → layers → items. Sets with more than 25 sheets
+                      list groups by prefix (G, A, S, …) first. With no file
+                      in a terminal, pick a .jsonld file from the current
+                      folder. Type "r1", "r2", … to jump to a reference
+                      shown as "→ [r1] …"
                       ("back" returns). Type "@claude …", "@chatgpt …", or
                       "@openrouter …" (also @gemini, @grok, @deepseek,
                       @kimi; Tab completes the name) to ask an AI assistant about the current view; it can

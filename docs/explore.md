@@ -19,6 +19,25 @@ aecdo explore
 
 It first checks the file against the schema, then lists the sheets.
 
+## Sheet groups in large sets
+
+When a set has more than 25 sheets, the sheet list shows groups first, one per sheet-number prefix (the letters before the number), with the discipline name and how many sheets each holds:
+
+```
+  Sheet groups (42 sheets):
+     1. G - General (3 sheets)
+     2. C - Civil (4 sheets)
+     3. A - Architectural (18 sheets)
+     4. S - Structural (6 sheets)
+     5. M - Mechanical (4 sheets)
+     6. P - Plumbing (3 sheets)
+     7. E - Electrical (4 sheets)
+
+sheet> A
+```
+
+Type a group's number (`3`), its prefix (`A`), or its discipline name (`architectural`) to list its sheets, then a sheet number or page index to open one. `back` from a sheet returns to its group, and `back` again returns to the groups. You can also type a sheet number (`A101`) straight from the group list. Groups appear in the order their first sheet appears in the set. Two-letter prefixes such as `AD` or `FP` get their own group, and sheet numbers with no leading letters go under **Other**. Sets with 25 sheets or fewer list every sheet directly.
+
 ## Moving around
 
 A drawing set is organized in levels:
@@ -32,10 +51,11 @@ At every level, the prompt (in green, unless `NO_COLOR` is set) shows where you 
 | Type | To |
 |------|----|
 | a sheet number or page index (`A101`, `3`) | open a sheet, from the sheet list |
+| a group number or prefix (`3`, `A`) | list one group's sheets, in [sets with more than 25 sheets](#sheet-groups-in-large-sets) |
 | a number from the list (`1`, `4`) | open that drawing, table, note, image, layer, or item |
 | `r1`, `r2`, … (or `r` if there's only one) | jump to a [reference](#following-references) |
 | `back`, `..`, or `b` | go up one level, or back from a jump |
-| `top` | go back to the sheet list |
+| `top` | go back to the sheet list (or the groups) |
 | `ls` | print the current list again |
 | `all` | print everything on the current sheet at once |
 | `view` | open the PDF page with the current selection outlined in red |

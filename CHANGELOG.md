@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### CLI
+- `explore` groups the sheet list by sheet-number prefix (`G - General (3 sheets)`, `A - Architectural (18 sheets)`, …) when a set has more than 25 sheets. Pick a group by number, prefix, or discipline name to see its sheets; `back` returns to the groups. Typing a sheet number still opens it directly. Sets with 25 sheets or fewer list every sheet as before.
 - `explore` tags each reference with a short label (`→ [r1] Door Schedule (A601, page 9)`). Type `r1`, `r2`, … to jump to that drawing, schedule, or item, or just `r` when there is only one; `back` returns to where you were. The assistant can follow references the same way.
 - References to items, layers, tables, notes, and images now print as names (in `explore` and `page`) instead of raw `urn:uuid:` ids.
 

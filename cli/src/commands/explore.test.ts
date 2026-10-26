@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { Explorer, PageViewer, parseViewCommand, sheetEntries } from "./explore.js";
+import { Explorer, PageViewer, groupSheets, parseViewCommand, sheetEntries, sheetPrefix } from "./explore.js";
 import type { PageViewRequest } from "../lib/page-view.js";
 import type { DrawingSet } from "../types.js";
 
@@ -227,4 +227,87 @@ test("jumping to a schedule opens it on its sheet", () => {
   const target = ex.viewTarget();
   assert.ok(!("error" in target));
   assert.equal(target.label, "table Door Schedule");
+});
+
+function bigSet(): DrawingSet {
+  const numbers = [
+    "G001", "G002", "C101", "C102",
+    ...Array.from({ length: 12 }, (_, i) => `A${101 + i}`),
+    "AD101", "S001", "S101", "S102", "M101", "M601", "P101", "E101", "E601", "FP101", "001",
+  ];
+  return {
+    ...data,
+    sheets: numbers.map((sheetNumber, pageIndex) => ({
+      "@id": `urn:uuid:00000000-0000-4000-8000-${String(pageIndex).padStart(12, "0")}`,
+      "@type": "Sheet",
+      sheetNumber,
+      title: `Sheet ${sheetNumber}`,
+      pageIndex,
+    })),
+  };
+}
+
+test("sheetPrefix takes the leading letters", () => {
+  assert.equal(sheetPrefix("A101"), "A");
+  assert.equal(sheetPrefix("fp-101"), "FP");
+  assert.equal(sheetPrefix("001"), "");
+});
+
+test("groupSheets keeps first-seen order and names disciplines", () => {
+  const groups = groupSheets(bigSet().sheets);
+  assert.deepEqual(groups.map((g) => g.prefix), ["G", "C", "A", "AD", "S", "M", "P", "E", "FP", ""]);
+  assert.equal(groups[2].name, "Architectural");
+  assert.equal(groups[2].sheets.length, 12);
+  assert.equal(groups[3].name, "Architectural");
+  assert.equal(groups[8].name, "Fire Protection");
+  assert.equal(groups[9].name, "Other");
+});
+
+test("25 sheets or fewer stay a flat list", () => {
+  const { ex, lines } = make();
+  ex.render();
+  assert.doesNotMatch(lines.join("\n"), /Sheet groups/);
+});
+
+test("more than 25 sheets list groups; pick by number or prefix, back returns", () => {
+  const lines: string[] = [];
+  const ex = new Explorer(bigSet(), (l = "") => lines.push(l));
+  ex.render();
+  const out = lines.join("\n");
+  assert.match(out, /Sheet groups \(27 sheets\):/);
+  assert.match(out, / 3\. A - Architectural \(12 sheets\)/);
+  assert.doesNotMatch(out, /A101 - /);
+
+  ex.handle("3");
+  assert.equal(kindOf(ex), "group");
+  assert.equal(ex.prompt(), "A sheets> ");
+  assert.match(lines.join("\n"), /A112 - Sheet A112/);
+  assert.ok("error" in ex.viewTarget());
+
+  ex.handle("A105");
+  assert.equal(kindOf(ex), "sheet");
+  ex.handle("back");
+  assert.equal(kindOf(ex), "group");
+  ex.handle("back");
+  assert.equal(kindOf(ex), "sheets");
+
+  ex.handle("e");
+  assert.equal(ex.prompt(), "E sheets> ");
+  ex.handle("top");
+  ex.handle("Structural");
+  assert.equal(ex.prompt(), "S sheets> ");
+  ex.handle("top");
+  ex.handle("other");
+  assert.match(lines.at(-2)!, /001 - Sheet 001/);
+});
+
+test("a sheet number at the group list opens the sheet; bad picks stay put", () => {
+  const lines: string[] = [];
+  const ex = new Explorer(bigSet(), (l = "") => lines.push(l));
+  ex.handle("M601");
+  assert.equal(kindOf(ex), "sheet");
+  ex.handle("top");
+  ex.handle("99");
+  assert.equal(kindOf(ex), "sheets");
+  assert.match(lines.at(-1)!, /^No group "99"/);
 });
