@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-26
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
 - `explore` groups the sheet list by sheet-number prefix (`G - General (3 sheets)`, `A - Architectural (18 sheets)`, …) when a set has more than 25 sheets. Pick a group by number, prefix, or discipline name to see its sheets; `back` returns to the groups. Typing a sheet number still opens it directly. Sets with 25 sheets or fewer list every sheet as before.
 - `explore` tags each reference with a short label (`→ [r1] Door Schedule (A601, page 9)`). Type `r1`, `r2`, … to jump to that drawing, schedule, or item, or just `r` when there is only one; `back` returns to where you were. The assistant can follow references the same way.
