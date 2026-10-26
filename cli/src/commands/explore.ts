@@ -22,7 +22,7 @@ import {
   type AssistantInfo,
   type AssistantName,
 } from "../lib/llm.js";
-import { enableMentionHighlight, colorEnabled, completeMention } from "../lib/mention-highlight.js";
+import { enableMentionHighlight, colorEnabled, completeMention, stylePrompt } from "../lib/mention-highlight.js";
 import { createAssistantSession, type AssistantSession } from "../lib/assistant.js";
 import {
   findSourcePdf,
@@ -672,7 +672,8 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
         res(answer);
       });
     });
-  if (colorEnabled()) enableMentionHighlight(rl, () => editing);
+  const color = colorEnabled();
+  if (color) enableMentionHighlight(rl, () => editing);
   const confirm = async (q: string) => /^y(es)?$/i.test((await ask(q)).trim());
   const viewerDeps: PageViewerDeps = {};
   const viewer = new PageViewer(data, filePath, opts.pdf, viewerDeps);
@@ -694,7 +695,7 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
 
   let running = true;
   while (running && !closed) {
-    const input = await ask(explorer.prompt());
+    const input = await ask(color ? stylePrompt(explorer.prompt()) : explorer.prompt());
     const mention = parseMention(input);
     if (mention) {
       await assistant.run(mention);

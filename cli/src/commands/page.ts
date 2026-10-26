@@ -1,4 +1,5 @@
 import { output } from "../lib/output.js";
+import { formatTable } from "../lib/table.js";
 import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image, CommandOptions } from "../types.js";
 
 export function findSheet(data: DrawingSet, selector: string): Sheet | undefined {
@@ -138,11 +139,10 @@ export function printTable(t: Table): void {
   console.log(`\n    ${t.label ?? t.title ?? "Untitled Table"}`);
   console.log(`      id: ${t["@id"]}`);
   if (t.bbox) console.log(`      bbox: [${t.bbox.join(", ")}]`);
-  console.log(`      ┌${"─".repeat(50)}┐`);
-  for (const row of t.content.split("\n")) {
-    console.log(`      │ ${row.padEnd(49)}│`);
+  const width = Math.max(30, (process.stdout.columns || 100) - 7);
+  for (const line of formatTable(t.content, width)) {
+    console.log(`      ${line}`);
   }
-  console.log(`      └${"─".repeat(50)}┘`);
 }
 
 export function printNote(n: Note): void {

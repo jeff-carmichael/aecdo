@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### CLI
 - `aecdo explore` with no file in an interactive terminal opens the same arrow-key picker as `process`, listing the `.jsonld` files in the current folder. In scripts, or with `--format json`, a missing file is still an error.
+- Tables in `explore` and `page` now print with aligned, padded columns and a header divider. Long cells wrap to fit the terminal width instead of running past the box.
+- The `explore` prompt (`sheet>`, `E601>`) is shown in green so your navigation lines stand out from the output. Color is off for `NO_COLOR`, `TERM=dumb`, and non-terminal output.
 
 ## [0.4.0] - 2026-10-26
 
