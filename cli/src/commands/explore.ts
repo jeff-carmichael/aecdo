@@ -124,6 +124,37 @@ function describeEntry(entry: SheetEntry): string {
   }
 }
 
+interface RefTarget {
+  sheet: Sheet;
+  drawing?: Drawing;
+  layer?: Layer;
+  item?: Item;
+  entry?: SheetEntry;
+}
+
+/** Where each `@id` in the set lives, so a reference can be opened. */
+export function buildRefIndex(data: DrawingSet): Map<string, RefTarget> {
+  const index = new Map<string, RefTarget>();
+  for (const sheet of data.sheets ?? []) {
+    index.set(sheet["@id"], { sheet });
+    for (const entry of sheetEntries(sheet)) index.set(entry.value["@id"], { sheet, entry });
+    for (const drawing of sheet.drawings ?? []) {
+      index.set(drawing["@id"], { sheet, drawing });
+      for (const layer of drawing.layers) {
+        index.set(layer["@id"], { sheet, drawing, layer });
+        for (const item of layer.items ?? []) index.set(item["@id"], { sheet, drawing, layer, item });
+      }
+    }
+  }
+  return index;
+}
+
+const REF_COMMAND = /^r(\d*)$/i;
+
+function refTag(i: number): string {
+  return `[r${i + 1}] `;
+}
+
 const GROUP_TITLES: Record<SheetEntry["kind"], string> = {
   drawing: "Drawings",
   table: "Tables",
@@ -136,12 +167,16 @@ export class Explorer {
   private resolve: RefResolver;
   private lastShown: unknown;
   private selection?: { view: View; label: string; bbox?: BBox; id?: string };
+  /** The references shown with [r1], [r2] tags, and the view they belong to. */
+  private refs?: { view: View; ids: string[] };
+  private refIndex: Map<string, RefTarget>;
 
   constructor(
     private data: DrawingSet,
     private log: (line?: string) => void = console.log
   ) {
     this.resolve = buildRefResolver(data);
+    this.refIndex = buildRefIndex(data);
   }
 
   get view(): View {
@@ -159,6 +194,7 @@ export class Explorer {
 
   render(): void {
     const v = this.view;
+    this.refs = undefined;
     switch (v.kind) {
       case "sheets":
         return this.renderSheets();
@@ -231,11 +267,13 @@ export class Explorer {
   private capture(fn: () => void): string[] {
     const lines: string[] = [];
     const log = this.log;
+    const refs = this.refs;
     this.log = (line = "") => lines.push(line);
     try {
       fn();
     } finally {
       this.log = log;
+      this.refs = refs;
     }
     return lines;
   }
@@ -247,6 +285,7 @@ export class Explorer {
     } else {
       this.log("  Enter a number from the list to dive in.");
       this.log('  "back" (or "..") goes up a level, "top" returns to the sheet list.');
+      this.log('  "r1", "r2", … jump to a reference (the lines marked "→ [r1]"); "back" comes back.');
     }
     if (this.view.kind === "sheet") this.log('  "all" prints everything on this sheet.');
     if (this.view.kind !== "sheets") {
@@ -295,6 +334,11 @@ export class Explorer {
     }
 
     const v = this.view;
+    const ref = REF_COMMAND.exec(answer);
+    if (ref && v.kind !== "sheets") {
+      this.jump(ref[1] ? Number(ref[1]) : undefined, answer);
+      return true;
+    }
     if (v.kind === "sheets") {
       this.openSheet(answer);
       return true;
@@ -337,6 +381,10 @@ export class Explorer {
       this.log(`No entry "${raw}". Pick 1–${entries.length}, or "back".`);
       return;
     }
+    this.openEntry(sheet, entry);
+  }
+
+  private openEntry(sheet: Sheet, entry: SheetEntry): void {
     switch (entry.kind) {
       case "drawing":
         this.stack.push({ kind: "drawing", sheet, drawing: entry.value });
@@ -378,10 +426,57 @@ export class Explorer {
       this.log(`No item "${raw}". Pick 1–${items.length}, or "back".`);
       return;
     }
+    this.showItem(item);
+  }
+
+  private showItem(item: Item): void {
     this.lastShown = item;
     this.select(`item ${truncate(itemLabel(item), 40)}`, item.bbox, item["@id"]);
-    printItem(item, this.resolve);
+    printItem(item, this.resolve, refTag);
+    this.refs = { view: this.view, ids: item.references ?? [] };
     this.log();
+  }
+
+  /** Opens the n-th reference on screen; the jump goes on the stack, so "back" returns. */
+  private jump(n: number | undefined, raw: string): void {
+    const ids = this.refs?.view === this.view ? this.refs.ids : [];
+    if (ids.length === 0) {
+      this.log('No references here to jump to. They show as "→ [r1] …" on drawings and items.');
+      return;
+    }
+    if (n === undefined && ids.length > 1) {
+      this.log(`Pick one of r1–r${ids.length}.`);
+      return;
+    }
+    const id = ids[(n ?? 1) - 1];
+    if (!id) {
+      this.log(`No reference "${raw}". Pick r1–r${ids.length}, or "back".`);
+      return;
+    }
+    const t = this.refIndex.get(id);
+    if (!t) {
+      this.log(`${raw} points to ${id}, which isn't in this file.`);
+      return;
+    }
+
+    this.selection = undefined;
+    const { sheet, drawing, layer } = t;
+    if (drawing && layer) {
+      this.stack.push({ kind: "layer", sheet, drawing, layer });
+    } else if (drawing) {
+      this.stack.push({ kind: "drawing", sheet, drawing });
+    } else {
+      this.stack.push({ kind: "sheet", sheet });
+    }
+    if (t.item) {
+      this.log(`\n  Jumped to ${this.resolve(id)}. "back" returns.`);
+      this.showItem(t.item);
+    } else if (t.entry) {
+      this.log(`\n  Jumped to ${this.resolve(id)}. "back" returns.`);
+      this.openEntry(sheet, t.entry);
+    } else {
+      this.render();
+    }
   }
 
   private renderSheets(): void {
@@ -420,9 +515,9 @@ export class Explorer {
     this.log(`\n  Drawing: ${drawingName(drawing)}${meta ? ` [${meta}]` : ""} (sheet ${sheet.sheetNumber})`);
     this.log(`    id:   ${drawing["@id"]}`);
     this.log(`    bbox: [${drawing.bbox.join(", ")}]`);
-    for (const ref of drawing.references ?? []) {
-      this.log(`    → ${this.resolve(ref)}`);
-    }
+    const refs = drawing.references ?? [];
+    refs.forEach((ref, i) => this.log(`    → ${refTag(i)}${this.resolve(ref)}`));
+    this.refs = { view: this.view, ids: refs };
 
     if (drawing.layers.length === 0) {
       this.log("\n  No layers.\n");

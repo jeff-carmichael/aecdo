@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- `explore` tags each reference with a short label (`→ [r1] Door Schedule (A601, page 9)`). Type `r1`, `r2`, … to jump to that drawing, schedule, or item, or just `r` when there is only one; `back` returns to where you were. The assistant can follow references the same way.
+- References to items, layers, tables, notes, and images now print as names (in `explore` and `page`) instead of raw `urn:uuid:` ids.
+
 ## [0.4.1] - 2026-10-26
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.
