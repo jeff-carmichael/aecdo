@@ -75,6 +75,7 @@ The assistant gets the current view as context: the sheet list, the sheet, the d
 | **Navigate** the set with the same commands you type, so your view moves as it works | "go to the second floor plan door tags" |
 | **Read** any sheet without moving your view | "what does the general structural notes sheet say about concrete strength?" |
 | **Show you the page** with something outlined in red, like typing `view` | "show me door 105A", "where's the book drop detail?" |
+| **Mark up the PDF** with clouds, callouts, and sticky notes that Bluebeam and Acrobat open as normal markups (you review and save them) | "cloud every door that's missing from the door schedule" |
 | **Take notes** by adding Markdown to `notes.md` (or another `.md` file you name) in the current folder | "note the doors that are missing from the schedule" |
 | **Fill in a spreadsheet** (`.xlsx`, `.csv`, or `.tsv`) in the current folder | "add every door on A101 to doors.xlsx" |
 
@@ -87,6 +88,40 @@ The assistant looks for spreadsheets in the folder you ran `explore` from. If on
 - **It asks first.** Before its first change to a spreadsheet that already existed, it asks `Allow the assistant to edit doors.xlsx? [y/N]`.
 - **Excel files are edited in place.** Formatting, formulas, column widths, and other tabs stay as they were.
 - **Formula cells are never overwritten.**
+
+## Marking up the PDF
+
+Ask the assistant to cloud, call out, or note something, and it adds real PDF markups to the drawing set: the same annotations you'd draw in Bluebeam Revu or Acrobat, so they show in the Markups list (author "aecdo assistant") and people can move, edit, reply to, or delete them.
+
+| Markup | Looks like | Good for |
+|--------|-----------|----------|
+| `cloud` | a red revision cloud around the item | flagging a problem area |
+| `callout` | a text box with an arrow pointing at the item | a short comment on the sheet |
+| `note` | a sticky-note icon that opens to show the text | longer explanations that shouldn't cover the drawing |
+
+**Nothing changes until you save.** The assistant only proposes markups. Then:
+
+1. Type `view` to see them drawn on the page.
+2. Type `markups` to list them. `markups drop 2` discards one, `markups clear` discards them all.
+3. Type `markups save` to write them.
+
+```
+A101> @claude cloud door 209B and say it's missing from the door schedule
+  ✎ Markup 1 pending: cloud A102 on item Door tag 209B: Door 209B is not in the door schedule (A601).
+A102 › Second Floor Plan › Door Tags> markups save
+Saved 1 markup to /projects/library/plans-markups.pdf. "markups undo" takes them back.
+```
+
+**Saving goes to a copy** next to your PDF, `plans-markups.pdf` for `plans.pdf`. Your original stays as it was. Later saves add to the same copy. To mark up the original instead, type `markups save --in-place`. If the PDF is open in Bluebeam or Acrobat on Windows, close it first; the save tells you if the file is locked.
+
+**Saves only add to the end of the file.** Every byte of the original stays the same, so a digitally signed or sealed set keeps a valid signature, and undo is exact:
+
+- `markups undo` takes back the last save in this session (or the last `markups remove`). If the save created the copy, the copy is deleted. Undo refuses if the file has changed since, for example after someone edited it in Bluebeam.
+- `markups remove` deletes every markup aecdo added, plus replies people attached to them, and leaves everyone else's markups alone. It asks first. Add `--in-place` to clean the original PDF.
+
+If you quit with markups still pending, `explore` asks whether to save them.
+
+Markups go where the drawing data says the item is, so they're only as accurate as its [bounding boxes](data-model.md#bbox-coordinates). Check with `view` before saving. Encrypted or password-protected PDFs can't be marked up.
 
 ## Project instructions: AGENTS.md
 

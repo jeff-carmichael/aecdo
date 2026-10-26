@@ -8,6 +8,7 @@ import { Explorer, PageViewer } from "../commands/explore.js";
 import { buildTools, createAssistantSession, loadFolderInstructions, resolveInCwd, withFolderInstructions, wrapPrompt, type AssistantHost } from "./assistant.js";
 import { ASSISTANTS } from "./llm.js";
 import type { DrawingSet } from "../types.js";
+import type { Markup } from "./markup.js";
 
 const data = JSON.parse(
   readFileSync(new URL("../../../examples/sample-drawing-set.jsonld", import.meta.url), "utf-8")
@@ -174,4 +175,47 @@ test("folder instructions are optional and capped", async () => {
   const big = await loadFolderInstructions(cwd);
   assert.ok(big?.truncated);
   assert.equal(big.text.length, 20_000);
+});
+
+test("the assistant proposes markups that stay pending for the user to save", async () => {
+  const { explorer, host, faux, models, out } = setup();
+  const added: unknown[] = [];
+  const pending: Markup[] = [];
+  host.markups = {
+    pending,
+    add: (req) => {
+      added.push(req);
+      const m: Markup = { id: "aecdo-1", kind: req.kind, pageIndex: 0, sheetNumber: "A101", bbox: [85, 120, 700, 130], text: req.text, label: "item Exterior Wall" };
+      pending.push(m);
+      return Promise.resolve(m);
+    },
+    drop: (i) => pending.splice(i - 1, 1)[0],
+    describe: (m) => `${m.kind} ${m.sheetNumber} on ${m.label}: ${m.text}`,
+    outPath: () => "/plans/set-markups.pdf",
+  };
+  let toolResult = "";
+  faux.setResponses([
+    fauxAssistantMessage(
+      [
+        fauxToolCall("navigate", { command: "A101" }),
+        fauxToolCall("add_markup", { kind: "cloud", text: "Wall type missing" }),
+      ],
+      { stopReason: "toolUse" }
+    ),
+    (context) => {
+      const last = context.messages.at(-1) as { content: { text?: string }[] };
+      toolResult = last.content.map((c) => c.text ?? "").join("");
+      return fauxAssistantMessage([fauxText("Added a cloud; type markups save to write it.")]);
+    },
+  ]);
+
+  const session = await createAssistantSession(host, ASSISTANTS.claude, models, faux.getModel());
+  await session.ask("cloud the exterior wall");
+  assert.equal(explorer.view.kind, "sheet");
+  assert.deepEqual(added, [{ kind: "cloud", text: "Wall type missing" }]);
+  assert.match(toolResult, /Pending markup 1: cloud A101 on item Exterior Wall/);
+  assert.match(toolResult, /markups save/);
+  assert.match(out.join(""), /Markup 1 pending/);
+  assert.ok(buildTools(host, Type).some((t) => t.name === "remove_markup"));
+  assert.ok(!buildTools({ ...host, markups: undefined }, Type).some((t) => t.name === "add_markup"));
 });

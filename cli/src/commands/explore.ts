@@ -34,6 +34,7 @@ import {
   type PageViewResult,
 } from "../lib/page-view.js";
 import { openWithDefaultApp } from "../lib/open.js";
+import { MarkupSession, parseMarkupsCommand } from "./markups.js";
 import type { MutableModels } from "@earendil-works/pi-ai";
 import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image, CommandOptions } from "../types.js";
 
@@ -54,6 +55,8 @@ export interface ViewTarget {
   /** What the red box outlines, e.g. "drawing Ground Floor Plan". */
   label: string;
   bbox?: BBox;
+  /** The AECDO `@id` of what is outlined. */
+  id?: string;
   /** True when nothing is selected on a sheet, so there is no box to draw. */
   wholePage?: boolean;
 }
@@ -132,7 +135,7 @@ export class Explorer {
   private stack: View[] = [{ kind: "sheets" }];
   private resolve: RefResolver;
   private lastShown: unknown;
-  private selection?: { view: View; label: string; bbox?: BBox };
+  private selection?: { view: View; label: string; bbox?: BBox; id?: string };
 
   constructor(
     private data: DrawingSet,
@@ -205,23 +208,24 @@ export class Explorer {
     const v = this.view;
     if (v.kind === "sheets") return { error: "Open a sheet first, then type \"view\"." };
     const sel = this.selection?.view === v ? this.selection : undefined;
-    if (sel) return { sheet: v.sheet, label: sel.label, bbox: sel.bbox };
+    if (sel) return { sheet: v.sheet, label: sel.label, bbox: sel.bbox, id: sel.id };
     switch (v.kind) {
       case "sheet":
         return { sheet: v.sheet, label: `sheet ${v.sheet.sheetNumber}`, wholePage: true };
       case "drawing":
-        return { sheet: v.sheet, label: `drawing ${drawingName(v.drawing)}`, bbox: v.drawing.bbox };
+        return { sheet: v.sheet, label: `drawing ${drawingName(v.drawing)}`, bbox: v.drawing.bbox, id: v.drawing["@id"] };
       case "layer":
         return {
           sheet: v.sheet,
           label: `layer ${v.layer.name}`,
+          id: v.layer["@id"],
           bbox: v.layer.bbox ?? unionBBox((v.layer.items ?? []).map((i) => i.bbox)),
         };
     }
   }
 
-  private select(label: string, bbox: BBox | undefined): void {
-    this.selection = { view: this.view, label, bbox };
+  private select(label: string, bbox: BBox | undefined, id?: string): void {
+    this.selection = { view: this.view, label, bbox, id };
   }
 
   private capture(fn: () => void): string[] {
@@ -247,6 +251,7 @@ export class Explorer {
     if (this.view.kind === "sheet") this.log('  "all" prints everything on this sheet.');
     if (this.view.kind !== "sheets") {
       this.log('  "view" opens this page from the PDF with the current selection outlined in red.');
+      this.log('  "markups" lists markups the assistant proposed; "markups save" writes them to a copy of the PDF.');
     }
     this.log('  "ls" reprints the current list, "quit" exits.');
     this.log('  "@claude …" or "@chatgpt …" asks an AI assistant about this view.');
@@ -266,6 +271,10 @@ export class Explorer {
     }
     if (parseViewCommand(answer)) {
       this.log('"view" can\'t be run from here; the assistant uses its show_page tool instead.');
+      return true;
+    }
+    if (parseMarkupsCommand(answer)) {
+      this.log('"markups" can\'t be run from here; the user types it to review and save markups.');
       return true;
     }
     if (cmd === "list" || cmd === "ls") {
@@ -335,17 +344,17 @@ export class Explorer {
         return;
       case "table":
         this.lastShown = entry.value;
-        this.select(`table ${entry.value.label ?? entry.value.title ?? "Untitled Table"}`, entry.value.bbox);
+        this.select(`table ${entry.value.label ?? entry.value.title ?? "Untitled Table"}`, entry.value.bbox, entry.value["@id"]);
         printTable(entry.value);
         break;
       case "note":
         this.lastShown = entry.value;
-        this.select(`note "${truncate(entry.value.content, 40)}"`, entry.value.bbox);
+        this.select(`note "${truncate(entry.value.content, 40)}"`, entry.value.bbox, entry.value["@id"]);
         printNote(entry.value);
         break;
       case "image":
         this.lastShown = entry.value;
-        this.select(`image ${entry.value.caption ?? entry.value.role}`, entry.value.bbox);
+        this.select(`image ${entry.value.caption ?? entry.value.role}`, entry.value.bbox, entry.value["@id"]);
         printImage(entry.value);
         break;
     }
@@ -370,7 +379,7 @@ export class Explorer {
       return;
     }
     this.lastShown = item;
-    this.select(`item ${truncate(itemLabel(item), 40)}`, item.bbox);
+    this.select(`item ${truncate(itemLabel(item), 40)}`, item.bbox, item["@id"]);
     printItem(item, this.resolve);
     this.log();
   }
@@ -482,7 +491,8 @@ class AssistantBridge {
     private filePath: string,
     private explorer: Explorer,
     private ask: (q: string) => Promise<string>,
-    private viewer?: PageViewer
+    private viewer?: PageViewer,
+    private markups?: MarkupSession
   ) {}
 
   async run(mention: Mention): Promise<void> {
@@ -532,6 +542,7 @@ class AssistantBridge {
         cwd: process.cwd(),
         view: this.explorer,
         showPage: this.viewer ? async () => (await this.viewer!.show(this.explorer)).join("\n") : undefined,
+        markups: this.markups,
         write: (text) => process.stdout.write(text),
         print: (line) => console.log(line),
         confirm: async (q) => /^y(es)?$/i.test((await this.ask(q)).trim()),
@@ -546,6 +557,8 @@ class AssistantBridge {
 }
 
 export interface PageViewerDeps {
+  /** Pending markups to draw, and the copy that holds saved ones. */
+  markups?: Pick<MarkupSession, "pendingOn" | "savedCopy">;
   render?: (req: PageViewRequest) => Promise<PageViewResult>;
   open?: (path: string) => void;
   exists?: (path: string) => boolean;
@@ -589,14 +602,19 @@ export class PageViewer {
       log(`No bounding box for ${target.label}; showing the whole page.`);
     }
 
+    const pending = this.deps.markups?.pendingOn(target.sheet.pageIndex) ?? [];
+    const saved = pdfArg ? undefined : this.deps.markups?.savedCopy();
     try {
       const result = await (this.deps.render ?? renderPageView)({
-        pdfPath: pdf.path,
+        pdfPath: saved ?? pdf.path,
         pageIndex: target.sheet.pageIndex,
         bbox: target.bbox,
         name: target.sheet.sheetNumber,
+        ...(pending.length ? { markups: pending } : {}),
       });
       this.pdfPath = pdf.path;
+      if (saved) log(`Showing saved markups from ${basename(saved)}.`);
+      if (pending.length) log(`Showing ${pending.length} pending markup${pending.length === 1 ? "" : "s"} (not saved yet; "markups save" writes them).`);
       if (result.outsidePage) {
         const { width, height } = result.outsidePage;
         log(`Note: the box [${target.bbox!.join(", ")}] runs past the page (${Math.round(width)} × ${Math.round(height)} pt), so it may be in different units.`);
@@ -611,7 +629,8 @@ export class PageViewer {
     return lines;
   }
 
-  private locatePdf(pdfArg?: string): { path?: string; looked: string[] } {
+  /** The source PDF "view" uses: an explicit path, the last one used, or one found next to the JSON-LD. */
+  locatePdf(pdfArg?: string): { path?: string; looked: string[] } {
     const exists = this.deps.exists;
     if (pdfArg) {
       const looked = sourcePdfCandidates(this.filePath, this.data, pdfArg);
@@ -654,8 +673,12 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
       });
     });
   if (colorEnabled()) enableMentionHighlight(rl, () => editing);
-  const viewer = new PageViewer(data, filePath, opts.pdf);
-  const assistant = new AssistantBridge(data, filePath, explorer, ask, viewer);
+  const confirm = async (q: string) => /^y(es)?$/i.test((await ask(q)).trim());
+  const viewerDeps: PageViewerDeps = {};
+  const viewer = new PageViewer(data, filePath, opts.pdf, viewerDeps);
+  const markups = new MarkupSession(data, { locatePdf: () => viewer.locatePdf(), target: () => explorer.viewTarget(), confirm });
+  viewerDeps.markups = markups;
+  const assistant = new AssistantBridge(data, filePath, explorer, ask, viewer, markups);
 
   let closed = false;
   rl.on("close", () => (closed = true));
@@ -682,7 +705,13 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
       await viewer.show(explorer, view.pdf);
       continue;
     }
+    const markupCmd = parseMarkupsCommand(input);
+    if (markupCmd) {
+      await markups.run(markupCmd.action, markupCmd.args);
+      continue;
+    }
     running = explorer.handle(input);
+    if (!running) await markups.beforeQuit();
   }
 
   rl.close();

@@ -4,6 +4,7 @@ import { basename, dirname, extname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import type { DrawingSet } from "../types.js";
+import type { Markup } from "./markup.js";
 
 export type BBox = [number, number, number, number];
 
@@ -91,6 +92,8 @@ export interface PageViewRequest {
   /** File name stem for the output, e.g. the sheet number. */
   name: string;
   outDir?: string;
+  /** Unsaved markups to draw on the page, so they can be checked before saving. */
+  markups?: Markup[];
 }
 
 export interface PageViewResult {
@@ -140,6 +143,13 @@ export async function renderPageView(req: PageViewRequest): Promise<PageViewResu
       opacity: 0.08,
       borderOpacity: 1,
     });
+  }
+
+  if (req.markups?.length) {
+    const lib = await import("pdf-lib");
+    const { addMarkupAnnotation } = await import("./markup.js");
+    const font = await out.embedFont(lib.StandardFonts.Helvetica);
+    for (const m of req.markups) addMarkupAnnotation(lib, out, page, m, font);
   }
 
   const outDir = req.outDir ?? defaultViewDir();

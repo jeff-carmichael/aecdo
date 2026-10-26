@@ -80,6 +80,16 @@ test("renders one page with a red box drawn on it", async () => {
     assert.deepEqual(far.outsidePage, { width: 792, height: 612 });
 
     await assert.rejects(renderPageView({ pdfPath: input, pageIndex: 5, name: "x", outDir: dir }), /out of range/);
+
+    const marked = await renderPageView({
+      pdfPath: input,
+      pageIndex: 1,
+      name: "marked",
+      outDir: dir,
+      markups: [{ id: "aecdo-x", kind: "cloud", pageIndex: 1, sheetNumber: "A201", bbox: [72, 108, 720, 540], text: "check" }],
+    });
+    const markedDoc = await PDFDocument.load(await readFile(marked.pdfPath));
+    assert.equal(markedDoc.getPage(0).node.Annots()?.size(), 1);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
