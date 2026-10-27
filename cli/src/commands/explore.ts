@@ -239,7 +239,7 @@ export class Explorer {
   private selection?: { view: View; label: string; bbox?: BBox; id?: string };
   /** The references shown with [r1], [r2] tags, and the view they belong to. */
   private refs?: { view: View; ids: string[] };
-  private refIndex: Map<string, RefTarget>;
+  private refIndex?: Map<string, RefTarget>;
   /** Set when the set has too many sheets to list flat. */
   private groups?: SheetGroup[];
 
@@ -248,7 +248,6 @@ export class Explorer {
     private log: (line?: string) => void = console.log
   ) {
     this.resolve = buildRefResolver(data);
-    this.refIndex = buildRefIndex(data);
     const sheets = data.sheets ?? [];
     if (sheets.length > SHEET_GROUP_THRESHOLD) {
       const groups = groupSheets(sheets);
@@ -435,7 +434,7 @@ export class Explorer {
     }
 
     if (v.kind === "sheet" && cmd === "all") {
-      printPage(v.sheet, this.data);
+      printPage(v.sheet, this.data, this.resolve);
       return true;
     }
 
@@ -565,6 +564,7 @@ export class Explorer {
       this.log(`No reference "${raw}". Pick r1–r${ids.length}, or "back".`);
       return;
     }
+    this.refIndex ??= buildRefIndex(this.data);
     const t = this.refIndex.get(id);
     if (!t) {
       this.log(`${raw} points to ${id}, which isn't in this file.`);

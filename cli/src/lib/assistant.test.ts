@@ -219,3 +219,31 @@ test("the assistant proposes markups that stay pending for the user to save", as
   assert.ok(buildTools(host, Type).some((t) => t.name === "remove_markup"));
   assert.ok(!buildTools({ ...host, markups: undefined }, Type).some((t) => t.name === "add_markup"));
 });
+
+test("list_sheets pages and filters a large set instead of cutting it off", async () => {
+  const { host } = setup();
+  const base = data.sheets[0];
+  const sheets = Array.from({ length: 1000 }, (_, i) => ({
+    ...base,
+    "@id": `urn:uuid:00000000-0000-0000-0000-${String(i).padStart(12, "0")}`,
+    sheetNumber: `${i % 2 ? "M" : "A"}${i}`,
+    title: i === 777 ? "Door Schedule" : `Sheet ${i}`,
+    pageIndex: i,
+  }));
+  const tool = buildTools({ ...host, data: { ...data, sheets } }, Type).find((t) => t.name === "list_sheets")!;
+  const run = async (params: Record<string, unknown>) => {
+    const result = await tool.execute("id", params, undefined, undefined);
+    const json = (result.content[0] as { text: string }).text;
+    return JSON.parse(json) as { total: number; offset: number; nextOffset?: number; sheets: { sheetNumber: string }[] };
+  };
+
+  const first = await run({});
+  assert.equal(first.total, 1000);
+  assert.equal(first.sheets.length, 200);
+  assert.equal(first.nextOffset, 200);
+  const last = await run({ offset: 800 });
+  assert.equal(last.sheets.at(-1)?.sheetNumber, "M999");
+  assert.equal(last.nextOffset, undefined);
+  assert.deepEqual((await run({ filter: "door" })).sheets.map((s) => s.sheetNumber), ["M777"]);
+  assert.equal((await run({ filter: "m" })).total, 500);
+});

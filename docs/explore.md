@@ -198,6 +198,8 @@ brew install poppler            # macOS (Homebrew)
 sudo apt install poppler-utils  # Debian, Ubuntu
 ```
 
+Poppler or MuPDF also keeps `view` quick on big sets: `aecdo` cuts out just the page it needs (`pdfseparate` or `mutool merge`) instead of reading the whole PDF. Without them, the first `view` reads the whole file, which can take 10 seconds or more on a 1000-page set; later views in the same session reuse it.
+
 On Windows, the one-page PDF opens in your default PDF viewer, so there's nothing to install.
 
 The files go in your system's temp folder, under `aecdo-view/`.

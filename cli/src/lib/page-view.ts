@@ -1,5 +1,5 @@
 import { existsSync, rmSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -94,6 +94,8 @@ export interface PageViewRequest {
   outDir?: string;
   /** Unsaved markups to draw on the page, so they can be checked before saving. */
   markups?: Markup[];
+  /** False skips pdfseparate/mutool and always loads the whole PDF with pdf-lib. */
+  extract?: boolean;
 }
 
 export interface PageViewResult {
@@ -101,7 +103,8 @@ export interface PageViewResult {
   path: string;
   pdfPath: string;
   pngPath?: string;
-  pageCount: number;
+  /** Only known when the whole PDF was loaded; unset when the page was cut out with pdfseparate or mutool. */
+  pageCount?: number;
   /** Set when the bbox falls outside the page, which usually means it is in other units. */
   outsidePage?: { width: number; height: number };
 }
@@ -114,17 +117,63 @@ function safeName(name: string): string {
   return name.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "") || "page";
 }
 
+type PdfLib = typeof import("pdf-lib");
+type PdfDoc = Awaited<ReturnType<PdfLib["PDFDocument"]["load"]>>;
+
+let lastLoaded: { path: string; mtimeMs: number; size: number; doc: PdfDoc } | undefined;
+
+/** pdf-lib parses every object, which takes seconds on a large set, so keep the last PDF loaded. */
+async function loadWholePdf(lib: PdfLib, pdfPath: string): Promise<PdfDoc> {
+  const { mtimeMs, size } = await stat(pdfPath);
+  if (lastLoaded && lastLoaded.path === pdfPath && lastLoaded.mtimeMs === mtimeMs && lastLoaded.size === size) return lastLoaded.doc;
+  lastLoaded = undefined;
+  const doc = await lib.PDFDocument.load(await readFile(pdfPath), { ignoreEncryption: true, updateMetadata: false });
+  lastLoaded = { path: pdfPath, mtimeMs, size, doc };
+  return doc;
+}
+
+/**
+ * Cuts one page out with Poppler or MuPDF, which read only what that page needs; on a
+ * 1000-page set this is under a second where pdf-lib takes many. Undefined if neither is installed.
+ */
+async function extractPage(pdfPath: string, pageIndex: number, outDir: string): Promise<Uint8Array | undefined> {
+  const out = join(outDir, `.extract-${process.pid}.pdf`);
+  const page = String(pageIndex + 1);
+  const attempts: [string, string[]][] = [
+    ["pdfseparate", ["-f", page, "-l", page, pdfPath, out]],
+    ["mutool", ["merge", "-o", out, pdfPath, page]],
+  ];
+  try {
+    for (const [cmd, args] of attempts) {
+      rmSync(out, { force: true });
+      const result = spawnSync(cmd, args, { stdio: "ignore", timeout: 60_000 });
+      if (result.status === 0 && existsSync(out)) return await readFile(out);
+    }
+    return undefined;
+  } finally {
+    rmSync(out, { force: true });
+  }
+}
+
 /** Copies one page into a new PDF, outlines `bbox` in red, and rasterizes it when it can. */
 export async function renderPageView(req: PageViewRequest): Promise<PageViewResult> {
-  const { PDFDocument, rgb } = await import("pdf-lib");
-  const src = await PDFDocument.load(await readFile(req.pdfPath), { ignoreEncryption: true, updateMetadata: false });
-  const pageCount = src.getPageCount();
-  if (req.pageIndex < 0 || req.pageIndex >= pageCount) {
+  const lib = await import("pdf-lib");
+  const { PDFDocument, rgb } = lib;
+  const outDir = req.outDir ?? defaultViewDir();
+  await mkdir(outDir, { recursive: true });
+
+  const extracted = req.pageIndex >= 0 && req.extract !== false ? await extractPage(req.pdfPath, req.pageIndex, outDir) : undefined;
+  const src = extracted
+    ? await PDFDocument.load(extracted, { ignoreEncryption: true, updateMetadata: false })
+    : await loadWholePdf(lib, req.pdfPath);
+  const srcIndex = extracted ? 0 : req.pageIndex;
+  const pageCount = extracted ? undefined : src.getPageCount();
+  if (pageCount !== undefined && (req.pageIndex < 0 || req.pageIndex >= pageCount)) {
     throw new Error(`Page index ${req.pageIndex} is out of range; ${basename(req.pdfPath)} has ${pageCount} page${pageCount === 1 ? "" : "s"}.`);
   }
 
   const out = await PDFDocument.create();
-  const [page] = await out.copyPages(src, [req.pageIndex]);
+  const [page] = await out.copyPages(src, [srcIndex]);
   out.addPage(page);
 
   let outsidePage: PageViewResult["outsidePage"];
@@ -146,14 +195,11 @@ export async function renderPageView(req: PageViewRequest): Promise<PageViewResu
   }
 
   if (req.markups?.length) {
-    const lib = await import("pdf-lib");
     const { addMarkupAnnotation } = await import("./markup.js");
     const font = await out.embedFont(lib.StandardFonts.Helvetica);
     for (const m of req.markups) addMarkupAnnotation(lib, out, page, m, font);
   }
 
-  const outDir = req.outDir ?? defaultViewDir();
-  await mkdir(outDir, { recursive: true });
   const stem = join(outDir, safeName(req.bbox ? `${req.name}-${req.bbox.map((n) => Math.round(n)).join("_")}` : req.name));
   const pdfPath = `${stem}.pdf`;
   await writeFile(pdfPath, await out.save());

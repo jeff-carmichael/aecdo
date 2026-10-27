@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- Faster on large drawing sets. `view` cuts the one page it needs out of the PDF with Poppler (`pdfseparate`) or MuPDF (`mutool merge`) when installed, instead of loading the whole PDF with pdf-lib: on a 1000-page, 200 MB test PDF a `view` took about 3 seconds instead of 18, and memory stayed under 100 MB instead of 900 MB. Without those tools, the loaded PDF is kept for the rest of the session, so only the first `view` is slow.
+- `explore` builds its reference lookups the first time a reference is shown instead of at startup, and `all` reuses them instead of rebuilding them for every sheet.
+- The assistant's `list_sheets` tool returns 200 sheets at a time, with `filter` (sheet number or title text) and `offset` to page, so it can see every sheet of a big set; before, the list was cut off after about 260 sheets.
+- `npm run bench -- <sheets>` times parsing, validation, and `explore` on a synthetic set of that many sheets built from the Maple Grove demo.
+
 ## [0.4.3] - 2026-10-26
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.
