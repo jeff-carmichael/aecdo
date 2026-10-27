@@ -32,7 +32,13 @@ export async function page(
 
 export type RefResolver = (id: string) => string;
 
+/** Labels are built on the first lookup, so a big set costs nothing until a reference is shown. */
 export function buildRefResolver(data: DrawingSet): RefResolver {
+  let map: Map<string, string> | undefined;
+  return (id: string) => (map ??= refLabels(data)).get(id) ?? id;
+}
+
+function refLabels(data: DrawingSet): Map<string, string> {
   const map = new Map<string, string>();
   for (const s of data.sheets ?? []) {
     map.set(s["@id"], `Sheet ${s.sheetNumber} — ${s.title} (page ${s.pageIndex})`);
@@ -52,7 +58,7 @@ export function buildRefResolver(data: DrawingSet): RefResolver {
     for (const n of s.notes ?? []) map.set(n["@id"], `Note "${oneLine(n.content, 40)}" (${where})`);
     for (const img of s.images ?? []) map.set(img["@id"], `Image ${img.caption ?? img.role} (${where})`);
   }
-  return (id: string) => map.get(id) ?? id;
+  return map;
 }
 
 function oneLine(text: string, max: number): string {
@@ -60,8 +66,7 @@ function oneLine(text: string, max: number): string {
   return line.length > max ? `${line.slice(0, max - 1)}…` : line;
 }
 
-export function printPage(sheet: Sheet, data: DrawingSet): void {
-  const resolve = buildRefResolver(data);
+export function printPage(sheet: Sheet, data: DrawingSet, resolve: RefResolver = buildRefResolver(data)): void {
   const c = palette();
 
   printSheetHeader(sheet);

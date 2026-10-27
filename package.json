@@ -35,6 +35,7 @@
     "test": "npm run build && node --test dist/src/**/*.test.js",
     "lint": "eslint cli/",
     "diagram": "node scripts/generate-diagram.mjs",
+    "bench": "node scripts/bench-large-set.mjs",
     "diagram:check": "node scripts/generate-diagram.mjs --check",
     "setup": "git config core.hooksPath .githooks",
     "aecdo": "node dist/bin/aecdo.js"

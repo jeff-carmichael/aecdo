@@ -32,6 +32,7 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `examples/sample-drawing-set.jsonld` — validates against the schema (small; used by unit tests)
 - `examples/maple-grove-library.jsonld` — detailed 19-sheet demo set (fictional library) for demos of `explore` and the assistant; `cli/src/lib/schema.test.ts` validates every file in `examples/`
 - `.claude/skills/aecdo/SKILL.md` — installable Claude Code skill
+- `scripts/bench-large-set.mjs` — `npm run bench -- 1000` times parse/validate/explore on a synthetic large set (copies of the Maple Grove demo); run after `npm run build`
 - `scripts/postinstall.mjs` — copies the skill to `~/.claude/skills/` on a global npm install
 - `cli/bin/standalone.ts`, `cli/bin/embed-assets.ts` — Bun entry for standalone binaries (embeds schema + version)
 - `install.sh` — end-user installer for the standalone binary (`curl … | sh`)

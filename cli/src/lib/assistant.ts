@@ -54,6 +54,8 @@ export const INSTRUCTIONS_FILE = "AGENTS.md";
 const MAX_INSTRUCTIONS_CHARS = 20_000;
 const MAX_TOOL_CHARS = 40_000;
 const MAX_SHEET_ROWS = 200;
+/** Sheets per list_sheets call; 200 stays well under MAX_TOOL_CHARS, so big sets page instead of being cut off. */
+const LIST_SHEETS_PAGE = 200;
 
 export function truncateJson(value: unknown, max = MAX_TOOL_CHARS): string {
   const text = JSON.stringify(value, null, 1);
@@ -207,21 +209,35 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
     defineTool({
       name: "list_sheets",
       label: "List sheets",
-      description: "List every sheet in the drawing set with its number, title, page index and content counts.",
-      parameters: T.Object({}),
-      execute: () =>
-        text(
-          truncateJson(
-            (host.data.sheets ?? []).map((s) => ({
+      description: `List the sheets in the drawing set with number, title, page index and content counts, ${LIST_SHEETS_PAGE} at a time. Narrow with filter, page with offset.`,
+      parameters: T.Object({
+        filter: T.Optional(T.String({ description: 'Only sheets whose number or title contains this text, e.g. "A2" or "door"' })),
+        offset: T.Optional(T.Number({ description: "Skip this many matching sheets, to see the next page" })),
+      }),
+      execute: (_id, params: { filter?: string; offset?: number }) => {
+        const f = params.filter?.trim().toLowerCase();
+        const matches = (host.data.sheets ?? []).filter(
+          (s) => !f || s.sheetNumber.toLowerCase().includes(f) || s.title.toLowerCase().includes(f)
+        );
+        const offset = Math.max(0, Math.floor(params.offset ?? 0));
+        const shown = matches.slice(offset, offset + LIST_SHEETS_PAGE);
+        const next = offset + shown.length < matches.length ? offset + shown.length : undefined;
+        return text(
+          truncateJson({
+            total: matches.length,
+            offset,
+            ...(next !== undefined ? { nextOffset: next } : {}),
+            sheets: shown.map((s) => ({
               sheetNumber: s.sheetNumber,
               title: s.title,
               pageIndex: s.pageIndex,
               drawings: s.drawings?.length ?? 0,
               tables: s.tables?.length ?? 0,
               notes: s.notes?.length ?? 0,
-            }))
-          )
-        ),
+            })),
+          })
+        );
+      },
     }),
     defineTool({
       name: "read_sheet",
