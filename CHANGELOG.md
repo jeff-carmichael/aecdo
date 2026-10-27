@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Examples
+- `examples/sample-drawing-package-1and2family.pdf` and `.jsonld`: the City of Vancouver's sample drawing package for one and two family dwellings (7 pages: site and impermeable plans, floor plans, FSR overlay, elevations, sections, details, garage), with a JSON-LD built by hand from the drawings. It's the first example with its source PDF, so `view` and markups can be tried on it. The PDF isn't included in the npm package.
+
 ### CLI
 - Faster on large drawing sets. `view` cuts the one page it needs out of the PDF with Poppler (`pdfseparate`) or MuPDF (`mutool merge`) when installed, instead of loading the whole PDF with pdf-lib: on a 1000-page, 200 MB test PDF a `view` took about 3 seconds instead of 18, and memory stayed under 100 MB instead of 900 MB. Without those tools, the loaded PDF is kept for the rest of the session, so only the first `view` is slow.
 - `explore` builds its reference lookups the first time a reference is shown instead of at startup, and `all` reuses them instead of rebuilding them for every sheet.

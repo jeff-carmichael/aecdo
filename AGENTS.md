@@ -30,7 +30,8 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `package.json` — at repo root, npm-publishable as "aecdo"
 - `docs/` — user guide (Jekyll, served by GitHub Pages from `main`/`docs` at https://jeff-carmichael.github.io/aecdo/); one Markdown page per topic, sidebar order in `docs/_config.yml`; README is short and links here
 - `examples/sample-drawing-set.jsonld` — validates against the schema (small; used by unit tests)
-- `examples/maple-grove-library.jsonld` — detailed 19-sheet demo set (fictional library) for demos of `explore` and the assistant; `cli/src/lib/schema.test.ts` validates every file in `examples/`
+- `examples/maple-grove-library.jsonld` — detailed 19-sheet demo set (fictional library) for demos of `explore` and the assistant; `cli/src/lib/schema.test.ts` validates every `.jsonld` file in `examples/`
+- `examples/sample-drawing-package-1and2family.{pdf,jsonld}` — City of Vancouver sample house permit set (7 pages) with a hand-built JSON-LD, for trying `view` and markups on a real PDF; source in `examples/README.md`. The PDF is left out of the npm package
 - `.claude/skills/aecdo/SKILL.md` — installable Claude Code skill
 - `scripts/bench-large-set.mjs` — `npm run bench -- 1000` times parse/validate/explore on a synthetic large set (copies of the Maple Grove demo); run after `npm run build`
 - `scripts/postinstall.mjs` — copies the skill to `~/.claude/skills/` on a global npm install
