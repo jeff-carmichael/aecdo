@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline";
-import { basename } from "node:path";
+import { readdirSync } from "node:fs";
+import { basename, dirname, join, relative } from "node:path";
 import { validate } from "./validate.js";
 import {
   findSheet,
@@ -33,6 +34,7 @@ import {
   findSourcePdf,
   renderPageView,
   sourcePdfCandidates,
+  sourcePdfCandidatesWithReasons,
   unionBBox,
   type BBox,
   type PageViewRequest,
@@ -43,18 +45,26 @@ import { MarkupSession, parseMarkupsCommand } from "./markups.js";
 import type { MutableModels } from "@earendil-works/pi-ai";
 import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image, CommandOptions } from "../types.js";
 
-type View =
-  | { kind: "sheets" }
-  | { kind: "group"; group: SheetGroup }
-  | { kind: "sheet"; sheet: Sheet }
-  | { kind: "drawing"; sheet: Sheet; drawing: Drawing }
-  | { kind: "layer"; sheet: Sheet; drawing: Drawing; layer: Layer };
-
 type SheetEntry =
   | { kind: "drawing"; value: Drawing }
   | { kind: "table"; value: Table }
   | { kind: "note"; value: Note }
   | { kind: "image"; value: Image };
+
+type DetailEntry = Exclude<SheetEntry, { kind: "drawing" }>;
+
+/** A place in the tree. Items, tables, notes, and images are places too, so "back" returns to them. */
+type Place =
+  | { kind: "sheets" }
+  | { kind: "group"; group: SheetGroup }
+  | { kind: "sheet"; sheet: Sheet }
+  | { kind: "drawing"; sheet: Sheet; drawing: Drawing }
+  | { kind: "layer"; sheet: Sheet; drawing: Drawing; layer: Layer }
+  | { kind: "item"; sheet: Sheet; drawing: Drawing; layer: Layer; item: Item }
+  | { kind: "entry"; sheet: Sheet; entry: DetailEntry };
+
+/** A place on the history stack; `via` says how it was reached when that was a reference jump. */
+type View = Place & { via?: string };
 
 export interface ViewTarget {
   sheet: Sheet;
@@ -161,6 +171,10 @@ function sheetHeader(s: Sheet): Record<string, unknown> {
   return { sheetNumber: s.sheetNumber, title: s.title, pageIndex: s.pageIndex };
 }
 
+function drawingSummary(d: Drawing): Record<string, unknown> {
+  return { "@id": d["@id"], label: drawingName(d), drawingType: d.drawingType };
+}
+
 function itemLabel(item: Item): string {
   const label = item.data.label;
   return typeof label === "string" && label ? label : item["@id"];
@@ -232,20 +246,55 @@ const GROUP_TITLES: Record<SheetEntry["kind"], string> = {
   image: "Images",
 };
 
+function entryTitle(entry: DetailEntry): string {
+  switch (entry.kind) {
+    case "table":
+      return entry.value.label ?? entry.value.title ?? "Untitled Table";
+    case "note":
+      return `note "${truncate(entry.value.content, 40)}"`;
+    case "image":
+      return entry.value.caption ?? entry.value.role;
+  }
+}
+
+function samePlace(a: Place, b: Place): boolean {
+  if (a.kind !== b.kind) return false;
+  const x = a as Partial<Record<string, unknown>> & { entry?: DetailEntry };
+  const y = b as Partial<Record<string, unknown>> & { entry?: DetailEntry };
+  return (
+    x.group === y.group &&
+    x.sheet === y.sheet &&
+    x.drawing === y.drawing &&
+    x.layer === y.layer &&
+    x.item === y.item &&
+    x.entry?.value === y.entry?.value
+  );
+}
+
+/** How many earlier places the assistant is told about. */
+const HISTORY_FOR_ASSISTANT = 6;
+const HISTORY_LIMIT = 20;
+
+export interface ExplorerOptions {
+  /** The .jsonld file name, shown above the sheet list. */
+  fileName?: string;
+}
+
 export class Explorer {
   private stack: View[] = [{ kind: "sheets" }];
   private resolve: RefResolver;
-  private lastShown: unknown;
-  private selection?: { view: View; label: string; bbox?: BBox; id?: string };
   /** The references shown with [r1], [r2] tags, and the view they belong to. */
   private refs?: { view: View; ids: string[] };
   private refIndex?: Map<string, RefTarget>;
   /** Set when the set has too many sheets to list flat. */
   private groups?: SheetGroup[];
+  /** Places visited in order, newest last, including ones "back" has since left. */
+  private visited: { location: string; via?: string }[] = [];
 
   constructor(
     private data: DrawingSet,
-    private log: (line?: string) => void = console.log
+    private log: (line?: string) => void = console.log,
+    private opts: ExplorerOptions = {}
   ) {
     this.resolve = buildRefResolver(data);
     const sheets = data.sheets ?? [];
@@ -253,19 +302,42 @@ export class Explorer {
       const groups = groupSheets(sheets);
       if (groups.length > 1) this.groups = groups;
     }
+    this.moved();
   }
 
   get view(): View {
     return this.stack[this.stack.length - 1];
   }
 
+  private path(v: Place): string[] {
+    switch (v.kind) {
+      case "sheets":
+      case "group":
+        return [];
+      case "sheet":
+        return [v.sheet.sheetNumber];
+      case "drawing":
+        return [v.sheet.sheetNumber, drawingName(v.drawing)];
+      case "layer":
+        return [v.sheet.sheetNumber, drawingName(v.drawing), v.layer.name];
+      case "item":
+        return [v.sheet.sheetNumber, drawingName(v.drawing), v.layer.name, truncate(itemLabel(v.item), 30)];
+      case "entry":
+        return [v.sheet.sheetNumber, truncate(entryTitle(v.entry), 30)];
+    }
+  }
+
+  /** Where a place is, as the prompt shows it, e.g. "A101 › First Floor Plan › Doors". */
+  private where(v: Place): string {
+    if (v.kind === "sheets") return this.groups ? "sheet groups" : "sheet list";
+    if (v.kind === "group") return `${groupLabel(v.group)} sheets`;
+    return this.path(v).join(" › ");
+  }
+
   prompt(): string {
     const v = this.view;
     if (v.kind === "group") return `${v.group.prefix || "other"} sheets> `;
-    const parts: string[] = [];
-    if (v.kind !== "sheets") parts.push(v.sheet.sheetNumber);
-    if (v.kind === "drawing" || v.kind === "layer") parts.push(drawingName(v.drawing));
-    if (v.kind === "layer") parts.push(v.layer.name);
+    const parts = this.path(v);
     return parts.length ? `${parts.join(" › ")}> ` : "sheet> ";
   }
 
@@ -283,14 +355,29 @@ export class Explorer {
         return this.renderDrawing(v.sheet, v.drawing);
       case "layer":
         return this.renderLayer(v.layer);
+      case "item":
+        printItem(v.item, this.resolve, refTag, this.log);
+        this.refs = { view: v, ids: v.item.references ?? [] };
+        this.log();
+        return;
+      case "entry":
+        if (v.entry.kind === "table") printTable(v.entry.value, this.log);
+        else if (v.entry.kind === "note") printNote(v.entry.value, this.log);
+        else printImage(v.entry.value, this.log);
+        this.log();
+        return;
     }
   }
 
-  /** The current view as structured data, for the AI assistant. */
+  /** The current view as structured data, for the AI assistant, with how the user got here. */
   context(): Record<string, unknown> {
     const v = this.view;
-    const location = this.prompt().replace(/> $/, "");
+    const location = this.where(v);
     const listing = this.capture(() => this.render()).join("\n").trim();
+    return { ...this.viewContext(v, location, listing), ...this.historyContext() };
+  }
+
+  private viewContext(v: View, location: string, listing: string): Record<string, unknown> {
     switch (v.kind) {
       case "sheets":
         return { view: this.groups ? "sheet groups" : "sheet list", location, listing };
@@ -306,27 +393,50 @@ export class Explorer {
           location,
           listing,
           sheet: sheetHeader(v.sheet),
-          drawing: { "@id": v.drawing["@id"], label: drawingName(v.drawing), drawingType: v.drawing.drawingType },
+          drawing: drawingSummary(v.drawing),
           layer: v.layer,
         };
+      case "item":
+        return {
+          view: "item",
+          location,
+          listing,
+          sheet: sheetHeader(v.sheet),
+          drawing: drawingSummary(v.drawing),
+          layer: { "@id": v.layer["@id"], name: v.layer.name },
+          item: v.item,
+        };
+      case "entry":
+        return { view: v.entry.kind, location, listing, sheet: sheetHeader(v.sheet), [v.entry.kind]: v.entry.value };
     }
+  }
+
+  /** The last few places visited and whether this one was reached by following a reference. */
+  private historyContext(): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    if (this.view.via) out.arrivedVia = `followed reference ${this.view.via}`;
+    const earlier = this.visited.slice(0, -1).slice(-HISTORY_FOR_ASSISTANT);
+    if (earlier.length) {
+      out.recentlyVisited = earlier.map((p) => (p.via ? `${p.location} (followed reference ${p.via})` : p.location));
+    }
+    const prev = this.stack.at(-2);
+    if (prev) out.backGoesTo = this.where(prev);
+    return out;
   }
 
   /** Runs a command for the assistant; the user sees the same output as if they typed it. */
   navigate(command: string): Record<string, unknown> {
-    this.lastShown = undefined;
     this.handle(command);
-    const ctx = this.context();
-    return this.lastShown === undefined ? ctx : { ...ctx, shown: this.lastShown };
+    return this.context();
   }
 
-  /** What "view" should show: the current sheet's page, outlining the current selection or level. */
+  /** What "view" should show: the current sheet's page, outlining what is open. */
   viewTarget(): ViewTarget | { error: string } {
     const v = this.view;
-    if (v.kind === "sheets" || v.kind === "group") return { error: "Open a sheet first, then type \"view\"." };
-    const sel = this.selection?.view === v ? this.selection : undefined;
-    if (sel) return { sheet: v.sheet, label: sel.label, bbox: sel.bbox, id: sel.id };
     switch (v.kind) {
+      case "sheets":
+      case "group":
+        return { error: "Open a sheet first, then type \"view\"." };
       case "sheet":
         return { sheet: v.sheet, label: `sheet ${v.sheet.sheetNumber}`, wholePage: true };
       case "drawing":
@@ -338,11 +448,14 @@ export class Explorer {
           id: v.layer["@id"],
           bbox: v.layer.bbox ?? unionBBox((v.layer.items ?? []).map((i) => i.bbox)),
         };
+      case "item":
+        return { sheet: v.sheet, label: `item ${truncate(itemLabel(v.item), 40)}`, bbox: v.item.bbox, id: v.item["@id"] };
+      case "entry": {
+        const e = v.entry;
+        const label = e.kind === "note" ? entryTitle(e) : `${e.kind} ${entryTitle(e)}`;
+        return { sheet: v.sheet, label, bbox: e.value.bbox, id: e.value["@id"] };
+      }
     }
-  }
-
-  private select(label: string, bbox: BBox | undefined, id?: string): void {
-    this.selection = { view: this.view, label, bbox, id };
   }
 
   private capture(fn: () => void): string[] {
@@ -366,15 +479,15 @@ export class Explorer {
       this.log("  Enter a group number or prefix (e.g. \"A\") to list its sheets, or a sheet number to open it.");
     } else if (kind === "sheets" || kind === "group") {
       this.log("  Enter a sheet number or page index to open it.");
-      if (kind === "group") this.log('  "back" (or "..") returns to the sheet groups.');
+      if (kind === "group") this.log('  "up" (or "..") returns to the sheet groups.');
     } else {
       this.log("  Enter a number from the list to dive in.");
-      this.log('  "back" (or "..") goes up a level, "top" returns to the sheet list.');
+      this.log('  "up" (or "..") goes up a level, "back" (or "b") returns to where you just were, "top" to the sheet list.');
       this.log('  "r1", "r2", … jump to a reference (the lines marked "→ [r1]"); "back" comes back.');
     }
-    if (this.view.kind === "sheet") this.log('  "all" prints everything on this sheet.');
+    if (kind === "sheet" || kind === "entry") this.log('  "all" prints everything on this sheet.');
     if (kind !== "sheets" && kind !== "group") {
-      this.log('  "view" opens this page from the PDF with the current selection outlined in red.');
+      this.log('  "view" opens this page from the PDF with what you have open outlined in red.');
       this.log('  "markups" lists markups the assistant proposed; "markups save" writes them to a copy of the PDF.');
     }
     this.log('  "ls" reprints the current list, "quit" exits.');
@@ -405,15 +518,21 @@ export class Explorer {
       this.render();
       return true;
     }
-    if (cmd === "back" || cmd === ".." || cmd === "b" || cmd === "up") {
-      if (this.stack.length > 1) this.stack.pop();
-      this.selection = undefined;
+    if (cmd === "back" || cmd === "b") {
+      if (this.stack.length > 1) {
+        this.stack.pop();
+        this.moved();
+      }
       this.render();
+      return true;
+    }
+    if (cmd === "up" || cmd === "..") {
+      this.up();
       return true;
     }
     if (cmd === "top" || cmd === "home") {
       this.stack = [{ kind: "sheets" }];
-      this.selection = undefined;
+      this.moved();
       this.render();
       return true;
     }
@@ -433,7 +552,7 @@ export class Explorer {
       return true;
     }
 
-    if (v.kind === "sheet" && cmd === "all") {
+    if ((v.kind === "sheet" || v.kind === "entry") && cmd === "all") {
       printPage(v.sheet, this.data, this.resolve);
       return true;
     }
@@ -441,16 +560,82 @@ export class Explorer {
     const index = /^\d+$/.test(answer) ? Number(answer) : NaN;
     switch (v.kind) {
       case "sheet":
-        this.selectSheetEntry(v.sheet, index, answer);
+        this.selectSheetEntry(v.sheet, index, answer, "push");
+        break;
+      case "entry":
+        this.selectSheetEntry(v.sheet, index, answer, "replace");
         break;
       case "drawing":
         this.selectLayer(v.sheet, v.drawing, index, answer);
         break;
       case "layer":
-        this.selectItem(v.layer, index, answer);
+        this.selectItem(v.sheet, v.drawing, v.layer, index, answer, "push");
+        break;
+      case "item":
+        this.selectItem(v.sheet, v.drawing, v.layer, index, answer, "replace");
         break;
     }
     return true;
+  }
+
+  /** The place one level up the tree from `v`. */
+  private parentOf(v: Place): Place | undefined {
+    switch (v.kind) {
+      case "sheets":
+        return undefined;
+      case "group":
+        return { kind: "sheets" };
+      case "sheet": {
+        const group = this.groups?.find((g) => g.sheets.includes(v.sheet));
+        return group ? { kind: "group", group } : { kind: "sheets" };
+      }
+      case "drawing":
+      case "entry":
+        return { kind: "sheet", sheet: v.sheet };
+      case "layer":
+        return { kind: "drawing", sheet: v.sheet, drawing: v.drawing };
+      case "item":
+        return { kind: "layer", sheet: v.sheet, drawing: v.drawing, layer: v.layer };
+    }
+  }
+
+  /**
+   * Goes to the parent in the tree, which is what the prompt shows. When that is where the user
+   * came from, it's the same as "back"; after a jump it walks up the target's tree instead, and
+   * "back" still returns to where the jump started.
+   */
+  private up(): void {
+    const parent = this.parentOf(this.view);
+    if (!parent) {
+      this.render();
+      return;
+    }
+    const prev = this.stack.at(-2);
+    if (prev && samePlace(prev, parent)) this.stack.pop();
+    else this.stack[this.stack.length - 1] = parent;
+    this.moved();
+    this.render();
+  }
+
+  private go(place: Place, mode: "push" | "replace" = "push", via?: string): void {
+    const view: View = via ? { ...place, via } : place;
+    if (samePlace(this.view, place)) {
+      this.render();
+      return;
+    }
+    if (mode === "replace" && this.stack.length > 1) this.stack[this.stack.length - 1] = view;
+    else this.stack.push(view);
+    this.moved();
+    this.render();
+  }
+
+  private moved(): void {
+    const location = this.where(this.view);
+    const via = this.view.via;
+    const last = this.visited.at(-1);
+    if (last?.location === location && last.via === via) return;
+    this.visited.push(via ? { location, via } : { location });
+    if (this.visited.length > HISTORY_LIMIT) this.visited.shift();
   }
 
   private openSheet(selector: string): void {
@@ -459,8 +644,7 @@ export class Explorer {
       this.log(`No sheet matching "${selector}". Try a sheet number or page index.`);
       return;
     }
-    this.stack.push({ kind: "sheet", sheet });
-    this.render();
+    this.go({ kind: "sheet", sheet });
   }
 
   /** Picks a group by its number in the list or its prefix; a sheet number opens that sheet directly. */
@@ -470,82 +654,48 @@ export class Explorer {
       ? groups[Number(sel) - 1]
       : groups.find((g) => (g.prefix || "other").toLowerCase() === sel || g.name?.toLowerCase() === sel);
     if (group) {
-      this.stack.push({ kind: "group", group });
-      this.render();
+      this.go({ kind: "group", group });
       return;
     }
     if (!/^\d+$/.test(sel)) {
       const sheet = (this.data.sheets ?? []).find((s) => s.sheetNumber.toLowerCase() === sel);
       if (sheet) {
-        this.stack.push({ kind: "sheet", sheet });
-        this.render();
+        this.go({ kind: "sheet", sheet });
         return;
       }
     }
     this.log(`No group "${selector}". Pick 1–${groups.length}, a prefix such as "${groups[0].prefix || "other"}", or a sheet number.`);
   }
 
-  private selectSheetEntry(sheet: Sheet, index: number, raw: string): void {
+  /** From a sheet, an entry opens below it; from an open table, note, or image, it takes its place. */
+  private selectSheetEntry(sheet: Sheet, index: number, raw: string, mode: "push" | "replace"): void {
     const entries = sheetEntries(sheet);
     const entry = entries[index - 1];
     if (!entry) {
-      this.log(`No entry "${raw}". Pick 1–${entries.length}, or "back".`);
+      this.log(`No entry "${raw}". Pick 1–${entries.length}, or "up".`);
       return;
     }
-    this.openEntry(sheet, entry);
-  }
-
-  private openEntry(sheet: Sheet, entry: SheetEntry): void {
-    switch (entry.kind) {
-      case "drawing":
-        this.stack.push({ kind: "drawing", sheet, drawing: entry.value });
-        this.render();
-        return;
-      case "table":
-        this.lastShown = entry.value;
-        this.select(`table ${entry.value.label ?? entry.value.title ?? "Untitled Table"}`, entry.value.bbox, entry.value["@id"]);
-        printTable(entry.value);
-        break;
-      case "note":
-        this.lastShown = entry.value;
-        this.select(`note "${truncate(entry.value.content, 40)}"`, entry.value.bbox, entry.value["@id"]);
-        printNote(entry.value);
-        break;
-      case "image":
-        this.lastShown = entry.value;
-        this.select(`image ${entry.value.caption ?? entry.value.role}`, entry.value.bbox, entry.value["@id"]);
-        printImage(entry.value);
-        break;
-    }
-    this.log();
+    this.go(entry.kind === "drawing" ? { kind: "drawing", sheet, drawing: entry.value } : { kind: "entry", sheet, entry }, mode);
   }
 
   private selectLayer(sheet: Sheet, drawing: Drawing, index: number, raw: string): void {
     const layer = drawing.layers[index - 1];
     if (!layer) {
-      this.log(`No layer "${raw}". Pick 1–${drawing.layers.length}, or "back".`);
+      this.log(`No layer "${raw}". Pick 1–${drawing.layers.length}, or "up".`);
       return;
     }
-    this.stack.push({ kind: "layer", sheet, drawing, layer });
-    this.render();
+    this.go({ kind: "layer", sheet, drawing, layer });
   }
 
-  private selectItem(layer: Layer, index: number, raw: string): void {
+  /** From a layer, an item opens below it; from an open item, another item of the layer takes its place. */
+  private selectItem(sheet: Sheet, drawing: Drawing, layer: Layer, index: number, raw: string, mode: "push" | "replace"): void {
     const items = layer.items ?? [];
     const item = items[index - 1];
     if (!item) {
-      this.log(`No item "${raw}". Pick 1–${items.length}, or "back".`);
+      this.log(`No item "${raw}". Pick 1–${items.length}, or "up".`);
       return;
     }
-    this.showItem(item);
-  }
-
-  private showItem(item: Item): void {
-    this.lastShown = item;
-    this.select(`item ${truncate(itemLabel(item), 40)}`, item.bbox, item["@id"]);
-    printItem(item, this.resolve, refTag);
-    this.refs = { view: this.view, ids: item.references ?? [] };
-    this.log();
+    this.go({ kind: "item", sheet, drawing, layer, item }, mode);
   }
 
   /** Opens the n-th reference on screen; the jump goes on the stack, so "back" returns. */
@@ -571,28 +721,20 @@ export class Explorer {
       return;
     }
 
-    this.selection = undefined;
-    const { sheet, drawing, layer } = t;
-    if (drawing && layer) {
-      this.stack.push({ kind: "layer", sheet, drawing, layer });
-    } else if (drawing) {
-      this.stack.push({ kind: "drawing", sheet, drawing });
-    } else {
-      this.stack.push({ kind: "sheet", sheet });
-    }
-    if (t.item) {
-      this.log(`\n  Jumped to ${this.resolve(id)}. "back" returns.`);
-      this.showItem(t.item);
-    } else if (t.entry) {
-      this.log(`\n  Jumped to ${this.resolve(id)}. "back" returns.`);
-      this.openEntry(sheet, t.entry);
-    } else {
-      this.render();
-    }
+    const { sheet, drawing, layer, item, entry } = t;
+    let place: Place;
+    if (drawing && layer && item) place = { kind: "item", sheet, drawing, layer, item };
+    else if (drawing && layer) place = { kind: "layer", sheet, drawing, layer };
+    else if (drawing) place = { kind: "drawing", sheet, drawing };
+    else if (entry && entry.kind !== "drawing") place = { kind: "entry", sheet, entry };
+    else place = { kind: "sheet", sheet };
+    this.log(`\n  Jumped to ${this.resolve(id)}. "back" returns.`);
+    this.go(place, "push", `${raw.toLowerCase()} from ${this.where(this.view)}`);
   }
 
   private renderGroups(groups: SheetGroup[]): void {
-    this.log(`\n  ${palette().heading("Sheet groups")} (${plural(this.data.sheets?.length ?? 0, "sheet")}):`);
+    const file = this.opts.fileName ? ` in ${this.opts.fileName}` : "";
+    this.log(`\n  ${palette().heading("Sheet groups")}${file} (${plural(this.data.sheets?.length ?? 0, "sheet")}):`);
     groups.forEach((g, i) => {
       this.log(`    ${String(i + 1).padStart(2)}. ${palette().bold(groupLabel(g))} (${plural(g.sheets.length, "sheet")})`);
     });
@@ -602,6 +744,7 @@ export class Explorer {
   private renderSheets(sheets: Sheet[], group?: SheetGroup): void {
     this.log();
     if (group) this.log(`  ${palette().heading(groupLabel(group))} (${plural(sheets.length, "sheet")}):\n`);
+    else if (this.opts.fileName) this.log(`  ${palette().heading("Sheets")} in ${this.opts.fileName} (${sheets.length}):\n`);
     for (const s of sheets) {
       this.log(`  ${palette().bold(s.sheetNumber)} - ${s.title} ${palette().dim(`(page ${s.pageIndex})`)}`);
     }
@@ -777,7 +920,17 @@ export interface PageViewerDeps {
   render?: (req: PageViewRequest) => Promise<PageViewResult>;
   open?: (path: string) => void;
   exists?: (path: string) => boolean;
+  /** File names in a folder, for the "can't find the PDF" hint. */
+  listDir?: (dir: string) => string[];
   log?: (line?: string) => void;
+}
+
+function listDir(dir: string): string[] {
+  try {
+    return readdirSync(dir).sort();
+  } catch {
+    return [];
+  }
 }
 
 /** Handles "view" in explore: finds the source PDF, renders the page with the red box, opens it. */
@@ -807,9 +960,7 @@ export class PageViewer {
 
     const pdf = this.locatePdf(pdfArg);
     if (!pdf.path) {
-      log(pdfArg ? `Can't find "${pdfArg}".` : "Can't find the source PDF for this drawing set. Looked for:");
-      if (!pdfArg) for (const c of pdf.looked) log(`  ${c}`);
-      log('Type "view <path to pdf>", or start explore with --pdf <file>.');
+      for (const line of this.missingPdfLines(pdfArg)) log(line);
       return lines;
     }
 
@@ -855,6 +1006,42 @@ export class PageViewer {
     const looked = sourcePdfCandidates(this.filePath, this.data, this.explicitPdf);
     return { path: findSourcePdf(looked, exists), looked };
   }
+
+  /** Says which .jsonld is open, each path tried and why, and which PDFs are in that folder. */
+  missingPdfLines(pdfArg?: string): string[] {
+    const file = this.filePath.startsWith("job:") ? this.filePath : basename(this.filePath);
+    const tried = sourcePdfCandidatesWithReasons(this.filePath, this.data, pdfArg ?? this.explicitPdf);
+    const shown = tried.filter((c) => !(c.path.endsWith(".PDF") && tried.some((o) => o.path === `${c.path.slice(0, -4)}.pdf`)));
+    const lines = [
+      pdfArg ? `Can't find "${pdfArg}". Looked for:` : `Can't find the source PDF for ${file}. Looked for:`,
+      ...shown.map((c) => `  ${c.path}  (${c.reason})`),
+    ];
+    if (!this.filePath.startsWith("job:")) {
+      const dir = dirname(this.filePath);
+      const names = (this.deps.listDir ?? listDir)(dir);
+      const lower = new Set(names.map((n) => n.toLowerCase()));
+      const pdfs = names.filter((n) => n.toLowerCase().endsWith(".pdf") && !shown.some((c) => basename(c.path) === n));
+      // A PDF named like another .jsonld in the folder most likely belongs to that set.
+      const owner = (pdf: string) => {
+        const jsonld = `${pdf.slice(0, -4)}.jsonld`;
+        return lower.has(jsonld.toLowerCase()) ? jsonld : undefined;
+      };
+      if (pdfs.length) {
+        const more = pdfs.length > 5 ? `, and ${pdfs.length - 5} more` : "";
+        const label = (p: string) => (owner(p) ? `${p} (goes with ${owner(p)})` : p);
+        lines.push(`PDFs in that folder: ${pdfs.slice(0, 5).map(label).join(", ")}${more}.`);
+        const free = pdfs.find((p) => !owner(p));
+        if (free) {
+          const example = relative(process.cwd(), join(dir, free)) || free;
+          lines.push(`If one of them goes with ${file}, type "view ${example.includes(" ") ? `"${example}"` : example}".`);
+        } else {
+          lines.push(`Check that you opened the .jsonld you meant to.`);
+        }
+      }
+    }
+    lines.push('Type "view <path to pdf>", or start explore with --pdf <file>.');
+    return lines;
+  }
 }
 
 export async function explore(data: DrawingSet, filePath: string, opts: CommandOptions = {}): Promise<void> {
@@ -873,7 +1060,7 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
     return;
   }
 
-  const explorer = new Explorer(data);
+  const explorer = new Explorer(data, console.log, { fileName: basename(filePath) });
   explorer.render();
   explorer.help();
 

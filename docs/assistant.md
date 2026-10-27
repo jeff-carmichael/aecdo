@@ -62,7 +62,7 @@ The assistant works with the installed `aecdo` program. If you [built from sourc
 
 Type `@claude`, `@chatgpt` (or `@gpt`), `@openrouter` (or `@or`), or one of the [shortcuts](#openrouter-shortcuts) at the start of a line, then your question. Type `@` and a few letters, then press **Tab**, to complete the name. The name turns cyan as you type it when it matches an assistant, so you know the line will go to the assistant and not be read as a command.
 
-The assistant gets the current view as context: the sheet list, the sheet, the drawing, or the layer you're on. So "this floor", "these doors", or "this layer" mean what's on your screen.
+The assistant gets the current view as context: the sheet list, the sheet, the drawing, the layer, or the item, table, note, or image you have open. So "this floor", "these doors", or "this layer" mean what's on your screen. It also gets the last few places you visited, and the reference you followed if you jumped here with `r1`, so after jumping from a door tag to the door schedule you can ask "@claude is the door I came from in this schedule?".
 
 - **It remembers the conversation** until you quit `explore`. Each name (`@claude`, `@chatgpt`, `@gemini`, …) keeps its own conversation.
 - **Press Ctrl+C** to stop an answer partway through.

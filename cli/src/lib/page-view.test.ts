@@ -11,6 +11,7 @@ import {
   rasterDpi,
   renderPageView,
   sourcePdfCandidates,
+  sourcePdfCandidatesWithReasons,
   unionBBox,
 } from "./page-view.js";
 import type { DrawingSet } from "../types.js";
@@ -55,7 +56,16 @@ test("looks for the PDF next to the JSON-LD, then by the set's filename", () => 
     "/cwd/Plans Set.pdf",
   ]);
   assert.deepEqual(sourcePdfCandidates("job:123", data, undefined, "/cwd"), ["/cwd/Plans Set.pdf"]);
-  assert.deepEqual(sourcePdfCandidates("/a/plans.jsonld", data, "x.pdf", "/cwd"), ["/cwd/x.pdf"]);
+  assert.deepEqual(sourcePdfCandidates("/a/plans.jsonld", data, "x.pdf", "/cwd"), ["/cwd/x.pdf", "/a/x.pdf"]);
+  assert.deepEqual(sourcePdfCandidates("/a/plans.jsonld", data, "/b/x.pdf", "/cwd"), ["/b/x.pdf"]);
+});
+
+test("says why each PDF path was tried", () => {
+  const data = { filename: "Plans Set.pdf" } as DrawingSet;
+  const tried = sourcePdfCandidatesWithReasons("/a/plans.jsonld", data, undefined, "/cwd");
+  assert.equal(tried[0].reason, "same name as plans.jsonld");
+  assert.match(tried.find((c) => c.path === "/a/Plans Set.pdf")!.reason, /set's "filename", next to the \.jsonld/);
+  assert.match(tried.find((c) => c.path === "/cwd/Plans Set.pdf")!.reason, /in the current folder/);
 });
 
 for (const extract of [true, false]) {

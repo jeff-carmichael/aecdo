@@ -36,7 +36,7 @@ When a set has more than 25 sheets, the sheet list shows groups first, one per s
 sheet> A
 ```
 
-Type a group's number (`3`), its prefix (`A`), or its discipline name (`architectural`) to list its sheets, then a sheet number or page index to open one. `back` from a sheet returns to its group, and `back` again returns to the groups. You can also type a sheet number (`A101`) straight from the group list. Groups appear in the order their first sheet appears in the set. Two-letter prefixes such as `AD` or `FP` get their own group, and sheet numbers with no leading letters go under **Other**. Sets with 25 sheets or fewer list every sheet directly.
+Type a group's number (`3`), its prefix (`A`), or its discipline name (`architectural`) to list its sheets, then a sheet number or page index to open one. `up` (or `..`) from a sheet returns to its group, and `up` again returns to the groups. You can also type a sheet number (`A101`) straight from the group list. Groups appear in the order their first sheet appears in the set. Two-letter prefixes such as `AD` or `FP` get their own group, and sheet numbers with no leading letters go under **Other**. Sets with 25 sheets or fewer list every sheet directly.
 
 ## Moving around
 
@@ -48,7 +48,7 @@ A sheet holds drawings (plans, sections, elevations, details) plus tables (sched
 
 In a terminal, the output is colored to make it easier to scan: section labels like **Drawing:** and **Tables** in cyan, **Layer:** in magenta, item types like `[THING]` and `[TAG]` in yellow, and bbox values, ids, and scales dimmed. It uses your terminal's own color theme, so it reads on light and dark backgrounds. Set `NO_COLOR=1` to turn colors off; they are also off when the output is piped or redirected.
 
-At every level, the prompt (in green) shows where you are, and you type one of these:
+At every level, the prompt (in green) shows where you are, such as `A101 › First Floor Plan › Door Tags › Door tag 105A`, and you type one of these:
 
 | Type | To |
 |------|----|
@@ -56,7 +56,8 @@ At every level, the prompt (in green) shows where you are, and you type one of t
 | a group number or prefix (`3`, `A`) | list one group's sheets, in [sets with more than 25 sheets](#sheet-groups-in-large-sets) |
 | a number from the list (`1`, `4`) | open that drawing, table, note, image, layer, or item |
 | `r1`, `r2`, … (or `r` if there's only one) | jump to a [reference](#following-references) |
-| `back`, `..`, or `b` | go up one level, or back from a jump |
+| `up` or `..` | go up one level, to what the prompt shows before the last `›` |
+| `back` or `b` | go back to where you just were, such as before a jump |
 | `top` | go back to the sheet list (or the groups) |
 | `ls` | print the current list again |
 | `all` | print everything on the current sheet at once |
@@ -131,7 +132,7 @@ A101 › First Floor Plan › Door Tags> 5
 
 Lines starting with `→` are **references**: a drawing's callouts to other drawings (a section cut, an elevation marker), or an item's links to related things, such as a door tag pointing at the door schedule and at its door.
 
-Each reference on screen has a tag, `[r1]`, `[r2]`, and so on. Type the tag to jump there: a drawing opens its layers, a schedule, note, or image prints on its sheet, and an item prints its details. Type `r` alone when there's only one reference. Type `back` to return to where you were.
+Each reference on screen has a tag, `[r1]`, `[r2]`, and so on. Type the tag to jump there: a drawing opens its layers, a schedule, note, or image prints on its sheet, and an item prints its details. Type `r` alone when there's only one reference. Type `back` to return to where you were, with the item still open so you can follow its other references. `up` instead climbs the tree of where you jumped to (from the schedule to its sheet, for example), and `back` still brings you to where the jump started.
 
 ```
 A101 › First Floor Plan › Door Tags> r1
@@ -143,7 +144,12 @@ A101 › First Floor Plan › Door Tags> r1
       │ Mark │ Room      │ Width │ …
       …
 
-A601> back
+A601 › Door Schedule> back
+
+      [TAG] Door tag 105A
+      …
+
+A101 › First Floor Plan › Door Tags › Door tag 105A> r2
 ```
 
 After a jump, `view` outlines what you jumped to, so `r1` then `view` shows the schedule on its page. A reference to something that isn't in the file says so instead of jumping.
@@ -163,10 +169,10 @@ Type `view` (or `/view`) to open the current sheet's page from the original PDF 
 | Where you are | What's outlined |
 |---------------|-----------------|
 | On a sheet, nothing opened yet | Nothing; you see the whole page |
-| After opening a table, note, or image | That table, note, or image |
+| On an open table, note, or image | That table, note, or image |
 | Inside a drawing | The whole drawing |
 | Inside a layer | The layer (or all of its items, if the layer has no box of its own) |
-| After opening an item | That item |
+| On an open item | That item |
 
 `aecdo` prints which sheet and page it's opening and where it saved the image, then opens it in your default viewer.
 
@@ -188,6 +194,8 @@ or once during the session:
 ```
 A101> view ~/Downloads/plans-rev3.pdf
 ```
+
+If it can't find the PDF, `view` names the `.jsonld` that's open, lists each path it tried and why, and lists the other PDFs in that folder (noting when one is named after a different `.jsonld`). The sheet list also shows the file name at the top (`Sheets in plans.jsonld`), so you can check which set you're in. Of the [examples](https://github.com/jeff-carmichael/aecdo/tree/main/examples), only `sample-drawing-package-1and2family.jsonld` comes with its PDF; the Maple Grove demo and the small sample set are data only.
 
 ### Image or PDF
 
