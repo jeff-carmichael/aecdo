@@ -1,46 +1,35 @@
 import { colorEnabled } from "./mention-highlight.js";
 
-// An original 8-bit construction worker: hard hat, plaid shirt, overalls, hammer.
+// An original 8-bit construction worker's head: hard hat, ears, and eyes.
 // Each character is one pixel; two pixel rows share one terminal line via "▀"
 // (foreground = top pixel, background = bottom pixel).
 const SPRITE = [
-  "......YYYYY.......",
-  "....YYYYwYYYY.....",
-  "...YYYYYwYYYYY....",
-  "...YYYYYwYYYYY....",
-  "..OOOOOOOOOOOOO...",
-  "....SSSSSSSSS.....",
-  "....SKSSSSSKS.....",
-  "....SSSSnSSSS.....",
-  "....SSKSSSKSS.....",
-  ".....SSKKKSS......",
-  "...RRBRRrRRBRR....",
-  "..RRRBBBBBBBRRR.GG",
-  "..RrRBBYYYBBRrR.GG",
-  "..SS.BBBBBBB.SSWGG",
-  "..SS.BBBBBBB.SS.GG",
-  ".....BBB.BBB......",
-  ".....BBB.BBB......",
-  ".....BBB.BBB......",
-  "....NNNN.NNNN.....",
-  "...NNNNN.NNNNN....",
+  "................",
+  "......YYYY......",
+  "....YYYYwYYY....",
+  "...YYYYYwYYYY...",
+  "...YYYYYwYYYY...",
+  ".OOOOOOOOOOOOOO.",
+  "...SSSSSSSSSS...",
+  "..eSSSSSSSSSSe..",
+  "..eSEKSSSSEKSe..",
+  "..eSKKSSSSKKSe..",
+  "...SSSSSSSSSS...",
+  "...SSSSSSSSSS...",
+  "....SSSSSSSS....",
+  ".....SSSSSS.....",
 ];
 
 // 256-color codes, which nearly every terminal supports, since the 16 base colors
-// have no skin tone or brown.
+// have no skin tone.
 const COLORS: Record<string, number> = {
   Y: 220, // hard hat
   w: 228, // hat highlight
   O: 172, // brim
   S: 223, // skin
-  n: 180, // nose
-  K: 236, // eyes, smile
-  R: 160, // shirt
-  r: 124, // shirt check
-  B: 25, // overalls
-  N: 94, // boots
-  G: 248, // hammer head
-  W: 137, // hammer handle
+  e: 180, // ears
+  K: 236, // eyes
+  E: 231, // eye glint
 };
 
 export const BANNER_WIDTH = SPRITE[0].length;

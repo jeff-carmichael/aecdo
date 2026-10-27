@@ -17,7 +17,7 @@ cd ~/Projects/my-building
 aecdo explore
 ```
 
-It opens with a small 8-bit construction worker next to the file name and sheet count, checks the file against the schema, then lists the sheets. The picture only shows in a color terminal at least 60 columns wide; set `AECDO_NO_BANNER=1` to hide it (`NO_COLOR=1` hides it too).
+It opens with a small 8-bit construction worker's head next to the file name and sheet count, checks the file against the schema, then lists the sheets. The picture only shows in a color terminal at least 60 columns wide; set `AECDO_NO_BANNER=1` to hide it (`NO_COLOR=1` hides it too).
 
 ## Sheet groups in large sets
 
