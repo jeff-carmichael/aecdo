@@ -46,7 +46,9 @@ A drawing set is organized in levels:
 
 A sheet holds drawings (plans, sections, elevations, details) plus tables (schedules), notes, and images. Each drawing has layers, such as Walls, Doors, Door Tags, or Room Tags, and each layer holds the items found on it.
 
-At every level, the prompt (in green, unless `NO_COLOR` is set) shows where you are, and you type one of these:
+In a terminal, the output is colored to make it easier to scan: section labels like **Drawing:** and **Tables** in cyan, **Layer:** in magenta, item types like `[THING]` and `[TAG]` in yellow, and bbox values, ids, and scales dimmed. It uses your terminal's own color theme, so it reads on light and dark backgrounds. Set `NO_COLOR=1` to turn colors off; they are also off when the output is piped or redirected.
+
+At every level, the prompt (in green) shows where you are, and you type one of these:
 
 | Type | To |
 |------|----|

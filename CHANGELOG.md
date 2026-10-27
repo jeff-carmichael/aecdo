@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- `explore`, `page`, and `validate` print with color in a terminal: cyan section labels (`Drawing:`, `Tables`), magenta `Layer:`, yellow item types (`[THING]`, `[TAG]`), bold sheet headers, a green ✓ (red ✗), and dimmed bbox values, ids, drawing type and scale, and `→` arrows. Colors use the terminal's 16-color theme, and stay off with `NO_COLOR`, `TERM=dumb`, or when output is piped. The text the AI assistant reads stays plain.
+
 ## [0.4.2] - 2026-10-26
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.
