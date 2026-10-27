@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Explorer, PageViewer, groupSheets, parseViewCommand, sheetEntries, sheetPrefix } from "./explore.js";
 import type { PageViewRequest } from "../lib/page-view.js";
+import { ANSI, withPalette } from "../lib/style.js";
 import type { DrawingSet } from "../types.js";
 
 const data = JSON.parse(
@@ -310,4 +311,31 @@ test("a sheet number at the group list opens the sheet; bad picks stay put", () 
   ex.handle("99");
   assert.equal(kindOf(ex), "sheets");
   assert.match(lines.at(-1)!, /^No group "99"/);
+});
+
+test("colors labels, tags, and bbox values like the mockup, but keeps the assistant's view plain", () => {
+  const { ex, lines } = make();
+  const E = "\x1b[";
+  withPalette(ANSI, () => {
+    ex.handle("A101");
+    ex.handle("1");
+    ex.handle("1");
+    const shown = lines.join("\n");
+    assert.ok(shown.includes(`${E}1mSheet A101 — `));
+    assert.ok(shown.includes(`${E}1;36mDrawing:${E}22;39m`));
+    assert.ok(shown.includes(`${E}2m[72, 108, 720, 540]${E}22m`));
+    assert.ok(shown.includes(`${E}2m→${E}22m ${E}1m[r1]`));
+    assert.ok(shown.includes(`${E}35mLayer:${E}39m`));
+    assert.ok(/\[33m\[(THING|TAG)\]/.test(shown));
+
+    const listing = String(ex.context().listing);
+    assert.ok(!listing.includes(E));
+    assert.match(listing, /Layer: /);
+  });
+});
+
+test("output is plain by default when stdout isn't a terminal", () => {
+  const { ex, lines } = make();
+  ex.handle("A101");
+  assert.ok(!lines.join("\n").includes("\x1b["));
 });

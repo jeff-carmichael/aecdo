@@ -2,6 +2,7 @@ import { loadSchema, createValidator } from "../lib/schema.js";
 import { output } from "../lib/output.js";
 import type { DrawingSet, CommandOptions } from "../types.js";
 import type { ErrorObject } from "ajv";
+import { palette } from "../lib/style.js";
 
 export async function validate(data: DrawingSet, filePath: string, opts: CommandOptions = {}): Promise<boolean> {
   const schema = await loadSchema(opts.schema);
@@ -17,9 +18,9 @@ export async function validate(data: DrawingSet, filePath: string, opts: Command
     await output(result, opts);
   } else {
     if (valid) {
-      console.log(`✓ ${filePath} is valid against AECDO schema.`);
+      console.log(`${palette().ok("✓")} ${filePath} is valid against AECDO schema.`);
     } else {
-      console.log(`✗ ${filePath} has validation errors:\n`);
+      console.log(`${palette().error("✗")} ${filePath} has validation errors:\n`);
       for (const err of validateFn.errors!) {
         console.log(`  ${err.instancePath || "/"}: ${err.message}`);
         if (err.params) {

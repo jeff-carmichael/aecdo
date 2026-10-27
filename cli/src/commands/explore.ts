@@ -9,8 +9,13 @@ import {
   printNote,
   printImage,
   buildRefResolver,
+  sheetHeaderLines,
+  drawingMeta,
+  itemTypeTag,
+  arrow,
   type RefResolver,
 } from "./page.js";
+import { palette, withPalette, bboxText, PLAIN } from "../lib/style.js";
 import { sheets as sheetsCmd } from "./sheets.js";
 import {
   ASSISTANTS,
@@ -174,9 +179,8 @@ function describeEntry(entry: SheetEntry): string {
   switch (entry.kind) {
     case "drawing": {
       const d = entry.value;
-      const meta = [d.drawingType, d.scale].filter(Boolean).join(", ");
       const itemCount = d.layers.reduce((n, l) => n + (l.items?.length ?? 0), 0);
-      return `${drawingName(d)}${meta ? ` [${meta}]` : ""} — ${plural(d.layers.length, "layer")}, ${plural(itemCount, "item")}`;
+      return `${drawingName(d)}${drawingMeta(d)} — ${plural(d.layers.length, "layer")}, ${plural(itemCount, "item")}`;
     }
     case "table": {
       const t = entry.value;
@@ -186,7 +190,7 @@ function describeEntry(entry: SheetEntry): string {
     case "note":
       return truncate(entry.value.content);
     case "image":
-      return `[${entry.value.role}] ${entry.value.caption ?? entry.value["@id"]}`;
+      return `${palette().tag(`[${entry.value.role}]`)} ${entry.value.caption ?? entry.value["@id"]}`;
   }
 }
 
@@ -218,7 +222,7 @@ export function buildRefIndex(data: DrawingSet): Map<string, RefTarget> {
 const REF_COMMAND = /^r(\d*)$/i;
 
 function refTag(i: number): string {
-  return `[r${i + 1}] `;
+  return `${palette().bold(`[r${i + 1}]`)} `;
 }
 
 const GROUP_TITLES: Record<SheetEntry["kind"], string> = {
@@ -348,7 +352,7 @@ export class Explorer {
     const refs = this.refs;
     this.log = (line = "") => lines.push(line);
     try {
-      fn();
+      withPalette(PLAIN, fn);
     } finally {
       this.log = log;
       this.refs = refs;
@@ -588,26 +592,24 @@ export class Explorer {
   }
 
   private renderGroups(groups: SheetGroup[]): void {
-    this.log(`\n  Sheet groups (${plural(this.data.sheets?.length ?? 0, "sheet")}):`);
+    this.log(`\n  ${palette().heading("Sheet groups")} (${plural(this.data.sheets?.length ?? 0, "sheet")}):`);
     groups.forEach((g, i) => {
-      this.log(`    ${String(i + 1).padStart(2)}. ${groupLabel(g)} (${plural(g.sheets.length, "sheet")})`);
+      this.log(`    ${String(i + 1).padStart(2)}. ${palette().bold(groupLabel(g))} (${plural(g.sheets.length, "sheet")})`);
     });
     this.log();
   }
 
   private renderSheets(sheets: Sheet[], group?: SheetGroup): void {
     this.log();
-    if (group) this.log(`  ${groupLabel(group)} (${plural(sheets.length, "sheet")}):\n`);
+    if (group) this.log(`  ${palette().heading(groupLabel(group))} (${plural(sheets.length, "sheet")}):\n`);
     for (const s of sheets) {
-      this.log(`  ${s.sheetNumber} - ${s.title} (page ${s.pageIndex})`);
+      this.log(`  ${palette().bold(s.sheetNumber)} - ${s.title} ${palette().dim(`(page ${s.pageIndex})`)}`);
     }
     this.log();
   }
 
   private renderSheet(sheet: Sheet): void {
-    this.log(`\n${"═".repeat(60)}`);
-    this.log(`  Sheet ${sheet.sheetNumber} — ${sheet.title} (page ${sheet.pageIndex})`);
-    this.log(`${"═".repeat(60)}`);
+    for (const line of sheetHeaderLines(sheet)) this.log(line);
 
     const entries = sheetEntries(sheet);
     if (entries.length === 0) {
@@ -620,7 +622,7 @@ export class Explorer {
       if (entry.kind !== current) {
         current = entry.kind;
         const count = entries.filter((e) => e.kind === current).length;
-        this.log(`\n  ${GROUP_TITLES[current]} (${count}):`);
+        this.log(`\n  ${palette().heading(GROUP_TITLES[current])} (${count}):`);
       }
       this.log(`    ${String(i + 1).padStart(2)}. ${describeEntry(entry)}`);
     });
@@ -628,19 +630,19 @@ export class Explorer {
   }
 
   private renderDrawing(sheet: Sheet, drawing: Drawing): void {
-    const meta = [drawing.drawingType, drawing.scale].filter(Boolean).join(", ");
-    this.log(`\n  Drawing: ${drawingName(drawing)}${meta ? ` [${meta}]` : ""} (sheet ${sheet.sheetNumber})`);
-    this.log(`    id:   ${drawing["@id"]}`);
-    this.log(`    bbox: [${drawing.bbox.join(", ")}]`);
+    const c = palette();
+    this.log(`\n  ${c.heading("Drawing:")} ${drawingName(drawing)}${drawingMeta(drawing)} (sheet ${sheet.sheetNumber})`);
+    this.log(`    id:   ${c.dim(drawing["@id"])}`);
+    this.log(`    bbox: ${bboxText(drawing.bbox)}`);
     const refs = drawing.references ?? [];
-    refs.forEach((ref, i) => this.log(`    → ${refTag(i)}${this.resolve(ref)}`));
+    refs.forEach((ref, i) => this.log(`    ${arrow()}${refTag(i)}${this.resolve(ref)}`));
     this.refs = { view: this.view, ids: refs };
 
     if (drawing.layers.length === 0) {
       this.log("\n  No layers.\n");
       return;
     }
-    this.log(`\n  Layers (${drawing.layers.length}):`);
+    this.log(`\n  ${c.layer("Layers")} (${drawing.layers.length}):`);
     drawing.layers.forEach((layer, i) => {
       this.log(`    ${String(i + 1).padStart(2)}. ${layer.name} — ${plural(layer.items?.length ?? 0, "item")}`);
     });
@@ -649,16 +651,17 @@ export class Explorer {
 
   private renderLayer(layer: Layer): void {
     const items = layer.items ?? [];
-    this.log(`\n  Layer: ${layer.name}`);
-    if (layer.bbox) this.log(`    bbox: [${layer.bbox.join(", ")}]`);
+    const c = palette();
+    this.log(`\n  ${c.layer("Layer:")} ${layer.name}`);
+    if (layer.bbox) this.log(`    bbox: ${bboxText(layer.bbox)}`);
 
     if (items.length === 0) {
       this.log("\n  No items.\n");
       return;
     }
-    this.log(`\n  Items (${items.length}):`);
+    this.log(`\n  ${c.heading("Items")} (${items.length}):`);
     items.forEach((item, i) => {
-      this.log(`    ${String(i + 1).padStart(2)}. [${item.itemType.toUpperCase()}] ${truncate(itemLabel(item))}`);
+      this.log(`    ${String(i + 1).padStart(2)}. ${itemTypeTag(item)} ${truncate(itemLabel(item))}`);
     });
     this.log();
   }
