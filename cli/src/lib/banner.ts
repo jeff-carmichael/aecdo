@@ -5,13 +5,13 @@ import { colorEnabled } from "./mention-highlight.js";
 // (foreground = top pixel, background = bottom pixel).
 const SPRITE = [
   "......YYYY......",
-  "....YYYYwYYY....",
-  "...YYYYYwYYYY...",
-  "...YYYYYwYYYY...",
+  "....YYYYYYYY....",
+  "...YYYYYYYYYY...",
+  ".YYYYYYYYYYYYYY.",
   "...SSSSSSSSSS...",
   "..SSSSSSSSSSSS..",
-  "..SSKKSSSSKKSS..",
-  "..SSKKSSSSKKSS..",
+  "..SSSKSSSSKSSS..",
+  "..SSSSSSSSSSSS..",
   "...SSSSSSSSSS...",
   "...SSSSSSSSSS...",
   "....SSSSSSSS....",
@@ -22,9 +22,8 @@ const SPRITE = [
 // have no skin tone.
 const COLORS: Record<string, number> = {
   Y: 220, // hard hat
-  w: 228, // hat highlight
   S: 223, // skin
-  K: 236, // eyes
+  K: 95, // eyes, a soft brown rather than black
 };
 
 export const BANNER_WIDTH = SPRITE[0].length;
