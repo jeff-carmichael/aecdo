@@ -28,7 +28,7 @@ irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/maple-
 
 If you cloned the repo, it's already at `examples/maple-grove-library.jsonld`.
 
-> The demo is data only; there's no PDF to go with it, so `view` will say it can't find the source PDF. Try `view` on your own processed drawings.
+> The demo is data only; there's no PDF to go with it, so `view` will say it can't find the source PDF. To try `view` and markups, use the [Vancouver sample house](#real-drawings-vancouver-sample-house) below, which comes with its PDF.
 
 ## 1. Get the big picture
 
@@ -162,3 +162,40 @@ The assistant prints `Using AGENTS.md from this folder` and logs what it finds t
 - **`S001`** General Structural Notes: ask `@claude what concrete strength is specified for footings?`
 - **`E601`** Electrical Panel Schedules: open a panel table and type `all` to print the whole sheet.
 - **`aecdo page maple-grove-library.jsonld A601 --format json --pretty`** to see the raw data behind a sheet.
+
+## Real drawings: Vancouver sample house
+
+For `view` and markups you need the PDF the data came from. The repo has a second example that comes with one: the City of Vancouver's [sample drawing package for one and two family dwelling applications](https://vancouver.ca/files/cov/sample-drawing-package-1and2family.pdf), a 7-page permit set for a house with a secondary suite and a detached garage. The PDF has no text layer, so its JSON-LD was written by hand from the drawings: 7 sheets, 33 drawings (site plan, floor plans, FSR overlay, elevations, sections, details, and the garage), about 300 items, the building analysis and R-value tables, and the general notes, each with a bbox on its page.
+
+Download both files into the same folder, keeping their names, so `view` finds the PDF next to the JSON-LD. macOS and Linux:
+
+```bash
+mkdir vancouver && cd vancouver
+curl -sSLO https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/sample-drawing-package-1and2family.jsonld
+curl -sSLO https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/sample-drawing-package-1and2family.pdf
+aecdo explore sample-drawing-package-1and2family.jsonld
+```
+
+Windows PowerShell:
+
+```powershell
+mkdir vancouver; cd vancouver
+irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/sample-drawing-package-1and2family.jsonld -OutFile sample-drawing-package-1and2family.jsonld
+irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/sample-drawing-package-1and2family.pdf -OutFile sample-drawing-package-1and2family.pdf
+aecdo explore sample-drawing-package-1and2family.jsonld
+```
+
+The sheets are numbered `1` to `6` as in the title blocks ("ONE OF SIX" and so on), plus `FSR` for the unnumbered FSR overlay. Open sheet `1`, pick the Site Plan, open the Buildings layer, choose the House, and type `view`: the page opens with the house outlined in red.
+
+This is a real sample package, not a demo with planted mistakes, but a few of its numbers don't agree, which makes it a good test for the assistant:
+
+- The Building Analysis table on sheet `1` gives side yards of 4.52 ft (east) and 4.0 ft (west) and a rear yard of 56.22 ft, while the site plan dimensions the house at 4.27 ft and 4.28 ft from the side property lines and 57.55 ft to the rear.
+- The roof ridge is 332.17 ft on the site plan and the north elevation, but 332.25 ft on the south elevation and the schematic section.
+
+Try:
+
+```
+sheet> @claude compare the yards in the Building Analysis table with the site plan dimensions, and cloud any that differ
+```
+
+The assistant proposes clouds on the page; type `view` to check them, then `markups save` to write `sample-drawing-package-1and2family-markups.pdf` next to the original. See [Marking up the PDF](assistant.md#marking-up-the-pdf).

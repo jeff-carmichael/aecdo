@@ -16,6 +16,7 @@
     "!dist/**/*.test.*",
     "ontology/",
     "examples/",
+    "!examples/*.pdf",
     ".claude/",
     "scripts/postinstall.mjs",
     "CHANGELOG.md"
