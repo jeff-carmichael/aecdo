@@ -4,16 +4,14 @@ import { colorEnabled } from "./mention-highlight.js";
 // Each character is one pixel; two pixel rows share one terminal line via "▀"
 // (foreground = top pixel, background = bottom pixel).
 const SPRITE = [
-  "................",
   "......YYYY......",
   "....YYYYwYYY....",
   "...YYYYYwYYYY...",
   "...YYYYYwYYYY...",
-  ".OOOOOOOOOOOOOO.",
   "...SSSSSSSSSS...",
-  "..eSSSSSSSSSSe..",
-  "..eSEKSSSSEKSe..",
-  "..eSKKSSSSKKSe..",
+  "..SSSSSSSSSSSS..",
+  "..SSKKSSSSKKSS..",
+  "..SSKKSSSSKKSS..",
   "...SSSSSSSSSS...",
   "...SSSSSSSSSS...",
   "....SSSSSSSS....",
@@ -25,11 +23,8 @@ const SPRITE = [
 const COLORS: Record<string, number> = {
   Y: 220, // hard hat
   w: 228, // hat highlight
-  O: 172, // brim
   S: 223, // skin
-  e: 180, // ears
   K: 236, // eyes
-  E: 231, // eye glint
 };
 
 export const BANNER_WIDTH = SPRITE[0].length;
