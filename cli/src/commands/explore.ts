@@ -39,6 +39,7 @@ import {
   type PageViewResult,
 } from "../lib/page-view.js";
 import { openWithDefaultApp } from "../lib/open.js";
+import { bannerEnabled, renderBanner } from "../lib/banner.js";
 import { MarkupSession, parseMarkupsCommand } from "./markups.js";
 import type { MutableModels } from "@earendil-works/pi-ai";
 import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image, CommandOptions } from "../types.js";
@@ -861,6 +862,11 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
   if (opts.format === "json" || !process.stdin.isTTY) {
     await sheetsCmd(data, filePath, opts);
     return;
+  }
+
+  if (bannerEnabled()) {
+    const name = data.filename || basename(filePath);
+    console.log(`\n${renderBanner({ name, sheets: data.sheets?.length ?? 0 }, process.stdout.columns || 80).join("\n")}`);
   }
 
   const valid = await validate(data, filePath, opts);

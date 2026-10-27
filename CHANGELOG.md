@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### CLI
+- `explore` opens with a small 8-bit construction worker (hard hat, overalls, hammer) beside the file name and sheet count. It shows only in a color terminal at least 60 columns wide; `NO_COLOR`, piped output, `--format json`, or `AECDO_NO_BANNER=1` leave it out.
 - `explore`, `page`, and `validate` print with color in a terminal: cyan section labels (`Drawing:`, `Tables`), magenta `Layer:`, yellow item types (`[THING]`, `[TAG]`), bold sheet headers, a green ✓ (red ✗), and dimmed bbox values, ids, drawing type and scale, and `→` arrows. Colors use the terminal's 16-color theme, and stay off with `NO_COLOR`, `TERM=dumb`, or when output is piped. The text the AI assistant reads stays plain.
 
 ## [0.4.2] - 2026-10-26
