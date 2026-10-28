@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-10-28
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
 - New `aecdo examples [folder]` downloads the example drawing sets (the Maple Grove demo, the Vancouver house permit set with its PDF, and the small sample set) into a folder, `./aecdo-examples` by default. Files come from the release tag matching your version, existing files are kept unless you add `--force`, and tab completion knows the command. When `explore` finds no `.jsonld` in the folder, it now suggests `aecdo examples`.
 - `install.sh` and `install.ps1` ask at the end whether to download the examples and where (default `~/aecdo-examples`). The question is skipped in CI and when there's no terminal to answer it; `AECDO_EXAMPLES=1|0` and `AECDO_EXAMPLES_DIR` answer it ahead of time. Releases without the `examples` command are installed without the question.
