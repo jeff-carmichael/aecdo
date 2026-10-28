@@ -32,7 +32,7 @@ const ACTIONS = {
   openaiKey: "Enter an OpenAI API key (ChatGPT, billed per use)",
   anthropicKey: "Enter an Anthropic API key (Claude, billed per use)",
   bedrock: "Set up Amazon Bedrock (Claude, GPT, Grok, DeepSeek, Kimi)",
-  custom: "Set up a custom endpoint (base URL + token, e.g. Palantir Foundry)",
+  custom: "Set up a custom endpoint (base URL + token)",
   openrouterLogin: "Sign in with OpenRouter (every model)",
   openrouterKey: "Enter an OpenRouter API key",
   model: "Choose the model or route for an @mention",

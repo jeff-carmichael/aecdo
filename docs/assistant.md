@@ -23,7 +23,7 @@ Each `@name` is a model. You choose how `aecdo` reaches it: straight from the co
 | **OpenAI API** | `@chatgpt` | An [OpenAI API key](https://platform.openai.com/api-keys) | Billed per use by OpenAI |
 | **Anthropic API** | `@claude` | An [Anthropic API key](https://console.anthropic.com/) | Billed per use by Anthropic |
 | **Amazon Bedrock** | `@claude`, `@chatgpt`, `@grok`, `@deepseek`, `@kimi` | A Bedrock API key, an AWS profile, or the AWS credentials already on your computer | Billed by AWS |
-| **Custom endpoint** | the ones you list | A base URL and token for an OpenAI- or Anthropic-compatible API, such as Palantir Foundry, LiteLLM, Azure, vLLM, or Ollama | Up to whoever runs it |
+| **Custom endpoint** | the ones you list | A base URL and token for an OpenAI- or Anthropic-compatible API, such as a company gateway, LiteLLM, Azure, vLLM, or Ollama | Up to whoever runs it |
 | **OpenRouter** | all six | *Sign in with OpenRouter*, or an [OpenRouter API key](https://openrouter.ai/settings/keys) | Billed per use from your OpenRouter credits |
 
 Run:
@@ -37,7 +37,7 @@ and pick from the menu with the arrow keys:
 - **Sign in with ChatGPT (uses your ChatGPT plan)** opens your browser to sign in. You can cap how much `aecdo` may use in ChatGPT's settings.
 - **Enter an OpenAI API key**, **Enter an Anthropic API key**, or **Enter an OpenRouter API key** asks you to paste the key (it isn't shown as you type).
 - **Set up Amazon Bedrock** asks how to sign in to AWS (a Bedrock API key, an AWS profile name, or the credentials you already use with the AWS CLI, including SSO), then the AWS region. Your AWS account needs access to the models you use; turn them on in the Bedrock console.
-- **Set up a custom endpoint** asks for a name (like `Foundry`), the base URL, whether it speaks the OpenAI (Chat Completions) or Anthropic (Messages) API, and a token, which is sent as `Authorization: Bearer <token>`. Then pick which `@names` it serves and the model id it uses for each, e.g. `@claude` → the model name your endpoint uses for Claude.
+- **Set up a custom endpoint** asks for a name (like `Company gateway`), the base URL, whether it speaks the OpenAI (Chat Completions) or Anthropic (Messages) API, and a token, which is sent as `Authorization: Bearer <token>`. Then pick which `@names` it serves and the model id it uses for each, e.g. `@claude` → the model name your endpoint uses for Claude.
 - **Sign in with OpenRouter** opens your browser; OpenRouter then creates an API key for `aecdo`, which you can see and revoke in your OpenRouter account.
 - **Choose the model or route for an @mention** picks which way an `@name` goes when more than one is set up, and which model it uses there. The defaults are Claude Sonnet 5.5 and GPT-5.5, and the latest Gemini Pro, Grok, DeepSeek, and Kimi models. Bedrock and OpenRouter list only that family's models; type to filter. The assistant needs a model that supports tool calls to navigate and read sheets.
 - **Sign out / remove a key** forgets a sign-in, key, Bedrock setup, or custom endpoint.
