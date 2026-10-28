@@ -104,9 +104,9 @@ export const APP_NAME = "aecdo";
 
 export type CustomApi = "openai-completions" | "anthropic-messages";
 
-/** The user's own OpenAI- or Anthropic-compatible endpoint (Palantir Foundry, LiteLLM, Azure, vLLM, ...). */
+/** The user's own OpenAI- or Anthropic-compatible endpoint (LiteLLM, Azure, vLLM, ...). */
 export interface CustomEndpoint {
-  /** Shown in place of "Custom endpoint", e.g. "Foundry". */
+  /** Shown in place of "Custom endpoint", e.g. "Company gateway". */
   name?: string;
   baseUrl: string;
   api: CustomApi;
@@ -296,7 +296,7 @@ function customAuth(): ApiKeyAuth {
 }
 
 /**
- * Gateways such as Palantir Foundry validate the request body and reject fields they don't
+ * Some gateways validate the request body and reject fields they don't
  * know (cache_control, eager_input_streaming, store), so custom endpoints get a plain request.
  */
 const PLAIN_ANTHROPIC = {

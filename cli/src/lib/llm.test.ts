@@ -136,7 +136,7 @@ test("Bedrock keeps the stored region and uses the AWS default credentials", asy
 test("a custom endpoint serves the @mentions it has a model for", async () => {
   const path = tempConfig();
   const store = new FileCredentialStore(path);
-  await setCustomEndpoint({ name: "Foundry", baseUrl: "https://example.test/llm/v1/", api: "anthropic-messages" }, path);
+  await setCustomEndpoint({ name: "Gateway", baseUrl: "https://example.test/llm/v1/", api: "anthropic-messages" }, path);
   await setModelId("claude", "custom", "claude-sonnet-5-5", path);
   await store.modify("custom", () => Promise.resolve({ type: "api_key", key: "tok" }));
   const models = await createLlmModels(store);
@@ -242,7 +242,7 @@ test("a custom Anthropic-compatible endpoint gets a plain request, without cachi
     const { port } = server.address() as AddressInfo;
     const path = tempConfig();
     const store = new FileCredentialStore(path);
-    await setCustomEndpoint({ name: "Foundry", baseUrl: `http://127.0.0.1:${port}`, api: "anthropic-messages" }, path);
+    await setCustomEndpoint({ name: "Gateway", baseUrl: `http://127.0.0.1:${port}`, api: "anthropic-messages" }, path);
     await setModelId("claude", "custom", "claude-sonnet", path);
     await store.modify("custom", () => Promise.resolve({ type: "api_key", key: "tok" }));
     const models = await createLlmModels(store);

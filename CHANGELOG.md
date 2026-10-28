@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### CLI
-- Custom endpoints in `aecdo configure ai` now get a plain request: no prompt-caching fields (`cache_control`), no `eager_input_streaming` on tools, and no `store`. Gateways that check the request strictly, like Palantir Foundry, rejected them with `400 ... unrecognizedProperty=cache_control`.
+- Custom endpoints in `aecdo configure ai` now get a plain request: no prompt-caching fields (`cache_control`), no `eager_input_streaming` on tools, and no `store`. Gateways that check the request strictly rejected them with `400 ... unrecognizedProperty=cache_control`.
 
 ## [0.4.4] - 2026-10-28
 
@@ -26,7 +26,7 @@ No schema changes; the CLI still validates against `ontology/v0.3.0`.
 - `npm run bench -- <sheets>` times parsing, validation, and `explore` on a synthetic set of that many sheets built from the Maple Grove demo.
 - `@mentions` in `explore` now name a model, not a company: `@claude`, `@chatgpt` (or `@gpt`), `@gemini`, `@grok`, `@deepseek`, and `@kimi` each go through whichever way you've set up in `aecdo configure ai`: the model's maker (Anthropic or OpenAI), Amazon Bedrock, a custom endpoint, or OpenRouter. When more than one is set up, `configure ai` lets you pick the route and model per `@name`; otherwise the maker comes first, then Bedrock, your endpoint, and OpenRouter. The first answer in a session says which way it went. `@openrouter` and `@or` are gone; with only OpenRouter set up, `@claude` and the rest go through it. A model chosen earlier for `@openrouter` isn't carried over.
 - `aecdo configure ai` can set up Amazon Bedrock (a Bedrock API key, an AWS profile, or your existing AWS credentials, plus the region) for Claude, GPT, Grok, DeepSeek, and Kimi models on Bedrock.
-- `aecdo configure ai` can set up a custom endpoint: a base URL that speaks the OpenAI (Chat Completions) or Anthropic (Messages) API, a token sent as `Authorization: Bearer`, and the model id for each `@name` it serves. It works with gateways like Palantir Foundry, LiteLLM, Azure, vLLM, and Ollama. Extra headers can go in `custom.headers` in `~/.aecdo/llm.json`.
+- `aecdo configure ai` can set up a custom endpoint: a base URL that speaks the OpenAI (Chat Completions) or Anthropic (Messages) API, a token sent as `Authorization: Bearer`, and the model id for each `@name` it serves. It works with gateways like LiteLLM, Azure, vLLM, and Ollama. Extra headers can go in `custom.headers` in `~/.aecdo/llm.json`.
 
 ## [0.4.3] - 2026-10-26
 
