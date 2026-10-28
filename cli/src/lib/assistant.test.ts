@@ -9,6 +9,9 @@ import { buildTools, createAssistantSession, loadFolderInstructions, resolveInCw
 import { ASSISTANTS } from "./llm.js";
 import type { DrawingSet } from "../types.js";
 import type { Markup } from "./markup.js";
+import _Ajv2020 from "ajv/dist/2020.js";
+
+const Ajv2020 = _Ajv2020 as unknown as typeof _Ajv2020.default;
 
 const data = JSON.parse(
   readFileSync(new URL("../../../examples/sample-drawing-set.jsonld", import.meta.url), "utf-8")
@@ -246,4 +249,14 @@ test("list_sheets pages and filters a large set instead of cutting it off", asyn
   assert.equal(last.nextOffset, undefined);
   assert.deepEqual((await run({ filter: "door" })).sheets.map((s) => s.sheetNumber), ["M777"]);
   assert.equal((await run({ filter: "m" })).total, 500);
+});
+
+test("every tool schema is valid JSON Schema draft 2020-12", () => {
+  const { host } = setup();
+  const ajv = new Ajv2020({ strict: false });
+  const full: AssistantHost = { ...host, showPage: () => Promise.resolve(""), markups: {} as AssistantHost["markups"] };
+  for (const tool of buildTools(full, Type)) {
+    assert.ok(ajv.validateSchema(JSON.parse(JSON.stringify(tool.parameters)) as object), `${tool.name}: ${ajv.errorsText()}`);
+  }
+  assert.ok(buildTools(full, Type).some((t) => t.name === "add_markup"));
 });

@@ -352,7 +352,9 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
 }
 
 function markupTools(host: AssistantHost, markups: AssistantMarkups, T: typeof import("@earendil-works/pi-ai").Type): AgentTool[] {
-  const point = T.Tuple([T.Number(), T.Number()]);
+  // Fixed-length arrays instead of T.Tuple: tuples come out as draft-07 `items: [...]`, which
+  // strict validators (e.g. Claude on Vertex AI behind a gateway) reject as invalid 2020-12 schema.
+  const numbers = (n: number, description?: string) => T.Array(T.Number(), { minItems: n, maxItems: n, description });
   return [
     defineTool({
       name: "add_markup",
@@ -362,9 +364,9 @@ function markupTools(host: AssistantHost, markups: AssistantMarkups, T: typeof i
       parameters: T.Object({
         kind: T.Union(MARKUP_KINDS.map((k) => T.Literal(k))),
         text: T.String({ description: "The comment, as a reviewer would write it" }),
-        bbox: T.Optional(T.Tuple([T.Number(), T.Number(), T.Number(), T.Number()], { description: "[xmin, ymin, xmax, ymax] in PDF points from the page's top-left; defaults to the current selection" })),
+        bbox: T.Optional(numbers(4, "[xmin, ymin, xmax, ymax] in PDF points from the page's top-left; defaults to the current selection")),
         sheet: T.Optional(T.String({ description: "Sheet number or page index for bbox; defaults to the current sheet" })),
-        at: T.Optional(point),
+        at: T.Optional(numbers(2)),
       }),
       executionMode: "sequential",
       execute: async (_id, params: { kind: MarkupKind; text: string; bbox?: BBox; sheet?: string; at?: [number, number] }) => {
