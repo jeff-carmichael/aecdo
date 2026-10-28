@@ -163,50 +163,55 @@ export function itemTypeTag(item: Item): string {
 }
 
 /** `refTag(i)` labels the i-th reference, e.g. "[r1] ", so explore can jump to it. */
-export function printItem(item: Item, resolve: RefResolver, refTag: (i: number) => string = () => ""): void {
+export function printItem(
+  item: Item,
+  resolve: RefResolver,
+  refTag: (i: number) => string = () => "",
+  log: (line?: string) => void = console.log
+): void {
   const c = palette();
   const label = item.data.label ?? item["@id"];
-  console.log(`\n      ${itemTypeTag(item)} ${formatValue(label)}`);
-  console.log(`        id:   ${c.dim(item["@id"])}`);
-  if (item.bbox) console.log(`        bbox: ${bboxText(item.bbox)}`);
+  log(`\n      ${itemTypeTag(item)} ${formatValue(label)}`);
+  log(`        id:   ${c.dim(item["@id"])}`);
+  if (item.bbox) log(`        bbox: ${bboxText(item.bbox)}`);
 
   const dataEntries = Object.entries(item.data).filter(([k]) => k !== "label");
   if (dataEntries.length > 0) {
-    console.log(`        data:`);
+    log(`        data:`);
     for (const [key, value] of dataEntries) {
-      console.log(`          ${key}: ${formatValue(value)}`);
+      log(`          ${key}: ${formatValue(value)}`);
     }
   }
 
   if (item.references?.length) {
     item.references.forEach((ref, i) => {
-      console.log(`        ${arrow()}${refTag(i)}${resolve(ref)}`);
+      log(`        ${arrow()}${refTag(i)}${resolve(ref)}`);
     });
   }
 }
 
-export function printTable(t: Table): void {
+export function printTable(t: Table, log: (line?: string) => void = console.log): void {
   const c = palette();
-  console.log(`\n    ${c.bold(t.label ?? t.title ?? "Untitled Table")}`);
-  console.log(`      id: ${c.dim(t["@id"])}`);
-  if (t.bbox) console.log(`      bbox: ${bboxText(t.bbox)}`);
+  log(`\n    ${c.bold(t.label ?? t.title ?? "Untitled Table")}`);
+  log(`      id: ${c.dim(t["@id"])}`);
+  if (t.bbox) log(`      bbox: ${bboxText(t.bbox)}`);
   const width = Math.max(30, (process.stdout.columns || 100) - 7);
   for (const line of formatTable(t.content, width)) {
-    console.log(`      ${line.replace(/[┌┬┐├┼┤└┴┘─│]+/g, (m) => c.dim(m))}`);
+    log(`      ${line.replace(/[┌┬┐├┼┤└┴┘─│]+/g, (m) => c.dim(m))}`);
   }
 }
 
-export function printNote(n: Note): void {
-  console.log(`\n    ${palette().heading("Note:")} ${palette().dim(n["@id"])}`);
-  if (n.bbox) console.log(`      bbox: ${bboxText(n.bbox)}`);
+export function printNote(n: Note, log: (line?: string) => void = console.log): void {
+  log(`\n    ${palette().heading("Note:")} ${palette().dim(n["@id"])}`);
+  if (n.bbox) log(`      bbox: ${bboxText(n.bbox)}`);
   for (const line of n.content.split("\n")) {
-    console.log(`      ${line}`);
+    log(`      ${line}`);
   }
 }
 
-export function printImage(img: Image): void {
+export function printImage(img: Image, log: (line?: string) => void = console.log): void {
   const c = palette();
-  console.log(`\n    ${c.tag(`[IMAGE:${img.role}]`)} ${img.caption ?? img["@id"]}`);
-  console.log(`      id:   ${c.dim(img["@id"])}`);
-  console.log(`      bbox: ${bboxText(img.bbox)}`);
+  log(`\n    ${c.tag(`[IMAGE:${img.role}]`)} ${img.caption ?? img["@id"]}`);
+  log(`      id:   ${c.dim(img["@id"])}`);
+  log(`      bbox: ${bboxText(img.bbox)}`);
 }

@@ -94,7 +94,7 @@ aecdo explore maple-grove-library.jsonld
 2. Type **`1`** to open the First Floor Plan drawing. The `→` lines are its callouts: building sections on A301, elevations on A201, and details on A501. Below them are 10 layers, from Grids & Dimensions to Keynotes.
 3. Type **`4`** to open **Door Tags**: 26 door tags, 101A through 123A.
 4. Type **`5`** to open **Door tag 105A**. It references two things: the door itself and the door schedule entry.
-5. Type **`back`** and then **`3`** to open the **Doors** layer. Open door 105A there and you'll see what was read from the plan: room 105 Story Time Room, 3'-0" × 7'-0", type D, wood.
+5. Type **`up`** twice to get back to the drawing's layers, then **`3`** to open the **Doors** layer. Open door 105A there and you'll see what was read from the plan: room 105 Story Time Room, 3'-0" × 7'-0", type D, wood.
 
 ## 3. Check the door schedule
 

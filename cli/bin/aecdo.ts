@@ -38,7 +38,7 @@ Commands:
                       in a terminal, pick a .jsonld file from the current
                       folder. Type "r1", "r2", … to jump to a reference
                       shown as "→ [r1] …"
-                      ("back" returns). Type "@claude …", "@chatgpt …", or
+                      ("back" returns; "up" or ".." goes up a level). Type "@claude …", "@chatgpt …", or
                       "@openrouter …" (also @gemini, @grok, @deepseek,
                       @kimi; Tab completes the name) to ask an AI assistant about the current view; it can
                       navigate, open the page view, propose PDF markups,

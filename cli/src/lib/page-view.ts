@@ -1,6 +1,6 @@
 import { existsSync, rmSync } from "node:fs";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, join, resolve } from "node:path";
+import { basename, dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import type { DrawingSet } from "../types.js";
@@ -15,25 +15,46 @@ export interface Box {
   height: number;
 }
 
+export interface PdfCandidate {
+  path: string;
+  /** Why this path was tried, for the "can't find the PDF" message. */
+  reason: string;
+}
+
 /**
  * Where to look for the PDF a JSON-LD file came from: an explicit path, `plans.pdf` next to
  * `plans.jsonld` (what `aecdo process` writes), or the set's `filename` next to the JSON-LD or
  * in the current folder.
  */
-export function sourcePdfCandidates(jsonldPath: string, data: DrawingSet, explicit?: string, cwd = process.cwd()): string[] {
-  if (explicit) return [resolve(cwd, explicit)];
-  const out: string[] = [];
+export function sourcePdfCandidatesWithReasons(jsonldPath: string, data: DrawingSet, explicit?: string, cwd = process.cwd()): PdfCandidate[] {
+  const out: PdfCandidate[] = [];
   const isFile = !jsonldPath.startsWith("job:");
+  if (explicit) {
+    out.push({ path: resolve(cwd, explicit), reason: "the PDF you named, from the current folder" });
+    if (isFile && !isAbsolute(explicit)) out.push({ path: join(dirname(jsonldPath), explicit), reason: "the PDF you named, next to the .jsonld" });
+    return unique(out);
+  }
   if (isFile) {
     const stem = join(dirname(jsonldPath), basename(jsonldPath, extname(jsonldPath)));
-    out.push(`${stem}.pdf`, `${stem}.PDF`);
+    const reason = `same name as ${basename(jsonldPath)}`;
+    out.push({ path: `${stem}.pdf`, reason }, { path: `${stem}.PDF`, reason });
   }
   if (data.filename) {
     const name = basename(data.filename);
-    if (isFile) out.push(join(dirname(jsonldPath), name));
-    out.push(resolve(cwd, name));
+    const reason = `the set's "filename"`;
+    if (isFile) out.push({ path: join(dirname(jsonldPath), name), reason: `${reason}, next to the .jsonld` });
+    out.push({ path: resolve(cwd, name), reason: `${reason}, in the current folder` });
   }
-  return [...new Set(out)];
+  return unique(out);
+}
+
+function unique(candidates: PdfCandidate[]): PdfCandidate[] {
+  const seen = new Set<string>();
+  return candidates.filter((c) => !seen.has(c.path) && seen.add(c.path));
+}
+
+export function sourcePdfCandidates(jsonldPath: string, data: DrawingSet, explicit?: string, cwd = process.cwd()): string[] {
+  return sourcePdfCandidatesWithReasons(jsonldPath, data, explicit, cwd).map((c) => c.path);
 }
 
 export function findSourcePdf(candidates: string[], exists: (p: string) => boolean = existsSync): string | undefined {
