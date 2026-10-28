@@ -83,6 +83,14 @@ aecdo update
 
 Replaces the standalone binary with the latest GitHub release after verifying its SHA-256 checksum. Prints "already the latest version" when current. If the install folder is not writable it exits 1 and suggests `sudo aecdo update`. For npm installs it only prints `npm install -g aecdo@latest`.
 
+### Download the example drawing sets
+
+```bash
+aecdo examples [folder]   # default ./aecdo-examples; --force replaces existing files
+```
+
+Downloads `maple-grove-library.jsonld` (19-sheet demo, data only), `sample-drawing-package-1and2family.{jsonld,pdf}` (real permit set with its PDF, for `view`/markups), `sample-drawing-set.jsonld`, and a README from the GitHub tag matching the CLI version (falls back to `main`). Existing files are skipped unless `--force`. The install scripts offer this at the end in a terminal; `AECDO_EXAMPLES=1|0` and `AECDO_EXAMPLES_DIR` answer it ahead of time.
+
 ### Shell tab completion
 
 ```bash

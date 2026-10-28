@@ -15,6 +15,7 @@ const COMMANDS: [name: string, description: string][] = [
   ["status", "Check the status of a processing job"],
   ["download", "Download the result of a completed job"],
   ["update", "Update aecdo to the latest release"],
+  ["examples", "Download the example drawing sets into a folder"],
   ["completion", "Print a shell completion script"],
 ];
 
@@ -34,6 +35,7 @@ const OPTIONS = [
   "--then",
   "--stdout",
   "--pdf",
+  "--force",
   "--no-update-check",
 ];
 
@@ -86,6 +88,7 @@ _aecdo() {
     ${PDF_COMMANDS.join("|")}) _aecdo_files "$cur" pdf ;;
     ${JSONLD_COMMANDS.join("|")}) _aecdo_files "$cur" jsonld ;;
     completion) COMPREPLY=($(compgen -W "${SHELLS.join(" ")}" -- "$cur")) ;;
+    examples) compopt -o filenames 2>/dev/null; COMPREPLY=($(compgen -d -- "$cur")) ;;
     configure) [[ $COMP_CWORD -eq 2 ]] && COMPREPLY=($(compgen -W "ai" -- "$cur")) ;;
   esac
 }
@@ -120,6 +123,7 @@ ${commands}
     '--then[Pipe the result into a command]:command:(validate summary explore)'
     '--stdout[Print the result instead of saving it]'
     '--pdf[Source PDF for view in explore]:pdf file:_files -g "*.(pdf|PDF)"'
+    '--force[Replace example files that are already there]'
     '--no-update-check[Skip the daily update check]'
   )
 
@@ -142,6 +146,9 @@ ${commands}
           ;;
         ${JOB_COMMANDS.join("|")})
           _arguments $opts '1:job ID:'
+          ;;
+        examples)
+          _arguments $opts '1:folder:_files -/'
           ;;
         completion)
           _arguments '1:shell:(${SHELLS.join(" ")})'
@@ -193,6 +200,7 @@ function fishScript(): string {
     "complete -c aecdo -l then -x -a 'validate summary explore' -d 'Pipe the result into a command'",
     "complete -c aecdo -l stdout -d 'Print the result instead of saving it'",
     "complete -c aecdo -l pdf -r -F -d 'Source PDF for view in explore'",
+    "complete -c aecdo -l force -d 'Replace example files that are already there'",
     "complete -c aecdo -l no-update-check -d 'Skip the daily update check'",
   ];
   return lines.join("\n") + "\n";

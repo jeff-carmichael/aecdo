@@ -16,6 +16,7 @@ import { download } from "../src/commands/download.js";
 import { processPdf } from "../src/commands/process.js";
 import { update, cleanupOldBinary } from "../src/commands/update.js";
 import { completion } from "../src/commands/completion.js";
+import { examples } from "../src/commands/examples.js";
 import { pick, listPdfs, listJsonld, canPrompt } from "../src/lib/picker.js";
 import { embedded } from "../src/lib/embedded.js";
 import { startUpdateNotifier, runUpdateCheckWorker, WORKER_ENV, NO_UPDATE_CHECK_FLAG } from "../src/lib/update-check.js";
@@ -67,6 +68,10 @@ Commands:
   status <jobId>      Check the status of a processing job
   download <jobId>    Download the result of a completed job
   update              Update aecdo to the latest release
+  examples [folder]   Download the example drawing sets (Maple Grove demo,
+                      Vancouver house permit set with its PDF) into a folder
+                      (default: ./aecdo-examples). Existing files are kept
+                      unless you add --force
   completion [shell]  Print a tab-completion script for bash, zsh, or fish
                       (detected from $SHELL if omitted)
 
@@ -85,6 +90,7 @@ API Options:
   --wait              Wait for job completion (used with status)
   --then <command>    Pipe result into: validate, summary, explore
   --stdout            process: print the result to stdout instead of saving it
+  --force             examples: replace files that are already there
   --pdf <file>        explore: source PDF for "view" (default: <name>.pdf
                       next to the .jsonld, or the set's filename)
 
@@ -107,6 +113,7 @@ Examples:
   aecdo status <jobId> --wait
   aecdo download <jobId> -o result.jsonld
   aecdo update
+  aecdo examples ~/aecdo-examples
   eval "$(aecdo completion bash)"      # add to ~/.bashrc (zsh: ~/.zshrc)
   aecdo completion fish > ~/.config/fish/completions/aecdo.fish
 `;
@@ -186,6 +193,7 @@ async function main(): Promise<void> {
         then: { type: "string" },
         stdout: { type: "boolean", default: false },
         pdf: { type: "string" },
+        force: { type: "boolean", default: false },
       },
       allowPositionals: true,
     });
@@ -236,6 +244,9 @@ async function main(): Promise<void> {
         }
         break;
       }
+      case "examples":
+        await examples(options.positionals[0], { version: await getVersion(), force: options.values.force });
+        break;
       case "status":
       case "download": {
         const jobId = options.positionals[0];
@@ -261,6 +272,7 @@ async function main(): Promise<void> {
           const sets = await listJsonld(process.cwd());
           if (sets.length === 0) {
             console.error("Error: No input file specified, and no .jsonld files found in the current folder.");
+            console.error('Run "aecdo examples" to download the example drawing sets.');
             process.exit(1);
           }
           const picked = await pick(sets, { title: "Select a drawing set to explore:" });
