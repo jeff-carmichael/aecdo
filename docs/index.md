@@ -58,7 +58,7 @@ aecdo explore plans.jsonld
 **See it on the page.** Keep the original PDF next to the `.jsonld` (`plans.pdf` beside `plans.jsonld`). Inside `explore`, drill down with numbers, then type `view` to open the PDF page with your selection outlined in red. See [Explore a drawing set](explore.md).
 </li>
 <li markdown="1">
-**Optional: add an AI assistant.** Run `aecdo configure ai` to sign in with ChatGPT or add an API key, then ask questions inside `explore`:
+**Optional: add an AI assistant.** Run `aecdo configure ai` to sign in with ChatGPT, add an API key, or connect Amazon Bedrock or your own endpoint, then ask questions inside `explore`:
 
 ```
 A101> @claude list every door on this floor and check it against the door schedule

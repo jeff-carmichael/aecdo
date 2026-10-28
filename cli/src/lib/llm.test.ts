@@ -1,20 +1,28 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, statSync, readFileSync } from "node:fs";
+import { mkdtempSync, statSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import {
   FileCredentialStore,
   assistantForMention,
-  getAssistantModelId,
+  availableRoutes,
+  getModelId,
   getDeviceId,
-  setAssistantModelId,
+  setModelId,
+  setPreferredRoute,
+  setCustomEndpoint,
+  pickRoute,
+  resolveModel,
+  routesFor,
   createLlmModels,
   ASSISTANTS,
+  type RouteId,
 } from "./llm.js";
 import { parseMention, nodeSupportsAssistant, notSetUpMessage } from "../commands/explore.js";
 import { modelChoices } from "../commands/configure-ai.js";
-import type { MutableModels } from "@earendil-works/pi-ai";
 
 function tempConfig(): string {
   return join(mkdtempSync(join(tmpdir(), "aecdo-llm-")), "llm.json");
@@ -45,25 +53,36 @@ test("device id and model choices are stable", async () => {
   assert.match(id, /^[0-9a-f-]{36}$/);
   assert.equal(await getDeviceId(path), id);
 
-  assert.equal(await getAssistantModelId("claude", path), ASSISTANTS.claude.defaultModel);
-  await setAssistantModelId("claude", "claude-opus-5-5", path);
-  assert.equal(await getAssistantModelId("claude", path), "claude-opus-5-5");
+  assert.equal(await getModelId("claude", "anthropic", path), "claude-sonnet-5-5");
+  await setModelId("claude", "anthropic", "claude-opus-5-5", path);
+  assert.equal(await getModelId("claude", "anthropic", path), "claude-opus-5-5");
+  assert.equal(await getModelId("claude", "openrouter", path), ASSISTANTS.claude.routes.openrouter);
+  assert.equal(await getModelId("claude", "custom", path), undefined);
+});
+
+test("reads the older one-model-per-assistant setting as the direct route", async () => {
+  const path = tempConfig();
+  writeFileSync(path, JSON.stringify({ models: { claude: "claude-opus-5-5" } }));
+  assert.equal(await getModelId("claude", "anthropic", path), "claude-opus-5-5");
+  assert.equal(await getModelId("claude", "amazon-bedrock", path), ASSISTANTS.claude.routes["amazon-bedrock"]);
 });
 
 test("default models exist in pi's catalog", async () => {
   const models = await createLlmModels(new FileCredentialStore(tempConfig()));
   for (const a of Object.values(ASSISTANTS)) {
-    assert.ok(models.getModel(a.provider, a.defaultModel), `${a.provider}/${a.defaultModel}`);
+    for (const [route, id] of Object.entries(a.routes) as [RouteId, string][]) {
+      if (route === "custom") continue;
+      assert.ok(models.getModel(route, id), `${a.name}: ${route}/${id}`);
+    }
   }
 });
 
-test("parses @mentions", () => {
+test("parses @mentions by model, not provider", () => {
   assert.equal(assistantForMention("ChatGPT")?.name, "chatgpt");
   assert.equal(assistantForMention("gpt")?.name, "chatgpt");
+  assert.equal(assistantForMention("Grok")?.name, "grok");
   assert.equal(assistantForMention("bard"), undefined);
-  assert.equal(assistantForMention("OpenRouter")?.name, "openrouter");
-  assert.equal(assistantForMention("or")?.name, "openrouter");
-  assert.equal(assistantForMention("gemini")?.provider, "openrouter");
+  assert.equal(assistantForMention("openrouter"), undefined);
 
   const m = parseMention("@claude, what's on this sheet?");
   assert.equal(m?.assistant?.name, "claude");
@@ -81,27 +100,120 @@ test("checks the Node version pi needs", () => {
   assert.equal(nodeSupportsAssistant("20.18.0", true), true);
 });
 
-test("OpenRouter shortcuts use their fixed model", async () => {
+test("each @mention uses whichever route is set up, or the one the user picked", async () => {
   const path = tempConfig();
-  await setAssistantModelId("gemini", "openai/gpt-5.5", path);
-  assert.equal(await getAssistantModelId("gemini", path), "~google/gemini-pro-latest");
-  assert.equal(await getAssistantModelId("openrouter", path), ASSISTANTS.openrouter.defaultModel);
+  const store = new FileCredentialStore(path);
+  const models = await createLlmModels(store);
+  assert.equal(await pickRoute(models, "claude", path), undefined);
+
+  await store.modify("openrouter", () => Promise.resolve({ type: "api_key", key: "sk-or" }));
+  assert.deepEqual(await pickRoute(models, "grok", path), { route: "openrouter", modelId: "~x-ai/grok-latest" });
+
+  await store.modify("amazon-bedrock", () => Promise.resolve({ type: "api_key", env: { AWS_REGION: "us-west-2" } }));
+  assert.deepEqual(await availableRoutes(models, "claude", path), ["amazon-bedrock", "openrouter"]);
+  assert.equal((await pickRoute(models, "claude", path))?.route, "amazon-bedrock");
+  assert.equal((await pickRoute(models, "gemini", path))?.route, "openrouter");
+
+  await setPreferredRoute("claude", "openrouter", path);
+  assert.equal((await pickRoute(models, "claude", path))?.route, "openrouter");
+  await models.logout("openrouter");
+  assert.equal((await pickRoute(models, "claude", path))?.route, "amazon-bedrock");
+
+  const resolved = resolveModel(models, "claude", (await pickRoute(models, "claude", path))!);
+  assert.equal(resolved.api, "bedrock-converse-stream");
 });
 
-test("OpenRouter model picker puts recommended models first and hides batch variants", () => {
-  const catalog = ["z/other", "openai/gpt-5.5", "z/other:batch", "~anthropic/claude-sonnet-latest"];
-  assert.deepEqual(modelChoices("openrouter", catalog, "~anthropic/claude-sonnet-latest"), [
+test("Bedrock keeps the stored region and uses the AWS default credentials", async () => {
+  const path = tempConfig();
+  const store = new FileCredentialStore(path);
+  const models = await createLlmModels(store);
+  await store.modify("amazon-bedrock", () => Promise.resolve({ type: "api_key", env: { AWS_REGION: "eu-west-1" } }));
+  const model = resolveModel(models, "claude", { route: "amazon-bedrock", modelId: "global.anthropic.claude-sonnet-5-5" });
+  const auth = await models.getAuth(model);
+  assert.equal(auth?.env?.AWS_REGION, "eu-west-1");
+});
+
+test("a custom endpoint serves the @mentions it has a model for", async () => {
+  const path = tempConfig();
+  const store = new FileCredentialStore(path);
+  await setCustomEndpoint({ name: "Foundry", baseUrl: "https://example.test/llm/v1/", api: "anthropic-messages" }, path);
+  await setModelId("claude", "custom", "claude-sonnet-5-5", path);
+  await store.modify("custom", () => Promise.resolve({ type: "api_key", key: "tok" }));
+  const models = await createLlmModels(store);
+
+  assert.deepEqual(await availableRoutes(models, "claude", path), ["custom"]);
+  assert.deepEqual(await availableRoutes(models, "chatgpt", path), []);
+  const model = resolveModel(models, "claude", (await pickRoute(models, "claude", path))!);
+  assert.equal(model.baseUrl, "https://example.test/llm/v1");
+  assert.equal(model.api, "anthropic-messages");
+  const auth = await models.getAuth(model);
+  assert.equal(auth?.auth.headers?.Authorization, "Bearer tok");
+
+  await setPreferredRoute("claude", "custom", path);
+  await setCustomEndpoint(undefined, path);
+  assert.equal(await getModelId("claude", "custom", path), undefined);
+  assert.equal(await store.read("custom"), undefined);
+  const raw = JSON.parse(readFileSync(path, "utf-8")) as { routes?: Record<string, string> };
+  assert.equal(raw.routes?.claude, undefined);
+});
+
+test("model picker narrows shared catalogs to the family and leads with its default", () => {
+  const catalog = ["z/other", "openai/gpt-5.5", "z/claude:batch", "~anthropic/claude-sonnet-latest", "anthropic/claude-opus"];
+  assert.deepEqual(modelChoices("openrouter", catalog, "anthropic/claude-opus", ASSISTANTS.claude), [
+    "anthropic/claude-opus",
     "~anthropic/claude-sonnet-latest",
-    "openai/gpt-5.5",
-    "z/other",
   ]);
-  assert.deepEqual(modelChoices("anthropic", ["a", "b", "c"], "b"), ["b", "c", "a"]);
+  assert.deepEqual(modelChoices("anthropic", ["a", "b", "c"], "b", ASSISTANTS.claude), ["b", "c", "a"]);
+  assert.deepEqual(modelChoices("custom", [], "", ASSISTANTS.claude), []);
 });
 
-test("not-set-up message points to OpenRouter when it is ready", async () => {
-  const fake = (ready: string[]) =>
-    ({ checkAuth: (p: string) => Promise.resolve(ready.includes(p) ? { type: "api_key" } : undefined) }) as unknown as MutableModels;
-  assert.match(await notSetUpMessage(fake(["openrouter"]), ASSISTANTS.claude), /@openrouter/);
-  assert.doesNotMatch(await notSetUpMessage(fake([]), ASSISTANTS.claude), /@openrouter/);
-  assert.match(await notSetUpMessage(fake([]), ASSISTANTS.grok), /goes through OpenRouter/);
+test("not-set-up message lists every way to reach the model", () => {
+  assert.equal(
+    notSetUpMessage(ASSISTANTS.claude),
+    'Claude isn\'t set up yet. Run "aecdo configure ai" to add an Anthropic API key, Amazon Bedrock, a custom endpoint, or OpenRouter.'
+  );
+  assert.match(notSetUpMessage(ASSISTANTS.gemini), /a custom endpoint, or OpenRouter\.$/);
+  assert.deepEqual(routesFor("gemini"), ["custom", "openrouter"]);
+});
+
+test("a custom OpenAI-compatible endpoint gets the token and extra headers", async () => {
+  const seen: { path?: string; auth?: string; extra?: string; model?: string } = {};
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (c: Buffer) => (body += c.toString()));
+    req.on("end", () => {
+      seen.path = req.url;
+      seen.auth = req.headers.authorization;
+      seen.extra = req.headers["x-team"] as string | undefined;
+      seen.model = (JSON.parse(body) as { model: string }).model;
+      const chunk = (delta: object, finish: string | null) =>
+        `data: ${JSON.stringify({ id: "c1", object: "chat.completion.chunk", created: 0, model: "m", choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
+      res.writeHead(200, { "content-type": "text/event-stream" });
+      res.end(chunk({ role: "assistant", content: "hello from custom" }, null) + chunk({}, "stop") + "data: [DONE]\n\n");
+    });
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  try {
+    const { port } = server.address() as AddressInfo;
+    const path = tempConfig();
+    const store = new FileCredentialStore(path);
+    await setCustomEndpoint(
+      { baseUrl: `http://127.0.0.1:${port}/v1`, api: "openai-completions", headers: { "x-team": "drawings" } },
+      path
+    );
+    await setModelId("grok", "custom", "grok-on-prem", path);
+    await store.modify("custom", () => Promise.resolve({ type: "api_key", key: "secret-token" }));
+    const models = await createLlmModels(store);
+    const model = resolveModel(models, "grok", (await pickRoute(models, "grok", path))!);
+    const reply = await models.complete(model, { messages: [{ role: "user", content: "hi", timestamp: Date.now() }] });
+
+    assert.equal(reply.stopReason, "stop", reply.errorMessage);
+    assert.deepEqual(reply.content, [{ type: "text", text: "hello from custom" }]);
+    assert.equal(seen.path, "/v1/chat/completions");
+    assert.equal(seen.auth, "Bearer secret-token");
+    assert.equal(seen.extra, "drawings");
+    assert.equal(seen.model, "grok-on-prem");
+  } finally {
+    server.close();
+  }
 });

@@ -64,7 +64,7 @@ At every level, the prompt (in green) shows where you are, such as `A101 › Fir
 | `view` | open the PDF page with the current selection outlined in red |
 | `markups` | list markups the assistant proposed, and save, undo, or remove them ([details](assistant.md#marking-up-the-pdf)) |
 | `help` or `?` | show these commands |
-| `@claude …`, `@chatgpt …`, `@openrouter …` (and more) | ask the [AI assistant](assistant.md); Tab completes the name |
+| `@claude …`, `@chatgpt …`, `@grok …` (and more) | ask the [AI assistant](assistant.md); Tab completes the name |
 | `quit`, `q`, or Ctrl+D | exit |
 
 Tables print as a box with aligned columns, the first row as the header. Cells too long for your terminal wrap onto extra lines, so widen the window to see more on one line.

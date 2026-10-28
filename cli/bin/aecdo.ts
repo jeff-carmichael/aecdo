@@ -38,9 +38,9 @@ Commands:
                       in a terminal, pick a .jsonld file from the current
                       folder. Type "r1", "r2", … to jump to a reference
                       shown as "→ [r1] …"
-                      ("back" returns; "up" or ".." goes up a level). Type "@claude …", "@chatgpt …", or
-                      "@openrouter …" (also @gemini, @grok, @deepseek,
-                      @kimi; Tab completes the name) to ask an AI assistant about the current view; it can
+                      ("back" returns; "up" or ".." goes up a level). Type "@claude …", "@chatgpt …",
+                      "@gemini …", "@grok …", "@deepseek …", or "@kimi …"
+                      (Tab completes the name) to ask an AI assistant about the current view; it can
                       navigate, open the page view, propose PDF markups,
                       take notes in notes.md,
                       and fill in a spreadsheet (.xlsx/.csv/.tsv) in the
@@ -56,8 +56,10 @@ Commands:
                       the last save back.
                       Non-TTY / --format json falls back to listing sheets.
   configure           Set up DrawingBot API credentials and region
-  configure ai        Sign in with ChatGPT or OpenRouter, or add an OpenAI,
-                      Anthropic, or OpenRouter API key for the explore assistant
+  configure ai        Set up the explore assistant: Sign in with ChatGPT or
+                      OpenRouter, add an OpenAI, Anthropic, or OpenRouter API
+                      key, Amazon Bedrock, or a custom endpoint (base URL +
+                      token). Each @model uses whichever is set up
   process [pdf]       Upload a PDF, wait for processing, and save the result
                       as <pdf name>.jsonld next to the PDF. With no file in a
                       terminal, pick a PDF from the current folder.

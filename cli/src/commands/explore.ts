@@ -22,9 +22,11 @@ import {
   ASSISTANTS,
   assistantForMention,
   createLlmModels,
-  isAssistantConfigured,
-  isProviderConfigured,
-  resolveAssistantModel,
+  getCustomEndpoint,
+  pickRoute,
+  resolveModel,
+  routeLabel,
+  routesFor,
   type AssistantInfo,
   type AssistantName,
 } from "../lib/llm.js";
@@ -829,15 +831,20 @@ export function nodeSupportsAssistant(version = process.versions.node, isBun = "
   return major > 22 || (major === 22 && minor >= 19);
 }
 
-export async function notSetUpMessage(models: MutableModels, info: AssistantInfo): Promise<string> {
-  const run = 'Run "aecdo configure ai" to sign in or add an API key.';
-  if (info.shortcut) return `@${info.name} goes through OpenRouter, which isn't set up yet. ${run}`;
-  const viaOpenRouter =
-    info.provider !== "openrouter" && (await isProviderConfigured(models, "openrouter").catch(() => false))
-      ? " Or ask @openrouter (@or), which is already set up."
-      : "";
-  return `${info.label} isn't set up yet. ${run}${viaOpenRouter}`;
+/** Lists the ways to set up a model family, e.g. "an Anthropic API key, Amazon Bedrock, a custom endpoint, or OpenRouter". */
+export function notSetUpMessage(info: AssistantInfo): string {
+  const ways = routesFor(info.name).map((r) => SETUP_WAYS[r]);
+  const list = ways.length > 1 ? `${ways.slice(0, -1).join(", ")}, or ${ways[ways.length - 1]}` : ways[0];
+  return `${info.label} isn't set up yet. Run "aecdo configure ai" to add ${list}.`;
 }
+
+const SETUP_WAYS = {
+  anthropic: "an Anthropic API key",
+  openai: "a ChatGPT sign-in or OpenAI API key",
+  "amazon-bedrock": "Amazon Bedrock",
+  custom: "a custom endpoint",
+  openrouter: "OpenRouter",
+} as const;
 
 class AssistantBridge {
   private models?: MutableModels;
@@ -888,11 +895,13 @@ class AssistantBridge {
     if (existing) return existing;
 
     this.models ??= await createLlmModels();
-    if (!(await isAssistantConfigured(this.models, info.name))) {
-      console.log(await notSetUpMessage(this.models, info));
+    const route = await pickRoute(this.models, info.name);
+    if (!route) {
+      console.log(notSetUpMessage(info));
       return undefined;
     }
-    const model = await resolveAssistantModel(this.models, info.name);
+    const model = resolveModel(this.models, info.name, route);
+    console.log(palette().dim(`  ${info.label} via ${routeLabel(route.route, await getCustomEndpoint())} (${route.modelId})`));
     const session = await createAssistantSession(
       {
         data: this.data,

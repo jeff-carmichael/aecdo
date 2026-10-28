@@ -18,9 +18,9 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `cli/src/lib/api.ts` — HTTP client for the DrawingBot API
 - `cli/src/lib/picker.ts` — arrow-key list picker (raw-mode stdin, draws on stderr) used when `process`/`upload` (PDFs) or `explore` (`.jsonld`) get no file in a TTY
 - `cli/src/commands/completion.ts` — bash/zsh/fish completion scripts for `aecdo completion`
-- `cli/src/lib/llm.ts` — AI assistant setup on pi-ai: Claude/ChatGPT mapping, default models, credential store at `~/.aecdo/llm.json`; pi is imported lazily (needs Node 22.19+)
+- `cli/src/lib/llm.ts` — AI assistant setup on pi-ai: each `@mention` is a model family (claude, chatgpt, gemini, grok, deepseek, kimi) reached by a route (anthropic, openai, amazon-bedrock, custom endpoint, openrouter) picked from what's set up; default models per route, credential store at `~/.aecdo/llm.json`; pi is imported lazily (needs Node 22.19+)
 - `cli/src/lib/assistant.ts` — the `@claude`/`@chatgpt` agent in `explore` (pi-agent-core): system prompt, current-view context, and tools (navigate, read sheets, `show_page`, notes, spreadsheets) limited to the current folder; appends an `AGENTS.md` from the cwd (if any) to the system prompt
-- `cli/src/commands/configure-ai.ts` — `aecdo configure ai` (Sign in with ChatGPT, API keys, model choice)
+- `cli/src/commands/configure-ai.ts` — `aecdo configure ai` (Sign in with ChatGPT/OpenRouter, API keys, Amazon Bedrock, custom endpoint, route and model per @mention)
 - `cli/src/lib/markup.ts` — PDF markups (cloud = Polygon with cloud border, callout = FreeText, note = Text) with our own appearance streams, saved as an incremental update so the original bytes stay intact; tagged `/NM aecdo-…` for list/remove; undo truncates only if the file is unchanged
 - `cli/src/commands/markups.ts` — `MarkupSession` behind the `markups` command in `explore` and the assistant's `add_markup`/`list_markups`/`remove_markup` tools; markups stay pending until the user types `markups save`, which writes `<name>-markups.pdf` (or `--in-place`)
 - `cli/src/lib/page-view.ts` — `view` in `explore`: finds the source PDF, copies the page with pdf-lib, draws the red bbox (top-left PDF points, rotation-aware), rasterizes with `pdftoppm`/`mutool` when installed
@@ -89,7 +89,7 @@ bun run build:bin       # dist-bin/aecdo for the current platform
 bun run build:bin:all   # cross-compile all release targets into dist-bin/<target>/
 ```
 
-`cli/bin/standalone.ts` is the Bun entry: it imports `embed-assets.ts` (bundles `package.json` version and the default schema into `cli/src/lib/embedded.ts`, and registers pi's OAuth flows, which a compiled binary can't load dynamically) before `aecdo.ts`. Both files are excluded from `tsc`. Any new runtime file read must also be embedded there or it will break the binary. Users install with `install.sh` (macOS/Linux) or `install.ps1` (Windows).
+`cli/bin/standalone.ts` is the Bun entry: it imports `embed-assets.ts` (bundles `package.json` version and the default schema into `cli/src/lib/embedded.ts`, registers pi's OAuth flows, and the Bedrock client, which a compiled binary can't load dynamically) before `aecdo.ts`. Both files are excluded from `tsc`. Any new runtime file read must also be embedded there or it will break the binary. Users install with `install.sh` (macOS/Linux) or `install.ps1` (Windows).
 
 API credentials are stored at `~/.aecdo/config.json` (0o600 permissions). Tokens are cached at `~/.aecdo/token.json` (4-hour validity).
 
