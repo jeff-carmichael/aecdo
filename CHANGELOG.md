@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-10-28
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
 - Custom endpoints in `aecdo configure ai` now get a plain request: no prompt-caching fields (`cache_control`), no `eager_input_streaming` on tools, and no `store`. Gateways that check the request strictly rejected them with `400 ... unrecognizedProperty=cache_control`.
 
