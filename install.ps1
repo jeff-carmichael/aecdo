@@ -3,7 +3,7 @@
 #   irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex
 #
 # Environment overrides:
-#   AECDO_VERSION      release tag to install, e.g. v0.4.6 (default: latest)
+#   AECDO_VERSION      release tag to install, e.g. v0.4.7 (default: latest)
 #   AECDO_INSTALL_DIR  destination folder (default: %LOCALAPPDATA%\Programs\aecdo)
 #   AECDO_EXAMPLES     1 to download the example drawing sets without asking,
 #                      0 to skip them (default: ask in an interactive window)

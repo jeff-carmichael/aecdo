@@ -20,7 +20,7 @@ To change what it installs, set these before `sh`:
 
 | Variable | What it does | Example |
 |----------|--------------|---------|
-| `AECDO_VERSION` | Install a specific release instead of the latest | `v0.4.6` |
+| `AECDO_VERSION` | Install a specific release instead of the latest | `v0.4.7` |
 | `AECDO_INSTALL_DIR` | Install somewhere else, such as a folder you own | `$HOME/.local/bin` |
 | `AECDO_EXAMPLES` | `1` downloads the [example drawing sets](#example-drawing-sets) without asking, `0` skips them | `0` |
 | `AECDO_EXAMPLES_DIR` | Where to put the examples | `$HOME/aecdo-examples` |
@@ -46,7 +46,7 @@ This downloads the latest `aecdo-windows-x64.zip`, checks its checksum, puts `ae
 The same `AECDO_VERSION`, `AECDO_INSTALL_DIR`, `AECDO_EXAMPLES`, and `AECDO_EXAMPLES_DIR` settings work here:
 
 ```powershell
-$env:AECDO_VERSION = "v0.4.6"
+$env:AECDO_VERSION = "v0.4.7"
 irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex
 ```
 
