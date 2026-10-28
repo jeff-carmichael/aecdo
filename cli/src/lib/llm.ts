@@ -10,6 +10,7 @@ import type {
   MutableModels,
   Model,
   Api,
+  ProviderStreams,
 } from "@earendil-works/pi-ai";
 
 /** A model family the user can @mention. How it is reached (the route) is a separate setting. */
@@ -294,20 +295,42 @@ function customAuth(): ApiKeyAuth {
   };
 }
 
-function customModel(endpoint: CustomEndpoint, id: string): Model<Api> {
+/**
+ * Gateways such as Palantir Foundry validate the request body and reject fields they don't
+ * know (cache_control, eager_input_streaming, store), so custom endpoints get a plain request.
+ */
+const PLAIN_ANTHROPIC = {
+  supportsEagerToolInputStreaming: false,
+  supportsCacheControlOnTools: false,
+  supportsLongCacheRetention: false,
+  supportsStrictTools: false,
+};
+const PLAIN_OPENAI = { supportsStore: false, supportsLongCacheRetention: false, supportsStrictMode: false };
+
+function withoutPromptCaching(api: ProviderStreams): ProviderStreams {
   return {
+    ...api,
+    stream: (model, context, options) => api.stream(model, context, { ...options, cacheRetention: "none" }),
+    streamSimple: (model, context, options) => api.streamSimple(model, context, { ...options, cacheRetention: "none" }),
+  };
+}
+
+function customModel(endpoint: CustomEndpoint, id: string): Model<Api> {
+  const common = {
     id,
     name: id,
-    api: endpoint.api,
     provider: "custom",
     baseUrl: endpoint.baseUrl.replace(/\/+$/, ""),
     headers: endpoint.headers,
-    input: ["text", "image"],
+    input: ["text", "image"] as ("text" | "image")[],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     reasoning: false,
     contextWindow: 200_000,
     maxTokens: 16_384,
   };
+  return endpoint.api === "anthropic-messages"
+    ? { ...common, api: "anthropic-messages", compat: PLAIN_ANTHROPIC }
+    : { ...common, api: "openai-completions", compat: PLAIN_OPENAI };
 }
 
 /**
@@ -356,7 +379,9 @@ export async function createLlmModels(store: CredentialStore = new FileCredentia
         name: endpoint.name ?? ROUTE_LABELS.custom,
         auth: { apiKey: customAuth() },
         models: [...ids].map((id) => customModel(endpoint, id)),
-        api: endpoint.api === "anthropic-messages" ? anthropicApi.anthropicMessagesApi() : openaiApi.openAICompletionsApi(),
+        api: withoutPromptCaching(
+          endpoint.api === "anthropic-messages" ? anthropicApi.anthropicMessagesApi() : openaiApi.openAICompletionsApi()
+        ),
       })
     );
   }

@@ -217,3 +217,46 @@ test("a custom OpenAI-compatible endpoint gets the token and extra headers", asy
     server.close();
   }
 });
+
+test("a custom Anthropic-compatible endpoint gets a plain request, without caching fields", async () => {
+  let body = "";
+  const server = createServer((req, res) => {
+    req.on("data", (c: Buffer) => (body += c.toString()));
+    req.on("end", () => {
+      const sse = (event: string, data: object) => `event: ${event}\ndata: ${JSON.stringify({ type: event, ...data })}\n\n`;
+      res.writeHead(200, { "content-type": "text/event-stream" });
+      res.end(
+        sse("message_start", {
+          message: { id: "m1", type: "message", role: "assistant", model: "m", content: [], stop_reason: null, usage: { input_tokens: 1, output_tokens: 0 } },
+        }) +
+          sse("content_block_start", { index: 0, content_block: { type: "text", text: "" } }) +
+          sse("content_block_delta", { index: 0, delta: { type: "text_delta", text: "ok" } }) +
+          sse("content_block_stop", { index: 0 }) +
+          sse("message_delta", { delta: { stop_reason: "end_turn" }, usage: { output_tokens: 1 } }) +
+          sse("message_stop", {})
+      );
+    });
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  try {
+    const { port } = server.address() as AddressInfo;
+    const path = tempConfig();
+    const store = new FileCredentialStore(path);
+    await setCustomEndpoint({ name: "Foundry", baseUrl: `http://127.0.0.1:${port}`, api: "anthropic-messages" }, path);
+    await setModelId("claude", "custom", "claude-sonnet", path);
+    await store.modify("custom", () => Promise.resolve({ type: "api_key", key: "tok" }));
+    const models = await createLlmModels(store);
+    const model = resolveModel(models, "claude", (await pickRoute(models, "claude", path))!);
+    const reply = await models.complete(model, {
+      systemPrompt: "You are a test.",
+      messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
+      tools: [{ name: "list_sheets", description: "List sheets", parameters: { type: "object", properties: {} } }],
+    });
+
+    assert.equal(reply.stopReason, "stop", reply.errorMessage);
+    assert.ok(body.includes('"list_sheets"'), body);
+    assert.doesNotMatch(body, /cache_control|eager_input_streaming/);
+  } finally {
+    server.close();
+  }
+});
