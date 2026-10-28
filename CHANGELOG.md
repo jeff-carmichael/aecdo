@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-10-28
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
 - The assistant's `add_markup` tool describes `bbox` and `at` as fixed-length number arrays instead of tuples. The tuple form is old JSON Schema (draft-07), and Claude behind some gateways rejected the request with `tools.N.custom.input_schema: JSON schema is invalid. It must match JSON Schema draft 2020-12`. A test now checks every tool schema against draft 2020-12.
 
