@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-10-28
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### Examples
 - `examples/sample-drawing-package-1and2family.pdf` and `.jsonld`: the City of Vancouver's sample drawing package for one and two family dwellings (7 pages: site and impermeable plans, floor plans, FSR overlay, elevations, sections, details, garage), with a JSON-LD built by hand from the drawings. It's the first example with its source PDF, so `view` and markups can be tried on it. The PDF isn't included in the npm package.
 

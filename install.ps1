@@ -3,7 +3,7 @@
 #   irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex
 #
 # Environment overrides:
-#   AECDO_VERSION      release tag to install, e.g. v0.4.3 (default: latest)
+#   AECDO_VERSION      release tag to install, e.g. v0.4.4 (default: latest)
 #   AECDO_INSTALL_DIR  destination folder (default: %LOCALAPPDATA%\Programs\aecdo)
 #
 # Files downloaded this way carry no "downloaded from the internet" mark, so
