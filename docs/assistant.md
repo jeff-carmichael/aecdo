@@ -4,7 +4,7 @@ title: AI assistant
 
 # AI assistant in explore
 
-Inside `aecdo explore`, start a line with **`@claude`**, **`@chatgpt`**, or **`@openrouter`** to ask an AI assistant about the drawing set. It sees what's on your screen, can move around the set for you, open pages with things outlined, take notes, and fill in spreadsheets.
+Inside `aecdo explore`, start a line with the name of a model, like **`@claude`**, **`@chatgpt`**, or **`@grok`**, to ask an AI assistant about the drawing set. It sees what's on your screen, can move around the set for you, open pages with things outlined, take notes, and fill in spreadsheets.
 
 ```
 A101> @claude which rooms on this floor don't have a door tag?
@@ -15,14 +15,16 @@ sheet> @gemini list the rooms with no finish in the room finish schedule
 
 ## Set it up
 
-You need one of these:
+Each `@name` is a model. You choose how `aecdo` reaches it: straight from the company that makes it, through Amazon Bedrock, through your own endpoint, or through OpenRouter. Set up any one of these and the models it offers work right away:
 
-| Assistant | How to connect | Cost |
-|-----------|----------------|------|
-| **ChatGPT** | *Sign in with ChatGPT* using a ChatGPT Plus or Pro plan | Counts against your plan's usage |
-| **ChatGPT** | An [OpenAI API key](https://platform.openai.com/api-keys) | Billed per use by OpenAI |
-| **Claude** | An [Anthropic API key](https://console.anthropic.com/) | Billed per use by Anthropic |
-| **OpenRouter** (many models: Claude, GPT, Gemini, Grok, DeepSeek, Kimi, …) | *Sign in with OpenRouter*, or an [OpenRouter API key](https://openrouter.ai/settings/keys) | Billed per use from your OpenRouter credits |
+| Way to connect | Models | How | Cost |
+|----------------|--------|-----|------|
+| **ChatGPT plan** | `@chatgpt` | *Sign in with ChatGPT* (Plus or Pro plan) | Counts against your plan's usage |
+| **OpenAI API** | `@chatgpt` | An [OpenAI API key](https://platform.openai.com/api-keys) | Billed per use by OpenAI |
+| **Anthropic API** | `@claude` | An [Anthropic API key](https://console.anthropic.com/) | Billed per use by Anthropic |
+| **Amazon Bedrock** | `@claude`, `@chatgpt`, `@grok`, `@deepseek`, `@kimi` | A Bedrock API key, an AWS profile, or the AWS credentials already on your computer | Billed by AWS |
+| **Custom endpoint** | the ones you list | A base URL and token for an OpenAI- or Anthropic-compatible API, such as Palantir Foundry, LiteLLM, Azure, vLLM, or Ollama | Up to whoever runs it |
+| **OpenRouter** | all six | *Sign in with OpenRouter*, or an [OpenRouter API key](https://openrouter.ai/settings/keys) | Billed per use from your OpenRouter credits |
 
 Run:
 
@@ -33,34 +35,24 @@ aecdo configure ai
 and pick from the menu with the arrow keys:
 
 - **Sign in with ChatGPT (uses your ChatGPT plan)** opens your browser to sign in. You can cap how much `aecdo` may use in ChatGPT's settings.
-- **Sign in with OpenRouter** opens your browser; OpenRouter then creates an API key for `aecdo`, which you can see and revoke in your OpenRouter account.
 - **Enter an OpenAI API key**, **Enter an Anthropic API key**, or **Enter an OpenRouter API key** asks you to paste the key (it isn't shown as you type).
-- **Choose a model** picks which model each assistant uses. The defaults are Claude Sonnet 5.5 for `@claude`, GPT-5.5 for `@chatgpt`, and OpenRouter's latest Claude Sonnet (`~anthropic/claude-sonnet-latest`) for `@openrouter`. OpenRouter has hundreds of models, so a few recommended ones are listed first; type to filter the rest. The assistant needs a model that supports tool calls to navigate and read sheets, so stick to the recommended ones if you're unsure.
-- **Sign out / remove a key** forgets a sign-in or key.
+- **Set up Amazon Bedrock** asks how to sign in to AWS (a Bedrock API key, an AWS profile name, or the credentials you already use with the AWS CLI, including SSO), then the AWS region. Your AWS account needs access to the models you use; turn them on in the Bedrock console.
+- **Set up a custom endpoint** asks for a name (like `Foundry`), the base URL, whether it speaks the OpenAI (Chat Completions) or Anthropic (Messages) API, and a token, which is sent as `Authorization: Bearer <token>`. Then pick which `@names` it serves and the model id it uses for each, e.g. `@claude` → the model name your endpoint uses for Claude.
+- **Sign in with OpenRouter** opens your browser; OpenRouter then creates an API key for `aecdo`, which you can see and revoke in your OpenRouter account.
+- **Choose the model or route for an @mention** picks which way an `@name` goes when more than one is set up, and which model it uses there. The defaults are Claude Sonnet 5.5 and GPT-5.5, and the latest Gemini Pro, Grok, DeepSeek, and Kimi models. Bedrock and OpenRouter list only that family's models; type to filter. The assistant needs a model that supports tool calls to navigate and read sheets.
+- **Sign out / remove a key** forgets a sign-in, key, Bedrock setup, or custom endpoint.
 
-> **Why no "Sign in with Claude"?** Anthropic doesn't allow third-party tools to use Claude Pro or Max subscriptions, so `@claude` needs an API key. If you have a Claude subscription, you can use [Claude Code](agents.md) with `aecdo` instead.
+The menu shows which way each `@name` will use. When more than one is set up and you haven't picked, it goes straight to the maker first (Anthropic or OpenAI), then Amazon Bedrock, then your custom endpoint, then OpenRouter. The first answer in a session also says which way it went, e.g. `Claude via Amazon Bedrock (global.anthropic.claude-sonnet-5-5)`.
 
-Sign-ins, keys, and model choices are saved in `~/.aecdo/llm.json`, readable only by you. You can also set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENROUTER_API_KEY` in your environment instead.
+> **Why no "Sign in with Claude"?** Anthropic doesn't allow third-party tools to use Claude Pro or Max subscriptions, so `@claude` needs an API key, Bedrock, OpenRouter, or your own endpoint. If you have a Claude subscription, you can use [Claude Code](agents.md) with `aecdo` instead.
 
-### OpenRouter shortcuts
-
-Once OpenRouter is set up, these names also work. Each uses OpenRouter's always-current model for that family:
-
-| Mention | Model |
-|---------|-------|
-| `@openrouter` or `@or` | the model you chose in `aecdo configure ai` |
-| `@gemini` | Google Gemini Pro (`~google/gemini-pro-latest`) |
-| `@grok` | xAI Grok (`~x-ai/grok-latest`) |
-| `@deepseek` | DeepSeek Pro (`~deepseek/deepseek-pro-latest`) |
-| `@kimi` | Moonshot Kimi (`~moonshotai/kimi-latest`) |
-
-`@claude` and `@chatgpt` always go straight to Anthropic and OpenAI, never through OpenRouter. If you only have OpenRouter, use `@or`.
+Sign-ins, keys, and model choices are saved in `~/.aecdo/llm.json`, readable only by you. You can also set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENROUTER_API_KEY` in your environment instead. To send more headers to a custom endpoint, add them under `custom.headers` in that file, e.g. `"headers": { "x-team": "drawings" }`.
 
 The assistant works with the installed `aecdo` program. If you [built from source](install.md#build-from-source), it needs Node.js 22.19 or newer.
 
 ## Asking questions
 
-Type `@claude`, `@chatgpt` (or `@gpt`), `@openrouter` (or `@or`), or one of the [shortcuts](#openrouter-shortcuts) at the start of a line, then your question. Type `@` and a few letters, then press **Tab**, to complete the name. The name turns cyan as you type it when it matches an assistant, so you know the line will go to the assistant and not be read as a command.
+Type `@claude`, `@chatgpt` (or `@gpt`), `@gemini`, `@grok`, `@deepseek`, or `@kimi` at the start of a line, then your question. Type `@` and a few letters, then press **Tab**, to complete the name. The name turns cyan as you type it when it matches an assistant, so you know the line will go to the assistant and not be read as a command.
 
 The assistant gets the current view as context: the sheet list, the sheet, the drawing, the layer, or the item, table, note, or image you have open. So "this floor", "these doors", or "this layer" mean what's on your screen. It also gets the last few places you visited, and the reference you followed if you jumped here with `r1`, so after jumping from a door tag to the door schedule you can ask "@claude is the door I came from in this schedule?".
 
@@ -148,7 +140,7 @@ How it works:
 
 ## Privacy and safety
 
-- **What's sent:** your questions, plus the parts of the drawing set the assistant needs (the current view and any sheets it reads), go to OpenAI or Anthropic, depending on which assistant you ask. With `@openrouter` and the shortcuts, they go to OpenRouter and on to the company that runs the model; OpenRouter's privacy settings control which providers may receive them. Your PDF itself isn't sent.
+- **What's sent:** your questions, plus the parts of the drawing set the assistant needs (the current view and any sheets it reads), go to whichever way that `@name` uses: OpenAI, Anthropic, Amazon Bedrock in your AWS account, your custom endpoint, or OpenRouter and on to the company that runs the model (OpenRouter's privacy settings control which providers may receive them). Your PDF itself isn't sent.
 - **File access** is limited to the folder you ran `explore` from. There it can only read and write spreadsheets and add to Markdown notes. It can't run commands or reach other folders.
 - **Nothing is sent** unless you start a line with an assistant's name, like `@claude`.
 

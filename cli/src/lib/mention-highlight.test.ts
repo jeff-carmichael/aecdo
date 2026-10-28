@@ -9,7 +9,8 @@ test("highlights a leading mention of a known assistant", () => {
   assert.equal(highlightMention("@claude what is here?", C, R), "<@claude> what is here?");
   assert.equal(highlightMention("  @ChatGPT, hi", C, R), "  <@ChatGPT>, hi");
   assert.equal(highlightMention("@gpt", C, R), "<@gpt>");
-  assert.equal(highlightMention("@or hi", C, R), "<@or> hi");
+  assert.equal(highlightMention("@grok hi", C, R), "<@grok> hi");
+  assert.equal(highlightMention("@openrouter hi", C, R), "@openrouter hi");
   assert.equal(highlightMention("@gemini hi", C, R), "<@gemini> hi");
 });
 
@@ -31,7 +32,7 @@ test("color is off for non-TTY output, NO_COLOR, and dumb terminals", () => {
 
 test("Tab completes a leading @mention", () => {
   assert.deepEqual(completeMention("@cl"), [["@claude "], "@cl"]);
-  assert.deepEqual(completeMention("  @OP"), [["@openai ", "@openrouter "], "@OP"]);
+  assert.deepEqual(completeMention("  @OP"), [["@openai "], "@OP"]);
   assert.ok(completeMention("@")[0].includes("@grok "));
   assert.deepEqual(completeMention("@claude hi"), [[], "@claude hi"]);
   assert.deepEqual(completeMention("A1"), [[], "A1"]);

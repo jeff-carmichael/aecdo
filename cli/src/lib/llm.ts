@@ -2,72 +2,96 @@ import { readFile, writeFile, mkdir, chmod } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { getConfigDir } from "./config.js";
-import type { Credential, CredentialInfo, CredentialStore, MutableModels, Model, Api } from "@earendil-works/pi-ai";
+import type {
+  ApiKeyAuth,
+  Credential,
+  CredentialInfo,
+  CredentialStore,
+  MutableModels,
+  Model,
+  Api,
+} from "@earendil-works/pi-ai";
 
-export type AssistantName = "claude" | "chatgpt" | "openrouter" | "gemini" | "grok" | "deepseek" | "kimi";
+/** A model family the user can @mention. How it is reached (the route) is a separate setting. */
+export type AssistantName = "claude" | "chatgpt" | "gemini" | "grok" | "deepseek" | "kimi";
 
-export type ProviderId = "anthropic" | "openai" | "openrouter";
+/** A way to reach models: a pi provider id. "custom" is the user's own endpoint. */
+export type RouteId = "anthropic" | "openai" | "amazon-bedrock" | "custom" | "openrouter";
+
+/** Preferred order when more than one route is set up and the user hasn't picked one. */
+export const ROUTE_ORDER: RouteId[] = ["anthropic", "openai", "amazon-bedrock", "custom", "openrouter"];
+
+export const ROUTE_LABELS: Record<RouteId, string> = {
+  anthropic: "Anthropic API",
+  openai: "OpenAI",
+  "amazon-bedrock": "Amazon Bedrock",
+  custom: "Custom endpoint",
+  openrouter: "OpenRouter",
+};
 
 export interface AssistantInfo {
   name: AssistantName;
   label: string;
-  provider: ProviderId;
-  defaultModel: string;
   mentions: string[];
-  /** A fixed-model shortcut that goes through another assistant's provider (OpenRouter). */
-  shortcut?: boolean;
-}
-
-export const PROVIDER_LABELS: Record<ProviderId, string> = {
-  anthropic: "Anthropic",
-  openai: "OpenAI",
-  openrouter: "OpenRouter",
-};
-
-function openrouterShortcut(name: AssistantName, label: string, model: string): AssistantInfo {
-  return { name, label, provider: "openrouter", defaultModel: model, mentions: [name], shortcut: true };
+  /** Default model id for each route that can serve this family. Custom has none: the user names it. */
+  routes: Partial<Record<RouteId, string>>;
+  /** Picks this family's entries out of shared catalogs (Bedrock, OpenRouter). */
+  match: RegExp;
 }
 
 export const ASSISTANTS: Record<AssistantName, AssistantInfo> = {
   claude: {
     name: "claude",
     label: "Claude",
-    provider: "anthropic",
-    defaultModel: "claude-sonnet-5-5",
     mentions: ["claude"],
+    routes: {
+      anthropic: "claude-sonnet-5-5",
+      "amazon-bedrock": "global.anthropic.claude-sonnet-5-5",
+      custom: "",
+      openrouter: "~anthropic/claude-sonnet-latest",
+    },
+    match: /claude/i,
   },
   chatgpt: {
     name: "chatgpt",
     label: "ChatGPT",
-    provider: "openai",
-    defaultModel: "gpt-5.5",
     mentions: ["chatgpt", "gpt", "openai"],
+    routes: { openai: "gpt-5.5", "amazon-bedrock": "openai.gpt-5.5", custom: "", openrouter: "openai/gpt-5.5" },
+    match: /openai|gpt/i,
   },
-  openrouter: {
-    name: "openrouter",
-    label: "OpenRouter",
-    provider: "openrouter",
-    defaultModel: "~anthropic/claude-sonnet-latest",
-    mentions: ["openrouter", "or"],
+  gemini: {
+    name: "gemini",
+    label: "Gemini",
+    mentions: ["gemini"],
+    routes: { custom: "", openrouter: "~google/gemini-pro-latest" },
+    match: /gemini/i,
   },
-  gemini: openrouterShortcut("gemini", "Gemini", "~google/gemini-pro-latest"),
-  grok: openrouterShortcut("grok", "Grok", "~x-ai/grok-latest"),
-  deepseek: openrouterShortcut("deepseek", "DeepSeek", "~deepseek/deepseek-pro-latest"),
-  kimi: openrouterShortcut("kimi", "Kimi", "~moonshotai/kimi-latest"),
+  grok: {
+    name: "grok",
+    label: "Grok",
+    mentions: ["grok"],
+    routes: { "amazon-bedrock": "global.xai.grok-4.7", custom: "", openrouter: "~x-ai/grok-latest" },
+    match: /grok/i,
+  },
+  deepseek: {
+    name: "deepseek",
+    label: "DeepSeek",
+    mentions: ["deepseek"],
+    routes: { "amazon-bedrock": "deepseek.v3.2", custom: "", openrouter: "~deepseek/deepseek-pro-latest" },
+    match: /deepseek/i,
+  },
+  kimi: {
+    name: "kimi",
+    label: "Kimi",
+    mentions: ["kimi"],
+    routes: { "amazon-bedrock": "global.moonshotai.kimi-k3", custom: "", openrouter: "~moonshotai/kimi-latest" },
+    match: /kimi|moonshot/i,
+  },
 };
 
-/** Shown first in the OpenRouter model picker; all of these handle the assistant's tool calls. */
-export const OPENROUTER_RECOMMENDED = [
-  "~anthropic/claude-sonnet-latest",
-  "~anthropic/claude-opus-latest",
-  "openai/gpt-5.5",
-  "~google/gemini-pro-latest",
-  "~x-ai/grok-latest",
-];
-
-/** Assistants with their own model setting, i.e. not the fixed-model shortcuts. */
-export function configurableAssistants(): AssistantInfo[] {
-  return Object.values(ASSISTANTS).filter((a) => !a.shortcut);
+/** Routes that can serve this family, in preference order. */
+export function routesFor(name: AssistantName): RouteId[] {
+  return ROUTE_ORDER.filter((r) => ASSISTANTS[name].routes[r] !== undefined);
 }
 
 /** Every @name that reaches an assistant, for completion and hints. */
@@ -77,9 +101,25 @@ export function allMentions(): string[] {
 
 export const APP_NAME = "aecdo";
 
+export type CustomApi = "openai-completions" | "anthropic-messages";
+
+/** The user's own OpenAI- or Anthropic-compatible endpoint (Palantir Foundry, LiteLLM, Azure, vLLM, ...). */
+export interface CustomEndpoint {
+  /** Shown in place of "Custom endpoint", e.g. "Foundry". */
+  name?: string;
+  baseUrl: string;
+  api: CustomApi;
+  /** Extra headers sent with every request. */
+  headers?: Record<string, string>;
+}
+
 interface LlmConfigFile {
   deviceId?: string;
-  models?: Partial<Record<AssistantName, string>>;
+  /** Model id per family and route. A plain string is the older single-route form. */
+  models?: Partial<Record<AssistantName, Partial<Record<RouteId, string>> | string>>;
+  /** The route the user picked for a family when several are set up. */
+  routes?: Partial<Record<AssistantName, RouteId>>;
+  custom?: CustomEndpoint;
   credentials?: Record<string, Credential>;
 }
 
@@ -118,7 +158,7 @@ async function updateLlmConfig<T>(fn: (config: LlmConfigFile) => Promise<T> | T,
 
 /** pi-ai credential store backed by ~/.aecdo/llm.json (0600), next to the DrawingBot credentials. */
 export class FileCredentialStore implements CredentialStore {
-  constructor(private path = llmConfigPath()) {}
+  constructor(readonly path = llmConfigPath()) {}
 
   async read(providerId: string): Promise<Credential | undefined> {
     return (await readLlmConfig(this.path)).credentials?.[providerId];
@@ -153,15 +193,70 @@ export async function getDeviceId(path = llmConfigPath()): Promise<string> {
   return updateLlmConfig((config) => (config.deviceId ??= randomUUID()), path);
 }
 
-export async function getAssistantModelId(name: AssistantName, path = llmConfigPath()): Promise<string> {
-  if (ASSISTANTS[name].shortcut) return ASSISTANTS[name].defaultModel;
-  return (await readLlmConfig(path)).models?.[name] ?? ASSISTANTS[name].defaultModel;
+/** The direct route for a family, which an older string-valued model setting belongs to. */
+function directRoute(name: AssistantName): RouteId | undefined {
+  return (["anthropic", "openai"] as const).find((r) => ASSISTANTS[name].routes[r] !== undefined);
 }
 
-export async function setAssistantModelId(name: AssistantName, modelId: string, path = llmConfigPath()): Promise<void> {
+function storedModels(config: LlmConfigFile, name: AssistantName): Partial<Record<RouteId, string>> {
+  const entry = config.models?.[name];
+  if (typeof entry !== "string") return entry ?? {};
+  const direct = directRoute(name);
+  return direct ? { [direct]: entry } : {};
+}
+
+/** Model id for a family on a route; undefined only for a custom endpoint that doesn't serve the family. */
+export async function getModelId(name: AssistantName, route: RouteId, path = llmConfigPath()): Promise<string | undefined> {
+  const id = storedModels(await readLlmConfig(path), name)[route] ?? ASSISTANTS[name].routes[route];
+  return id || undefined;
+}
+
+export async function setModelId(name: AssistantName, route: RouteId, modelId: string | undefined, path = llmConfigPath()): Promise<void> {
   await updateLlmConfig((config) => {
-    config.models = { ...config.models, [name]: modelId };
+    const entry = { ...storedModels(config, name) };
+    if (modelId) entry[route] = modelId;
+    else delete entry[route];
+    config.models = { ...config.models, [name]: entry };
   }, path);
+}
+
+export async function getPreferredRoute(name: AssistantName, path = llmConfigPath()): Promise<RouteId | undefined> {
+  return (await readLlmConfig(path)).routes?.[name];
+}
+
+export async function setPreferredRoute(name: AssistantName, route: RouteId | undefined, path = llmConfigPath()): Promise<void> {
+  await updateLlmConfig((config) => {
+    const routes = { ...config.routes };
+    if (route) routes[name] = route;
+    else delete routes[name];
+    config.routes = routes;
+  }, path);
+}
+
+export async function getCustomEndpoint(path = llmConfigPath()): Promise<CustomEndpoint | undefined> {
+  return (await readLlmConfig(path)).custom;
+}
+
+/** Saves the endpoint (or removes it with undefined, along with its token and model ids). */
+export async function setCustomEndpoint(endpoint: CustomEndpoint | undefined, path = llmConfigPath()): Promise<void> {
+  await updateLlmConfig((config) => {
+    if (endpoint) {
+      config.custom = endpoint;
+      return;
+    }
+    delete config.custom;
+    if (config.credentials) delete config.credentials.custom;
+    for (const name of Object.keys(ASSISTANTS) as AssistantName[]) {
+      const entry = storedModels(config, name);
+      delete entry.custom;
+      if (config.models?.[name]) config.models[name] = entry;
+      if (config.routes?.[name] === "custom") delete config.routes[name];
+    }
+  }, path);
+}
+
+export function routeLabel(route: RouteId, custom?: CustomEndpoint): string {
+  return route === "custom" && custom?.name ? custom.name : ROUTE_LABELS[route];
 }
 
 export function assistantForMention(word: string): AssistantInfo | undefined {
@@ -170,16 +265,70 @@ export function assistantForMention(word: string): AssistantInfo | undefined {
 }
 
 /**
+ * pi's Bedrock auth only counts ambient AWS credentials it can see in the environment, and
+ * drops the stored env (where we keep AWS_REGION) for them. Once the user has set Bedrock up,
+ * keep the stored env and let the AWS SDK's default chain (~/.aws, SSO) find the credentials.
+ */
+function bedrockAuth(base: ApiKeyAuth): ApiKeyAuth {
+  return {
+    ...base,
+    resolve: async (input) => {
+      const result = await base.resolve(input);
+      const stored = input.credential?.env;
+      if (result) return stored ? { ...result, env: { ...stored, ...result.env } } : result;
+      if (!input.credential) return undefined;
+      return { auth: {}, env: stored, source: "AWS default credentials" };
+    },
+  };
+}
+
+function customAuth(): ApiKeyAuth {
+  return {
+    name: "Custom endpoint token",
+    resolve: ({ credential }) =>
+      Promise.resolve(
+        credential?.key
+          ? { auth: { headers: { Authorization: `Bearer ${credential.key}` } }, source: "token" }
+          : { auth: { apiKey: "none" }, source: "no token" }
+      ),
+  };
+}
+
+function customModel(endpoint: CustomEndpoint, id: string): Model<Api> {
+  return {
+    id,
+    name: id,
+    api: endpoint.api,
+    provider: "custom",
+    baseUrl: endpoint.baseUrl.replace(/\/+$/, ""),
+    headers: endpoint.headers,
+    input: ["text", "image"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    reasoning: false,
+    contextWindow: 200_000,
+    maxTokens: 16_384,
+  };
+}
+
+/**
  * pi needs Node 22.19+; loading it lazily keeps every other command working on
  * older Node versions and keeps startup fast.
  */
 export async function createLlmModels(store: CredentialStore = new FileCredentialStore()): Promise<MutableModels> {
-  const [pi, anthropic, openai, openrouter] = await Promise.all([
-    import("@earendil-works/pi-ai"),
-    import("@earendil-works/pi-ai/providers/anthropic"),
-    import("@earendil-works/pi-ai/providers/openai"),
-    import("@earendil-works/pi-ai/providers/openrouter"),
-  ]);
+  const path = store instanceof FileCredentialStore ? store.path : llmConfigPath();
+  const [pi, anthropic, openai, openrouter, bedrock, bedrockModels, bedrockApi, openaiApi, anthropicApi, config] =
+    await Promise.all([
+      import("@earendil-works/pi-ai"),
+      import("@earendil-works/pi-ai/providers/anthropic"),
+      import("@earendil-works/pi-ai/providers/openai"),
+      import("@earendil-works/pi-ai/providers/openrouter"),
+      import("@earendil-works/pi-ai/providers/amazon-bedrock"),
+      import("@earendil-works/pi-ai/providers/amazon-bedrock.models"),
+      import("@earendil-works/pi-ai/api/bedrock-converse-stream.lazy"),
+      import("@earendil-works/pi-ai/api/openai-completions.lazy"),
+      import("@earendil-works/pi-ai/api/anthropic-messages.lazy"),
+      readLlmConfig(path),
+    ]);
   const models = pi.createModels({
     credentials: store,
     identity: { attribution: { name: APP_NAME, url: "https://github.com/jeff-carmichael/aecdo" } },
@@ -187,23 +336,72 @@ export async function createLlmModels(store: CredentialStore = new FileCredentia
   models.setProvider(anthropic.anthropicProvider());
   models.setProvider(openai.openaiProvider());
   models.setProvider(openrouter.openrouterProvider());
+  models.setProvider(
+    pi.createProvider({
+      id: "amazon-bedrock",
+      name: "Amazon Bedrock",
+      auth: { apiKey: bedrockAuth(bedrock.amazonBedrockProvider().auth.apiKey!) },
+      models: Object.values(bedrockModels.AMAZON_BEDROCK_MODELS),
+      api: bedrockApi.bedrockConverseStreamApi(),
+    })
+  );
+  const endpoint = config.custom;
+  if (endpoint) {
+    const ids = new Set(
+      (Object.keys(ASSISTANTS) as AssistantName[]).map((n) => storedModels(config, n).custom).filter((id): id is string => !!id)
+    );
+    models.setProvider(
+      pi.createProvider({
+        id: "custom",
+        name: endpoint.name ?? ROUTE_LABELS.custom,
+        auth: { apiKey: customAuth() },
+        models: [...ids].map((id) => customModel(endpoint, id)),
+        api: endpoint.api === "anthropic-messages" ? anthropicApi.anthropicMessagesApi() : openaiApi.openAICompletionsApi(),
+      })
+    );
+  }
   return models;
 }
 
-export async function resolveAssistantModel(models: MutableModels, name: AssistantName): Promise<Model<Api>> {
-  const info = ASSISTANTS[name];
-  const id = await getAssistantModelId(name);
-  const model = models.getModel(info.provider, id);
+/** Whether a route has credentials. Bedrock counts only once set up in "aecdo configure ai", not from stray AWS env vars. */
+export async function isRouteConfigured(models: MutableModels, route: RouteId, path = llmConfigPath()): Promise<boolean> {
+  const config = await readLlmConfig(path);
+  if (route === "amazon-bedrock") return config.credentials?.["amazon-bedrock"] !== undefined;
+  if (route === "custom") return config.custom !== undefined;
+  return (await models.checkAuth(route).catch(() => undefined)) !== undefined;
+}
+
+/** Routes that are set up and can serve this family, preferred first. */
+export async function availableRoutes(models: MutableModels, name: AssistantName, path = llmConfigPath()): Promise<RouteId[]> {
+  const out: RouteId[] = [];
+  for (const route of routesFor(name)) {
+    if (!(await isRouteConfigured(models, route, path))) continue;
+    if (route === "custom" && !(await getModelId(name, "custom", path))) continue;
+    out.push(route);
+  }
+  return out;
+}
+
+export interface ResolvedRoute {
+  route: RouteId;
+  modelId: string;
+}
+
+/** The user's chosen route if it's still set up, else the first one that is. */
+export async function pickRoute(models: MutableModels, name: AssistantName, path = llmConfigPath()): Promise<ResolvedRoute | undefined> {
+  const available = await availableRoutes(models, name, path);
+  const preferred = await getPreferredRoute(name, path);
+  const route = preferred && available.includes(preferred) ? preferred : available[0];
+  if (!route) return undefined;
+  return { route, modelId: (await getModelId(name, route, path))! };
+}
+
+export function resolveModel(models: MutableModels, name: AssistantName, { route, modelId }: ResolvedRoute): Model<Api> {
+  const model = models.getModel(route, modelId);
   if (!model) {
-    throw new Error(`Unknown ${info.label} model "${id}". Run "aecdo configure ai" to pick another.`);
+    throw new Error(
+      `Unknown ${ASSISTANTS[name].label} model "${modelId}" on ${ROUTE_LABELS[route]}. Run "aecdo configure ai" to pick another.`
+    );
   }
   return model;
-}
-
-export async function isAssistantConfigured(models: MutableModels, name: AssistantName): Promise<boolean> {
-  return isProviderConfigured(models, ASSISTANTS[name].provider);
-}
-
-export async function isProviderConfigured(models: MutableModels, provider: ProviderId): Promise<boolean> {
-  return (await models.checkAuth(provider)) !== undefined;
 }
