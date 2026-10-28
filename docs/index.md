@@ -35,14 +35,13 @@ irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | i
 Open a new terminal and check it worked with `aecdo --version`. More options are on [Install and update](install.md).
 </li>
 <li markdown="1">
-**Try it on the demo set.** You don't need an account for this. Download the [Maple Grove Library demo](https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/maple-grove-library.jsonld) and open it:
+**Try it on the demo set.** You don't need an account for this. If you said yes when the installer offered the examples, they're in `aecdo-examples` in your home folder. Otherwise download them, then open the [Maple Grove Library demo](demo.md):
 
 ```bash
-curl -sSLO https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/maple-grove-library.jsonld
+aecdo examples ~/aecdo-examples
+cd ~/aecdo-examples
 aecdo explore maple-grove-library.jsonld
 ```
-
-In PowerShell, download it with `irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/maple-grove-library.jsonld -OutFile maple-grove-library.jsonld` instead.
 
 Type `A101`, then `1`, and you're looking at the first floor plan's layers. The [demo walkthrough](demo.md) takes you through it, including two coordination issues hidden in the set.
 </li>

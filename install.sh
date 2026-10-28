@@ -6,6 +6,9 @@
 # Environment overrides:
 #   AECDO_VERSION      release tag to install, e.g. v0.3.1 (default: latest)
 #   AECDO_INSTALL_DIR  destination directory (default: /usr/local/bin)
+#   AECDO_EXAMPLES     1 to download the example drawing sets without asking,
+#                      0 to skip them (default: ask when run in a terminal)
+#   AECDO_EXAMPLES_DIR where to put the examples (default: ~/aecdo-examples)
 
 set -eu
 
@@ -76,6 +79,39 @@ verify_checksum() {
   [ "$expected" = "$actual" ] || fail "checksum mismatch for $name (expected $expected, got $actual)"
 }
 
+# Runs after the install so the new binary does the download (see `aecdo examples`).
+offer_examples() {
+  bin=$1
+  choice="${AECDO_EXAMPLES:-}"
+  dir="${AECDO_EXAMPLES_DIR:-${HOME:-.}/aecdo-examples}"
+
+  # Releases before 0.4.7 have no `examples` command.
+  "$bin" --help 2>/dev/null | grep -q '^  examples' || return 0
+
+  case "$choice" in
+    0 | n | N | no | No | NO | false) return 0 ;;
+    "")
+      [ -z "${CI:-}" ] || return 0
+      # `curl | sh` feeds the script on stdin, so ask on the terminal itself.
+      { : </dev/tty; } 2>/dev/null || return 0
+      printf '\nDownload the example drawing sets (about 3 MB) to try aecdo? [Y/n] ' >/dev/tty
+      read -r answer </dev/tty || return 0
+      case "$answer" in [nN]*) return 0 ;; esac
+      printf 'Folder [%s]: ' "$dir" >/dev/tty
+      read -r answer </dev/tty || answer=""
+      [ -z "$answer" ] || dir=$answer
+      ;;
+  esac
+
+  case "$dir" in
+    "~") dir=$HOME ;;
+    "~/"*) dir="$HOME/${dir#"~/"}" ;;
+  esac
+
+  "$bin" examples "$dir" --no-update-check ||
+    info "warning: could not download the examples; run \"aecdo examples\" later to try again"
+}
+
 main() {
   target=$(detect_target)
   asset="$BIN-$target.tar.gz"
@@ -120,6 +156,8 @@ main() {
     *":$INSTALL_DIR:"*) ;;
     *) info "note: $INSTALL_DIR is not on your PATH" ;;
   esac
+
+  offer_examples "$INSTALL_DIR/$BIN"
 }
 
 main "$@"

@@ -22,6 +22,8 @@ To change what it installs, set these before `sh`:
 |----------|--------------|---------|
 | `AECDO_VERSION` | Install a specific release instead of the latest | `v0.4.6` |
 | `AECDO_INSTALL_DIR` | Install somewhere else, such as a folder you own | `$HOME/.local/bin` |
+| `AECDO_EXAMPLES` | `1` downloads the [example drawing sets](#example-drawing-sets) without asking, `0` skips them | `0` |
+| `AECDO_EXAMPLES_DIR` | Where to put the examples | `$HOME/aecdo-examples` |
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.sh | AECDO_INSTALL_DIR="$HOME/.local/bin" sh
@@ -41,7 +43,7 @@ irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | i
 
 This downloads the latest `aecdo-windows-x64.zip`, checks its checksum, puts `aecdo.exe` in `%LOCALAPPDATA%\Programs\aecdo`, and adds that folder to your user PATH. You don't need administrator rights. **Open a new terminal afterwards** so it picks up the new PATH, then run `aecdo --version`.
 
-The same `AECDO_VERSION` and `AECDO_INSTALL_DIR` settings work here:
+The same `AECDO_VERSION`, `AECDO_INSTALL_DIR`, `AECDO_EXAMPLES`, and `AECDO_EXAMPLES_DIR` settings work here:
 
 ```powershell
 $env:AECDO_VERSION = "v0.4.6"
@@ -59,6 +61,28 @@ If you'd rather download `aecdo-windows-x64.zip` from [Releases](https://github.
 
 > `aecdo` is a command-line tool, so double-clicking `aecdo.exe` only flashes a window. Open PowerShell in the folder and run `.\aecdo.exe --help`, or move it to a folder on your PATH.
 
+## Example drawing sets
+
+At the end of the install, both scripts ask whether to download the example drawing sets (about 3 MB) and which folder to put them in. Press Enter twice to accept the default, `aecdo-examples` in your home folder, or type `n` to skip. You get:
+
+| File | What it is |
+|------|------------|
+| `maple-grove-library.jsonld` | The 19-sheet [demo set](demo.md) for a fictional library (data only, no PDF) |
+| `sample-drawing-package-1and2family.jsonld` and `.pdf` | The City of Vancouver's [sample house permit set](demo.md#real-drawings-vancouver-sample-house) with its PDF, for trying `view` and markups |
+| `sample-drawing-set.jsonld` | A minimal complete example |
+| `README.md` | Where each file comes from |
+
+The question is skipped when there's no one to answer it: in CI, or when the script isn't run from a terminal. Set `AECDO_EXAMPLES=1` or `AECDO_EXAMPLES=0` to decide ahead of time.
+
+You can download them any time, including after an npm install or a build from source:
+
+```bash
+aecdo examples                      # into ./aecdo-examples
+aecdo examples ~/Documents/aecdo    # or a folder of your choice
+```
+
+Files already in the folder are kept; add `--force` to replace them. The files come from the release that matches your `aecdo --version`.
+
 ## Build from source
 
 You need [Node.js](https://nodejs.org/) 18 or newer (22.19 or newer for the AI assistant) and Git.
@@ -71,7 +95,7 @@ npm run build
 npm link          # makes the aecdo command available everywhere
 ```
 
-`npm install` also copies the [Claude Code skill](agents.md) into `~/.claude/skills/aecdo/`.
+`npm install` also copies the [Claude Code skill](agents.md) into `~/.claude/skills/aecdo/`. It doesn't ask about the examples; run `aecdo examples` to get them.
 
 ## Tab completion
 

@@ -10,9 +10,14 @@ The set has **two coordination mistakes hidden in it** on purpose. This walkthro
 
 ## Get the demo
 
-Make a folder for it and download the file.
+If you said yes when the installer offered the examples, the demo is already in `aecdo-examples` in your home folder. Otherwise, download all the examples with:
 
-macOS and Linux:
+```bash
+aecdo examples ~/aecdo-examples
+cd ~/aecdo-examples
+```
+
+Or make a folder and download just this file. macOS and Linux:
 
 ```bash
 mkdir maple-grove && cd maple-grove
@@ -167,7 +172,7 @@ The assistant prints `Using AGENTS.md from this folder` and logs what it finds t
 
 For `view` and markups you need the PDF the data came from. The repo has a second example that comes with one: the City of Vancouver's [sample drawing package for one and two family dwelling applications](https://vancouver.ca/files/cov/sample-drawing-package-1and2family.pdf), a 7-page permit set for a house with a secondary suite and a detached garage. The PDF has no text layer, so its JSON-LD was written by hand from the drawings: 7 sheets, 33 drawings (site plan, floor plans, FSR overlay, elevations, sections, details, and the garage), about 300 items, the building analysis and R-value tables, and the general notes, each with a bbox on its page.
 
-Download both files into the same folder, keeping their names, so `view` finds the PDF next to the JSON-LD. macOS and Linux:
+Both files are in the folder `aecdo examples` downloads. To get them by hand, download both into the same folder, keeping their names, so `view` finds the PDF next to the JSON-LD. macOS and Linux:
 
 ```bash
 mkdir vancouver && cd vancouver
