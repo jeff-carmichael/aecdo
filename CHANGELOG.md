@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- Typing `aecdo` with no command in a terminal opens a menu of things to do: explore a drawing set, download the examples, validate or summarize a file, process a PDF, check or download a job, set up the AI assistant or the API, update, or show all commands. Arrow keys or typing filter the list. Choices that need a file show the `.jsonld` or PDF picker for the current folder, and job choices ask for the job ID. `aecdo` then prints the equivalent command (`next time: aecdo validate plans.jsonld`) and runs it. Outside a terminal (scripts, pipes, agents), bare `aecdo` still prints the help. All subcommands work as before.
+
 ## [0.4.7] - 2026-10-28
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.
