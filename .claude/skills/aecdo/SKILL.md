@@ -26,6 +26,8 @@ Inside a clone of the aecdo repo, you can instead run `npm install && npm run bu
 
 ## Commands
 
+Bare `aecdo` opens an interactive menu in a terminal and prints the help otherwise. Agents should always call a subcommand directly.
+
 ### Configure API credentials (one-time)
 
 ```bash

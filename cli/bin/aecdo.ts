@@ -17,6 +17,7 @@ import { processPdf } from "../src/commands/process.js";
 import { update, cleanupOldBinary } from "../src/commands/update.js";
 import { completion } from "../src/commands/completion.js";
 import { examples } from "../src/commands/examples.js";
+import { runMenu } from "../src/commands/menu.js";
 import { pick, listPdfs, listJsonld, canPrompt } from "../src/lib/picker.js";
 import { embedded } from "../src/lib/embedded.js";
 import { startUpdateNotifier, runUpdateCheckWorker, WORKER_ENV, NO_UPDATE_CHECK_FLAG } from "../src/lib/update-check.js";
@@ -26,6 +27,7 @@ const HELP = `
 aecdo - AEC Drawing Ontology CLI
 
 Usage:
+  aecdo                       Open a menu of things to do (in a terminal)
   aecdo <command> [options] <file>
 
 Commands:
@@ -95,6 +97,7 @@ API Options:
                       next to the .jsonld, or the set's filename)
 
 Examples:
+  aecdo
   aecdo validate drawings.jsonld
   aecdo summary drawings.jsonld
   aecdo sheets drawings.jsonld --format json
@@ -132,7 +135,7 @@ async function main(): Promise<void> {
   }
 
   const rawArgs = process.argv.slice(2);
-  const args = rawArgs.filter((a) => a !== NO_UPDATE_CHECK_FLAG);
+  let args = rawArgs.filter((a) => a !== NO_UPDATE_CHECK_FLAG);
 
   const standalone = embedded.version !== undefined;
   if (standalone && process.platform === "win32") await cleanupOldBinary();
@@ -143,6 +146,12 @@ async function main(): Promise<void> {
     } catch {
       // update checks must never break a command
     }
+  }
+
+  if (args.length === 0 && canPrompt()) {
+    const chosen = await runMenu({ version: await getVersion() });
+    if (chosen === null) process.exit(0);
+    args = chosen;
   }
 
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {

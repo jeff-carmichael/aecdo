@@ -35,6 +35,17 @@ irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | i
 Open a new terminal and check it worked with `aecdo --version`. More options are on [Install and update](install.md).
 </li>
 <li markdown="1">
+**Type `aecdo`.** With no command, `aecdo` opens a menu of things to do: explore a drawing set, download the examples, validate or summarize a file, process a PDF, set up the AI assistant, or update. Move with ↑/↓ (or type to filter) and press Enter. If the choice needs a file, you pick one from the current folder next. Each time, `aecdo` prints the command it ran, so you can type it directly next time:
+
+```
+? What do you want to do? Validate a drawing set
+? Select a drawing set to validate: maple-grove-library.jsonld
+  (next time: aecdo validate maple-grove-library.jsonld)
+```
+
+Esc or Quit leaves the menu. In scripts, pipes, and AI agents (anything that isn't a terminal), `aecdo` prints the help instead.
+</li>
+<li markdown="1">
 **Try it on the demo set.** You don't need an account for this. If you said yes when the installer offered the examples, they're in `aecdo-examples` in your home folder. Otherwise download them, then open the [Maple Grove Library demo](demo.md):
 
 ```bash
@@ -86,4 +97,4 @@ Once the DrawingBot API launches, `aecdo process plans.pdf` will also turn a PDF
 
 ## Getting help
 
-Run `aecdo --help` for every command and option. Found a bug or have an idea? [Open an issue](https://github.com/jeff-carmichael/aecdo/issues). Want to contribute? Read [CONTRIBUTING.md](https://github.com/jeff-carmichael/aecdo/blob/main/CONTRIBUTING.md).
+Run `aecdo` for a menu of common tasks, or `aecdo --help` for every command and option. Found a bug or have an idea? [Open an issue](https://github.com/jeff-carmichael/aecdo/issues). Want to contribute? Read [CONTRIBUTING.md](https://github.com/jeff-carmichael/aecdo/blob/main/CONTRIBUTING.md).

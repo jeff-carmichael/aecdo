@@ -81,6 +81,8 @@ export interface PickOptions {
   title: string;
   input?: NodeJS.ReadStream;
   output?: NodeJS.WriteStream;
+  maxVisible?: number;
+  echo?: (value: string) => string;
 }
 
 export function pick(items: string[], opts: PickOptions): Promise<string | null> {
@@ -91,7 +93,7 @@ export function pick(items: string[], opts: PickOptions): Promise<string | null>
 
   const draw = () => {
     if (drawn > 0) output.write(`\x1b[${drawn}A\r\x1b[0J`);
-    const lines = renderPicker(items, state, opts.title, 10, (output.columns || 80) - 1);
+    const lines = renderPicker(items, state, opts.title, opts.maxVisible ?? 10, (output.columns || 80) - 1);
     output.write(lines.join("\n") + "\n");
     drawn = lines.length;
   };
@@ -108,7 +110,7 @@ export function pick(items: string[], opts: PickOptions): Promise<string | null>
       input.setRawMode(wasRaw);
       input.pause();
       output.write(`\x1b[${drawn}A\r\x1b[0J\x1b[?25h`);
-      if (value !== null) output.write(`? ${opts.title} ${value}\n`);
+      if (value !== null) output.write(`? ${opts.title} ${opts.echo ? opts.echo(value) : value}\n`);
       res(value);
     };
 
