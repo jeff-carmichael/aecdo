@@ -1,4 +1,3 @@
-import { basename } from "node:path";
 
 export const SHELLS = ["bash", "zsh", "fish"] as const;
 export type Shell = (typeof SHELLS)[number];
@@ -41,7 +40,7 @@ const OPTIONS = [
 
 export function detectShell(shellEnv: string | undefined): Shell | undefined {
   if (!shellEnv) return undefined;
-  const name = basename(shellEnv).replace(/\.exe$/i, "");
+  const name = (shellEnv.split(/[\\/]/).pop() ?? "").replace(/\.exe$/i, "");
   return (SHELLS as readonly string[]).includes(name) ? (name as Shell) : undefined;
 }
 

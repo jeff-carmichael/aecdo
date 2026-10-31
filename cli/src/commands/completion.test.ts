@@ -6,7 +6,7 @@ import { completionScript, detectShell, completion, SHELLS } from "./completion.
 test("detectShell reads the shell name from $SHELL", () => {
   assert.equal(detectShell("/bin/zsh"), "zsh");
   assert.equal(detectShell("/usr/local/bin/fish"), "fish");
-  assert.equal(detectShell("C:\\Program Files\\Git\\bin\\bash.exe"), undefined);
+  assert.equal(detectShell("C:\\Program Files\\Git\\bin\\bash.exe"), "bash");
   assert.equal(detectShell("/bin/tcsh"), undefined);
   assert.equal(detectShell(undefined), undefined);
 });
@@ -25,7 +25,8 @@ test("each script completes PDFs for process", () => {
 for (const shell of SHELLS) {
   const probe = spawnSync(shell, ["-c", "true"]);
   test(`${shell} script parses`, { skip: probe.error ? `${shell} not installed` : false }, () => {
-    const r = spawnSync(shell, ["-n", "-c", completionScript(shell)], { encoding: "utf-8" });
+    // The script goes in on stdin: WSL's bash.exe on Windows mangles quotes in a -c argument.
+    const r = spawnSync(shell, ["-n"], { input: completionScript(shell), encoding: "utf-8" });
     assert.equal(r.status, 0, r.stderr);
   });
 }

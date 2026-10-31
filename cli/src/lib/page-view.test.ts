@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { PDFDocument, degrees } from "pdf-lib";
 import {
@@ -47,25 +47,26 @@ test("caps the raster size for large sheets", () => {
   assert.equal(rasterDpi(36 * 72), 111);
 });
 
+// Expected paths go through the same path functions as the code, so "/a/plans.pdf" is "\a\plans.pdf" on Windows.
 test("looks for the PDF next to the JSON-LD, then by the set's filename", () => {
   const data = { filename: "uploads/Plans Set.pdf" } as DrawingSet;
   assert.deepEqual(sourcePdfCandidates("/a/plans.jsonld", data, undefined, "/cwd"), [
-    "/a/plans.pdf",
-    "/a/plans.PDF",
-    "/a/Plans Set.pdf",
-    "/cwd/Plans Set.pdf",
+    join("/a", "plans.pdf"),
+    join("/a", "plans.PDF"),
+    join("/a", "Plans Set.pdf"),
+    resolve("/cwd", "Plans Set.pdf"),
   ]);
-  assert.deepEqual(sourcePdfCandidates("job:123", data, undefined, "/cwd"), ["/cwd/Plans Set.pdf"]);
-  assert.deepEqual(sourcePdfCandidates("/a/plans.jsonld", data, "x.pdf", "/cwd"), ["/cwd/x.pdf", "/a/x.pdf"]);
-  assert.deepEqual(sourcePdfCandidates("/a/plans.jsonld", data, "/b/x.pdf", "/cwd"), ["/b/x.pdf"]);
+  assert.deepEqual(sourcePdfCandidates("job:123", data, undefined, "/cwd"), [resolve("/cwd", "Plans Set.pdf")]);
+  assert.deepEqual(sourcePdfCandidates("/a/plans.jsonld", data, "x.pdf", "/cwd"), [resolve("/cwd", "x.pdf"), join("/a", "x.pdf")]);
+  assert.deepEqual(sourcePdfCandidates("/a/plans.jsonld", data, "/b/x.pdf", "/cwd"), [resolve("/b/x.pdf")]);
 });
 
 test("says why each PDF path was tried", () => {
   const data = { filename: "Plans Set.pdf" } as DrawingSet;
   const tried = sourcePdfCandidatesWithReasons("/a/plans.jsonld", data, undefined, "/cwd");
   assert.equal(tried[0].reason, "same name as plans.jsonld");
-  assert.match(tried.find((c) => c.path === "/a/Plans Set.pdf")!.reason, /set's "filename", next to the \.jsonld/);
-  assert.match(tried.find((c) => c.path === "/cwd/Plans Set.pdf")!.reason, /in the current folder/);
+  assert.match(tried.find((c) => c.path === join("/a", "Plans Set.pdf"))!.reason, /set's "filename", next to the \.jsonld/);
+  assert.match(tried.find((c) => c.path === resolve("/cwd", "Plans Set.pdf"))!.reason, /in the current folder/);
 });
 
 for (const extract of [true, false]) {

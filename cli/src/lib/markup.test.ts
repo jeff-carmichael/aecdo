@@ -88,8 +88,8 @@ test("display-up drawing space lines up with bbox conversion on every rotation",
 });
 
 test("names the copy next to the PDF", () => {
-  assert.equal(markupCopyPath("/a/Plans Set.pdf"), "/a/Plans Set-markups.pdf");
-  assert.equal(markupCopyPath("/a/plans.PDF"), "/a/plans-markups.PDF");
+  assert.equal(markupCopyPath("/a/Plans Set.pdf"), join("/a", "Plans Set-markups.pdf"));
+  assert.equal(markupCopyPath("/a/plans.PDF"), join("/a", "plans-markups.PDF"));
 });
 
 for (const objectStreams of [true, false]) {

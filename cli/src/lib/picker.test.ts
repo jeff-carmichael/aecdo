@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { filterItems, handleKey, renderPicker, listPdfs, listJsonld } from "./picker.js";
 import type { PickerState } from "./picker.js";
+import { ASCII } from "./tui.js";
 
 const items = ["a-plans.pdf", "b-civil.pdf", "c-plans-rev2.pdf"];
 const start: PickerState = { query: "", cursor: 0 };
@@ -48,7 +49,7 @@ test("handleKey cancels on Escape and Ctrl+C", () => {
 
 test("renderPicker marks the cursor and scrolls long lists", () => {
   const many = Array.from({ length: 30 }, (_, i) => `sheet-${i}.pdf`);
-  const lines = renderPicker(many, { query: "", cursor: 20 }, "Pick", 5);
+  const lines = renderPicker(many, { query: "", cursor: 20 }, "Pick", { maxVisible: 5, symbols: ASCII });
   assert.ok(lines.includes("> sheet-20.pdf"));
   assert.ok(lines.some((l) => l.includes("more above")));
   assert.ok(lines.some((l) => l.includes("more below")));
@@ -57,6 +58,24 @@ test("renderPicker marks the cursor and scrolls long lists", () => {
 
 test("renderPicker shows when the filter matches nothing", () => {
   assert.ok(renderPicker(items, { query: "zzz", cursor: 0 }, "Pick").includes("  (no matches)"));
+});
+
+test("renderPicker shows the match count while filtering", () => {
+  const lines = renderPicker(items, { query: "plans", cursor: 0 }, "Pick");
+  assert.equal(lines[1], "  Filter: plans (2 of 3)");
+});
+
+test("renderPicker aligns hints after the longest label", () => {
+  const labels = ["Explore", "Process a PDF", "Quit"];
+  const hints: Record<string, string> = { Explore: "browse sheets", "Process a PDF": "upload and wait" };
+  const lines = renderPicker(labels, { query: "", cursor: 2 }, "Pick", { symbols: ASCII, hint: (l) => hints[l] });
+  assert.equal(lines[2].indexOf("browse sheets"), lines[3].indexOf("upload and wait"));
+  assert.equal(lines[4], "> Quit");
+});
+
+test("renderPicker cuts lines to the width", () => {
+  const lines = renderPicker(["x".repeat(100)], start, "Pick", { width: 30, symbols: ASCII });
+  assert.ok(lines.every((l) => l.length <= 30));
 });
 
 test("listPdfs returns only PDF files, sorted naturally", async () => {

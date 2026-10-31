@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Explorer, PageViewer, groupSheets, parseViewCommand, sheetEntries, sheetPrefix } from "./explore.js";
 import type { PageViewRequest } from "../lib/page-view.js";
 import { ANSI, withPalette } from "../lib/style.js";
@@ -129,7 +130,7 @@ test("PageViewer renders and opens the page, or explains a missing PDF", async (
   const requests: PageViewRequest[] = [];
   const viewer = new PageViewer(data, "/plans/set.jsonld", undefined, {
     log: (l = "") => out.push(l),
-    exists: (p) => p === "/plans/set.pdf",
+    exists: (p) => p === join("/plans", "set.pdf"),
     open: (p) => opened.push(p),
     render: (req) => {
       requests.push(req);
@@ -137,7 +138,7 @@ test("PageViewer renders and opens the page, or explains a missing PDF", async (
     },
   });
   await viewer.show(ex);
-  assert.equal(requests[0].pdfPath, "/plans/set.pdf");
+  assert.equal(requests[0].pdfPath, join("/plans", "set.pdf"));
   assert.equal(requests[0].pageIndex, 0);
   assert.deepEqual(requests[0].bbox, [72, 108, 720, 540]);
   assert.deepEqual(opened, ["/tmp/A101.png"]);
@@ -150,7 +151,7 @@ test("PageViewer renders and opens the page, or explains a missing PDF", async (
   });
   await none.show(ex);
   assert.match(missing.join("\n"), /Can't find the source PDF/);
-  assert.match(missing.join("\n"), /\/plans\/set\.pdf/);
+  assert.match(missing.join("\n"), /[\\/]plans[\\/]set\.pdf/);
 });
 
 test("r1 follows a drawing's reference and back returns", () => {
@@ -361,9 +362,9 @@ test("a missing PDF names the .jsonld, why each path was tried, and other PDFs n
   await viewer.show(ex);
   const text = out.join("\n");
   assert.match(text, /Can't find the source PDF for maple-grove-library\.jsonld\. Looked for:/);
-  assert.match(text, /\/work\/maple-grove-library\.pdf {2}\(same name as maple-grove-library\.jsonld\)/);
+  assert.match(text, /[\\/]work[\\/]maple-grove-library\.pdf {2}\(same name as maple-grove-library\.jsonld\)/);
   assert.doesNotMatch(text, /\.PDF/);
-  assert.match(text, /\/work\/Maple_Grove_Branch_Library_100CD\.pdf {2}\(the set's "filename", next to the \.jsonld\)/);
+  assert.match(text, /[\\/]work[\\/]Maple_Grove_Branch_Library_100CD\.pdf {2}\(the set's "filename", next to the \.jsonld\)/);
   assert.match(text, /PDFs in that folder: sample-drawing-package-1and2family\.pdf \(goes with sample-drawing-package-1and2family\.jsonld\)\./);
   assert.match(text, /Check that you opened the \.jsonld you meant to\./);
 

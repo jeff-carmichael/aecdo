@@ -16,7 +16,8 @@ import {
   arrow,
   type RefResolver,
 } from "./page.js";
-import { palette, withPalette, bboxText, PLAIN } from "../lib/style.js";
+import { palette, withPalette, bboxText, PLAIN, type Palette } from "../lib/style.js";
+import { box, keyHints, symbols, type Symbols } from "../lib/tui.js";
 import { sheets as sheetsCmd } from "./sheets.js";
 import {
   ASSISTANTS,
@@ -475,25 +476,32 @@ export class Explorer {
   }
 
   help(): void {
-    this.log();
     const kind = this.view.kind;
+    const rows: [string, string][] = [];
     if (kind === "sheets" && this.groups) {
-      this.log("  Enter a group number or prefix (e.g. \"A\") to list its sheets, or a sheet number to open it.");
+      rows.push(["1, A", "list a group's sheets (by number or prefix)"], ["A101", "open a sheet by its number"]);
     } else if (kind === "sheets" || kind === "group") {
-      this.log("  Enter a sheet number or page index to open it.");
-      if (kind === "group") this.log('  "up" (or "..") returns to the sheet groups.');
+      rows.push(["A101, 3", "open a sheet by number or page index"]);
+      if (kind === "group") rows.push(["up, ..", "back to the sheet groups"]);
     } else {
-      this.log("  Enter a number from the list to dive in.");
-      this.log('  "up" (or "..") goes up a level, "back" (or "b") returns to where you just were, "top" to the sheet list.');
-      this.log('  "r1", "r2", … jump to a reference (the lines marked "→ [r1]"); "back" comes back.');
+      rows.push(
+        ["1, 2, …", "open something from the list"],
+        ["up, ..", "go up a level"],
+        ["back, b", "return to where you just were"],
+        ["top", "go to the sheet list"],
+        ["r1, r2, …", 'follow a reference (lines marked "→ [r1]")']
+      );
     }
-    if (kind === "sheet" || kind === "entry") this.log('  "all" prints everything on this sheet.');
+    if (kind === "sheet" || kind === "entry") rows.push(["all", "print everything on this sheet"]);
     if (kind !== "sheets" && kind !== "group") {
-      this.log('  "view" opens this page from the PDF with what you have open outlined in red.');
-      this.log('  "markups" lists markups the assistant proposed; "markups save" writes them to a copy of the PDF.');
+      rows.push(["view", "open this page of the PDF, outlined in red"], ["markups", 'list proposed markups; "markups save" writes them']);
     }
-    this.log('  "ls" reprints the current list, "quit" exits.');
-    this.log('  "@claude …" or "@chatgpt …" asks an AI assistant about this view.');
+    rows.push(["ls", "reprint the current list"], ["@claude …", "ask an AI assistant (or @chatgpt …)"], ["help, ?", "show this list"], ["quit", "exit"]);
+
+    const c = palette();
+    const width = Math.max(...rows.map(([cmd]) => cmd.length));
+    this.log();
+    for (const [cmd, what] of rows) this.log(`  ${c.accent(cmd.padEnd(width))}  ${c.dim(what)}`);
     this.log();
   }
 
@@ -1053,6 +1061,25 @@ export class PageViewer {
   }
 }
 
+/** The box shown when explore opens: the file, what's in it, and how to get help. */
+export function startBanner(data: DrawingSet, fileName: string, maxWidth = 80, c: Palette = PLAIN, sym: Symbols = symbols()): string[] {
+  const sheets = data.sheets ?? [];
+  const drawings = sheets.flatMap((s) => s.drawings ?? []);
+  const items = drawings.reduce((n, d) => n + d.layers.reduce((m, l) => m + (l.items?.length ?? 0), 0), 0);
+  const sep = c.dim(` ${sym.sep} `);
+  const source = data.filename && data.filename !== fileName ? c.dim(`  from ${data.filename}`) : "";
+  return box(
+    [
+      `${c.bold(fileName)}${source}`,
+      [plural(sheets.length, "sheet"), plural(drawings.length, "drawing"), plural(items, "item")].join(sep),
+      keyHints([["help", "commands"], ["view", "open the PDF"], ["@claude", "ask AI"], ["quit", "exit"]], c, sym),
+    ],
+    Math.min(maxWidth, 100),
+    c,
+    sym
+  );
+}
+
 export async function explore(data: DrawingSet, filePath: string, opts: CommandOptions = {}): Promise<void> {
   if (opts.format === "json" || !process.stdin.isTTY) {
     await sheetsCmd(data, filePath, opts);
@@ -1068,6 +1095,9 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
     console.log("\nNo sheets found.");
     return;
   }
+
+  console.log();
+  for (const line of startBanner(data, basename(filePath), (process.stdout.columns || 80) - 1, palette())) console.log(line);
 
   const explorer = new Explorer(data, console.log, { fileName: basename(filePath) });
   explorer.render();

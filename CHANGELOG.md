@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### CLI
 - Typing `aecdo` with no command in a terminal opens a menu of things to do: explore a drawing set, download the examples, validate or summarize a file, process a PDF, check or download a job, set up the AI assistant or the API, update, or show all commands. Arrow keys or typing filter the list. Choices that need a file show the `.jsonld` or PDF picker for the current folder, and job choices ask for the job ID. `aecdo` then prints the equivalent command (`next time: aecdo validate plans.jsonld`) and runs it. Outside a terminal (scripts, pipes, agents), bare `aecdo` still prints the help. All subcommands work as before.
+- A cleaner look in a terminal, still with no new dependencies:
+  - **`process` and `status --wait`:** show a spinner, a progress bar, the elapsed time and a ✓/✗ line per page. Long jobs fold earlier finished pages into one line so the view fits the window. Lines are cut to the terminal width, which fixes leftover text when a long page title wrapped.
+  - **Uploads and downloads:** show a spinner.
+  - **Pickers and the menu:** highlight the selected row, bold the filter match, show "N of M" while filtering, and dim the menu hints.
+  - **`explore`:** opens with a box naming the file and its sheet, drawing and item counts, and `help` is now a two-column list of commands.
+  - **Plain-text fallbacks:** terminals without Unicode glyphs (the classic Windows console) get ASCII symbols. Outside a terminal, `process` prints one status line each time the counts change instead of repeating the whole block.
+- `aecdo completion` with no shell named now recognizes a Windows path in `$SHELL`, such as `C:\Program Files\Git\bin\bash.exe`, as bash.
+- `aecdo update` picks which `tar` to run by the operating system it's running on, not by the release it downloads. Windows always uses its own `tar.exe`.
+- The test suite passes on Windows: path assertions use the platform's separators, the shell-syntax check passes scripts on stdin, and the file-permission check is skipped where Windows has no execute bit.
 
 ## [0.4.7] - 2026-10-28
 

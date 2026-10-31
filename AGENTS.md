@@ -27,6 +27,7 @@ AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extrac
 - `cli/src/commands/markups.ts` — `MarkupSession` behind the `markups` command in `explore` and the assistant's `add_markup`/`list_markups`/`remove_markup` tools; markups stay pending until the user types `markups save`, which writes `<name>-markups.pdf` (or `--in-place`)
 - `cli/src/lib/page-view.ts` — `view` in `explore`: finds the source PDF, copies the page with pdf-lib, draws the red bbox (top-left PDF points, rotation-aware), rasterizes with `pdftoppm`/`mutool` when installed
 - `cli/src/lib/spreadsheet.ts`, `cli/src/lib/zip.ts` — dependency-free `.xlsx`/`.csv`/`.tsv` read and write; xlsx edits patch the sheet XML so formatting survives
+- `cli/src/lib/tui.ts` — shared terminal UI kit with no dependencies: glyphs with ASCII fallback, width-aware `fit`/`padEnd`, spinner, progress bar, key hints, `box`, `LiveRegion` (redraw-in-place block, cut to the terminal size) and `task()` (spinner around a promise). Used by the picker, menu, `progress.ts` (`ProgressView` for `process`/`status`) and the `explore` banner; colors come from `style.ts` (`paletteFor(stream)`)
 - `cli/src/lib/table.ts` — boxed, padded table rendering for `explore`/`page`; wraps long cells to the terminal width
 - `cli/src/lib/update-check.ts` — daily background check for newer GitHub releases (detached worker + cache at `~/.aecdo/update-check.json`, notice on stderr)
 - `package.json` — at repo root, npm-publishable as "aecdo"
