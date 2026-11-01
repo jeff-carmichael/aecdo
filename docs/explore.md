@@ -17,7 +17,46 @@ cd ~/Projects/my-building
 aecdo explore
 ```
 
-It opens on the sheet list, titled with the name of the set's PDF. Sheets are numbered from 1, and a blank line separates each discipline:
+## Full screen
+
+In a terminal, `explore` fills the window: the sheet list on the left, what you've opened on the right, and the keys that work along the bottom.
+
+```
+ Maple Grove Branch Library 100CD  ❯  A101 › First Floor Plan › Door Tags
+──────────────────────────────────────────────────────────────────────────────
+   G001  Cover Sheet                │ Door Tags
+   C101  Site Plan                  │ 26 items on First Floor Plan, A101
+ ❯ A101  First Floor Plan           │
+   A102  Second Floor Plan          │ ❯ Door tag 101A
+   …                                │   Door tag 101B
+                                    │   …
+
+ ↑↓ move · Enter open · ← back · v view PDF · a ask AI · ? help · q quit
+```
+
+| Key | Does |
+|-----|------|
+| ↑ ↓ (Page Up/Down, Home/End) | move through the list, or scroll a table or note |
+| Enter or → | open what's highlighted, including a link under **Related** or **Links to other drawings** |
+| ← or Esc | go back up one level |
+| `b` | go back to where you were before following a link |
+| `/` | find a sheet: type part of its number or title, then Enter |
+| `v` | open this page of the PDF with what's selected outlined in red |
+| `a` | ask the AI about what's on screen |
+| `m` | review markups the AI suggested, and save them |
+| `d` | show or hide ids and coordinates |
+| `?` | list these keys |
+| `q` | quit (it offers to save pending markups first) |
+
+While a sheet list is showing, the right side previews the highlighted sheet. A table takes the whole width while it's open, so schedules wrap as little as possible.
+
+Asking the AI (`a`) and reviewing markups (`m`) briefly return to the normal terminal so you can type and read the answer; press Enter afterwards to go back to where you were. If the assistant moved somewhere while answering, you come back there.
+
+Windows narrower than 70 columns show one side at a time. To use the typed prompt described below instead of full screen, run `aecdo explore --classic` or set `AECDO_EXPLORE=classic`. Full screen also turns off when the window is very small (under 50 × 12), and when the output isn't a terminal.
+
+## The typed prompt
+
+With `--classic`, `explore` prints each list and waits for you to type. It opens on the sheet list, titled with the name of the set's PDF. Sheets are numbered from 1, and a blank line separates each discipline:
 
 ```
   Maple Grove Branch Library 100CD

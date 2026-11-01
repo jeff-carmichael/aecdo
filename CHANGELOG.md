@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### CLI
+- `explore` opens full screen in a terminal, with no new dependencies:
+  - **Layout:** the sheet list sits on the left, what you've opened on the right, and the keys that work along the bottom.
+  - **Keys:** arrow keys move, Enter opens (including links), ← goes back up, `b` returns after a link, `/` finds a sheet, `v` views the PDF, `a` asks the AI, `m` reviews markups, `d` shows ids and coordinates, and `?` lists the keys.
+  - **Sheet previews and tables:** the highlighted sheet is previewed before you open it, and tables take the whole width.
+  - **The AI and markups** briefly return to the normal terminal and then come back.
+  - **The typed prompt** is still there with `--classic` or `AECDO_EXPLORE=classic`, and is used automatically for windows under 50 × 12 and outside a terminal.
 - Typing `aecdo` with no command in a terminal opens a menu of things to do: explore a drawing set, download the examples, validate or summarize a file, process a PDF, check or download a job, set up the AI assistant or the API, update, or show all commands. Arrow keys or typing filter the list. Choices that need a file show the `.jsonld` or PDF picker for the current folder, and job choices ask for the job ID. `aecdo` then prints the equivalent command (`next time: aecdo validate plans.jsonld`) and runs it. Outside a terminal (scripts, pipes, agents), bare `aecdo` still prints the help. All subcommands work as before.
 - A cleaner look in a terminal, still with no new dependencies:
   - **`process` and `status --wait`:** show a spinner, a progress bar, the elapsed time and a ✓/✗ line per page. Long jobs fold earlier finished pages into one line so the view fits the window. Lines are cut to the terminal width, which fixes leftover text when a long page title wrapped.
