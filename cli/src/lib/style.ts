@@ -13,7 +13,10 @@ export interface Palette {
   /** Secondary detail: bbox values, ids, drawing type and scale, arrows, rules. */
   dim: Paint;
   bold: Paint;
+  /** Interactive highlights: the picker cursor, spinners, command names in help. */
+  accent: Paint;
   ok: Paint;
+  warn: Paint;
   error: Paint;
 }
 
@@ -29,7 +32,9 @@ export const ANSI: Palette = {
   tag: sgr("33", "39"),
   dim: sgr("2", "22"),
   bold: sgr("1", "22"),
+  accent: sgr("36", "39"),
   ok: sgr("1;32", "22;39"),
+  warn: sgr("33", "39"),
   error: sgr("1;31", "22;39"),
 };
 
@@ -39,7 +44,9 @@ export const PLAIN: Palette = {
   tag: same,
   dim: same,
   bold: same,
+  accent: same,
   ok: same,
+  warn: same,
   error: same,
 };
 
@@ -48,6 +55,11 @@ let current: Palette | undefined;
 /** The palette for stdout: colors only on a TTY without NO_COLOR or TERM=dumb. */
 export function palette(): Palette {
   return (current ??= colorEnabled() ? ANSI : PLAIN);
+}
+
+/** The palette for another stream, e.g. stderr for pickers and progress. */
+export function paletteFor(stream: NodeJS.WriteStream): Palette {
+  return colorEnabled(stream) ? ANSI : PLAIN;
 }
 
 /** Runs `fn` with a fixed palette, e.g. PLAIN while capturing text for the AI assistant. */

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MENU, menuLines, argsFor } from "./menu.js";
+import { MENU, argsFor } from "./menu.js";
 import type { MenuDeps } from "./menu.js";
 
 function deps(overrides: Partial<MenuDeps> = {}): MenuDeps & { logged: string[]; titles: string[] } {
@@ -20,14 +20,8 @@ function deps(overrides: Partial<MenuDeps> = {}): MenuDeps & { logged: string[];
   };
 }
 
-test("menuLines aligns hints after the longest label", () => {
-  const lines = menuLines();
-  assert.equal(lines.length, MENU.length);
-  const col = lines[0].indexOf(MENU[0].hint);
-  for (const [i, e] of MENU.entries()) {
-    if (e.hint) assert.equal(lines[i].indexOf(e.hint), col);
-    else assert.equal(lines[i], e.label);
-  }
+test("menu labels are unique, since the picker returns the label", () => {
+  assert.equal(new Set(MENU.map((e) => e.label)).size, MENU.length);
 });
 
 test("every menu action maps to args or quits", async () => {

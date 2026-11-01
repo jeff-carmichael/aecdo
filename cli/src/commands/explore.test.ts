@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Explorer, PageViewer, groupSheets, parseViewCommand, sheetEntries, sheetPrefix } from "./explore.js";
 import type { PageViewRequest } from "../lib/page-view.js";
 import { ANSI, withPalette } from "../lib/style.js";
@@ -27,9 +28,9 @@ test("opening a sheet lists its contents without dumping everything", () => {
   ex.handle(sheetWithDrawing.sheetNumber);
   assert.equal(kindOf(ex), "sheet");
   const out = lines.join("\n");
-  assert.match(out, /Drawings \(\d+\):/);
-  assert.match(out, / 1\. /);
-  assert.doesNotMatch(out, /Layer:/);
+  assert.match(out, /\n {2}Drawings\n/);
+  assert.match(out, /\n +1 {2}\S/);
+  assert.doesNotMatch(out, /\n {2}Layers\n/);
 });
 
 test("drills sheet → drawing → layer → item and back up", () => {
@@ -37,7 +38,7 @@ test("drills sheet → drawing → layer → item and back up", () => {
   ex.handle(sheetWithDrawing.sheetNumber);
   ex.handle("1");
   assert.equal(kindOf(ex), "drawing");
-  assert.match(lines.join("\n"), /Layers \(\d+\):/);
+  assert.match(lines.join("\n"), /\n {2}Layers\n/);
 
   ex.handle("1");
   assert.equal(kindOf(ex), "layer");
@@ -129,7 +130,7 @@ test("PageViewer renders and opens the page, or explains a missing PDF", async (
   const requests: PageViewRequest[] = [];
   const viewer = new PageViewer(data, "/plans/set.jsonld", undefined, {
     log: (l = "") => out.push(l),
-    exists: (p) => p === "/plans/set.pdf",
+    exists: (p) => p === join("/plans", "set.pdf"),
     open: (p) => opened.push(p),
     render: (req) => {
       requests.push(req);
@@ -137,7 +138,7 @@ test("PageViewer renders and opens the page, or explains a missing PDF", async (
     },
   });
   await viewer.show(ex);
-  assert.equal(requests[0].pdfPath, "/plans/set.pdf");
+  assert.equal(requests[0].pdfPath, join("/plans", "set.pdf"));
   assert.equal(requests[0].pageIndex, 0);
   assert.deepEqual(requests[0].bbox, [72, 108, 720, 540]);
   assert.deepEqual(opened, ["/tmp/A101.png"]);
@@ -150,14 +151,14 @@ test("PageViewer renders and opens the page, or explains a missing PDF", async (
   });
   await none.show(ex);
   assert.match(missing.join("\n"), /Can't find the source PDF/);
-  assert.match(missing.join("\n"), /\/plans\/set\.pdf/);
+  assert.match(missing.join("\n"), /[\\/]plans[\\/]set\.pdf/);
 });
 
 test("r1 follows a drawing's reference and back returns", () => {
   const { ex, lines } = make();
   ex.handle("A101");
   ex.handle("1");
-  assert.match(lines.join("\n"), /→ \[r1\] Building Section A \(A201, page \d+\)/);
+  assert.match(lines.join("\n"), /→ \[r1\] Building Section A \(A201, PDF page \d+\)/);
   ex.handle("r1");
   assert.equal(kindOf(ex), "drawing");
   assert.match(ex.prompt(), /^A201 › Building Section A> $/);
@@ -218,7 +219,7 @@ test("jumping to a schedule opens it on its sheet", () => {
   ex.handle(String(layerIndex + 1));
   ex.handle("1");
   ex.handle("r1");
-  assert.match(lines.join("\n"), /Jumped to Table Door Schedule \(A601, page \d+\)/);
+  assert.match(lines.join("\n"), /Jumped to Table Door Schedule \(A601, PDF page \d+\)/);
   assert.equal(ex.prompt(), "A601 › Door Schedule> ");
   const target = ex.viewTarget();
   assert.ok(!("error" in target));
@@ -342,10 +343,36 @@ test("the assistant's context lists recent places and the reference that led her
   assert.match((after.recentlyVisited as string[]).at(-1)!, /^A601 › Door Schedule \(followed reference r1 from A101/);
 });
 
-test("the sheet list names the open file", () => {
+test("the sheet list is titled with the set's PDF name, numbered from 1, with disciplines spaced apart", () => {
   const { ex, lines } = maple();
   ex.render();
-  assert.match(lines.join("\n"), /Sheets in maple-grove-library\.jsonld \(19\):/);
+  const out = lines.join("\n");
+  assert.match(out, /Maple Grove Branch Library 100CD\n {2}19 sheets/);
+  assert.match(out, / 1 {2}G001 {2}Cover Sheet/);
+  assert.match(out, /G002 .*\n\n +3 {2}C101/);
+  assert.doesNotMatch(out, /\(page \d+\)/);
+});
+
+test("a number at the sheet list opens that row, and a sheet number still wins", () => {
+  const { ex } = maple();
+  ex.handle("1");
+  assert.equal(ex.prompt(), "G001> ");
+  ex.handle("top");
+  ex.handle("4");
+  assert.equal(ex.prompt(), "A101> ");
+
+  const numbered = { ...data, sheets: [{ ...data.sheets[0], sheetNumber: "2" }, { ...data.sheets[0], sheetNumber: "X1" }] };
+  const other = new Explorer(numbered, () => undefined);
+  other.handle("2");
+  assert.equal(other.prompt(), "2> ");
+});
+
+test("each hint shows once, and the assistant's view doesn't use it up", () => {
+  const { ex, lines } = maple();
+  ex.context();
+  ex.render();
+  ex.render();
+  assert.equal(lines.filter((l) => l.includes("and press Enter to open it")).length, 1);
 });
 
 test("a missing PDF names the .jsonld, why each path was tried, and other PDFs nearby", async () => {
@@ -361,9 +388,9 @@ test("a missing PDF names the .jsonld, why each path was tried, and other PDFs n
   await viewer.show(ex);
   const text = out.join("\n");
   assert.match(text, /Can't find the source PDF for maple-grove-library\.jsonld\. Looked for:/);
-  assert.match(text, /\/work\/maple-grove-library\.pdf {2}\(same name as maple-grove-library\.jsonld\)/);
+  assert.match(text, /[\\/]work[\\/]maple-grove-library\.pdf {2}\(same name as maple-grove-library\.jsonld\)/);
   assert.doesNotMatch(text, /\.PDF/);
-  assert.match(text, /\/work\/Maple_Grove_Branch_Library_100CD\.pdf {2}\(the set's "filename", next to the \.jsonld\)/);
+  assert.match(text, /[\\/]work[\\/]Maple_Grove_Branch_Library_100CD\.pdf {2}\(the set's "filename", next to the \.jsonld\)/);
   assert.match(text, /PDFs in that folder: sample-drawing-package-1and2family\.pdf \(goes with sample-drawing-package-1and2family\.jsonld\)\./);
   assert.match(text, /Check that you opened the \.jsonld you meant to\./);
 
@@ -421,14 +448,14 @@ test("more than 25 sheets list groups; pick by number or prefix, back returns", 
   const ex = new Explorer(bigSet(), (l = "") => lines.push(l));
   ex.render();
   const out = lines.join("\n");
-  assert.match(out, /Sheet groups \(27 sheets\):/);
-  assert.match(out, / 3\. A - Architectural \(12 sheets\)/);
-  assert.doesNotMatch(out, /A101 - /);
+  assert.match(out, /27 sheets in 10 groups/);
+  assert.match(out, /\b3 +A +Architectural +12 sheets/);
+  assert.doesNotMatch(out, /A101 +Sheet A101/);
 
   ex.handle("3");
   assert.equal(kindOf(ex), "group");
   assert.equal(ex.prompt(), "A sheets> ");
-  assert.match(lines.join("\n"), /A112 - Sheet A112/);
+  assert.match(lines.join("\n"), /A112 +Sheet A112/);
   assert.ok("error" in ex.viewTarget());
 
   ex.handle("A105");
@@ -452,7 +479,7 @@ test("more than 25 sheets list groups; pick by number or prefix, back returns", 
   assert.equal(ex.prompt(), "S sheets> ");
   ex.handle("top");
   ex.handle("other");
-  assert.match(lines.at(-2)!, /001 - Sheet 001/);
+  assert.match(lines.at(-2)!, /001 +Sheet 001/);
 });
 
 test("a sheet number at the group list opens the sheet; bad picks stay put", () => {
@@ -466,25 +493,67 @@ test("a sheet number at the group list opens the sheet; bad picks stay put", () 
   assert.match(lines.at(-1)!, /^No group "99"/);
 });
 
-test("colors labels, tags, and bbox values like the mockup, but keeps the assistant's view plain", () => {
+test("styles names, links, and bbox values, but keeps the assistant's view plain", () => {
   const { ex, lines } = make();
   const E = "\x1b[";
   withPalette(ANSI, () => {
     ex.handle("A101");
     ex.handle("1");
-    ex.handle("1");
-    const shown = lines.join("\n");
-    assert.ok(shown.includes(`${E}1mSheet A101 — `));
-    assert.ok(shown.includes(`${E}1;36mDrawing:${E}22;39m`));
-    assert.ok(shown.includes(`${E}2m[72, 108, 720, 540]${E}22m`));
+    let shown = lines.join("\n");
+    assert.ok(shown.includes(`${E}1mA101  `));
     assert.ok(shown.includes(`${E}2m→${E}22m ${E}1m[r1]`));
-    assert.ok(shown.includes(`${E}35mLayer:${E}39m`));
+    assert.ok(!shown.includes("[72, 108, 720, 540]"), "coordinates stay hidden until asked for");
+
+    ex.handle("details");
+    ex.handle("1");
+    shown = lines.join("\n");
+    assert.ok(shown.includes(`${E}2m[72, 108, 720, 540]${E}22m`));
     assert.ok(/\[33m\[(THING|TAG)\]/.test(shown));
 
     const listing = String(ex.context().listing);
     assert.ok(!listing.includes(E));
-    assert.match(listing, /Layer: /);
+    assert.match(listing, /bbox +\[85, 120, 700, 520\]/);
+    assert.match(listing, /\[THING\] Exterior Wall/);
   });
+});
+
+test("link instructions name the real range and only appear when there are links", () => {
+  const { ex, lines, demo } = maple();
+  ex.handle("A101");
+  ex.handle("1");
+  const linked = lines.join("\n");
+  const count = demo.sheets.find((s) => s.sheetNumber === "A101")!.drawings![0].references!.length;
+  assert.match(linked, new RegExp(`Links to other drawings {2}type r1 to r${count} to open one`));
+  assert.doesNotMatch(linked, /"r1" to follow/);
+
+  ex.handle("up");
+  const from = lines.length;
+  ex.handle("2");
+  const unlinked = lines.slice(from).join("\n");
+  assert.doesNotMatch(unlinked, /r1/);
+
+  ex.handle("up");
+  ex.handle("1");
+  ex.handle("4");
+  ex.handle("5");
+  assert.match(lines.join("\n"), /Related {2}type r1 to r2 to open one/);
+});
+
+test("items read like a form: plain field names, no ids unless details is on", () => {
+  const { ex, lines } = maple();
+  ex.handle("A101");
+  ex.handle("1");
+  ex.handle("4");
+  ex.handle("5");
+  let out = lines.join("\n");
+  assert.match(out, /Door tag 105A\n {2}Tag on Door Tags, First Floor Plan, A101/);
+  assert.match(out, /\n {2}Mark +105A/);
+  assert.doesNotMatch(out, /urn:uuid/);
+
+  ex.handle("details");
+  out = lines.join("\n");
+  assert.match(out, /id: +urn:uuid:/);
+  assert.match(out, /data:\n {10}mark: 105A/);
 });
 
 test("output is plain by default when stdout isn't a terminal", () => {

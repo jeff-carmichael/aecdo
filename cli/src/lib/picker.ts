@@ -1,6 +1,10 @@
 import { emitKeypressEvents } from "node:readline";
 import { readdir } from "node:fs/promises";
 import type { Key } from "node:readline";
+import { paletteFor, PLAIN } from "./style.js";
+import type { Palette } from "./style.js";
+import { fit, keyHints, LiveRegion, symbols, textWidth } from "./tui.js";
+import type { Symbols } from "./tui.js";
 
 export interface PickerState {
   query: string;
@@ -46,35 +50,52 @@ export function handleKey(items: string[], state: PickerState, str: string | und
   return { kind: "update", state };
 }
 
-function truncate(line: string, width: number): string {
-  return line.length > width ? line.slice(0, Math.max(0, width - 1)) + "…" : line;
+/** Bolds the first case-insensitive match of `query` in `text`. */
+function markMatch(text: string, query: string, c: Palette): string {
+  const at = query ? text.toLowerCase().indexOf(query.toLowerCase()) : -1;
+  if (at < 0) return text;
+  return text.slice(0, at) + c.bold(text.slice(at, at + query.length)) + text.slice(at + query.length);
 }
 
-export function renderPicker(
-  items: string[],
-  state: PickerState,
-  title: string,
-  maxVisible = 10,
-  width = 80,
-): string[] {
+export interface RenderPickerOptions {
+  maxVisible?: number;
+  width?: number;
+  palette?: Palette;
+  symbols?: Symbols;
+  /** Dimmed text shown after each item, aligned in a column. Not used for filtering. */
+  hint?: (item: string) => string | undefined;
+}
+
+export function renderPicker(items: string[], state: PickerState, title: string, opts: RenderPickerOptions = {}): string[] {
+  const { maxVisible = 10, width = 80, palette: c = PLAIN, symbols: sym = symbols(), hint } = opts;
   const visible = filterItems(items, state.query);
-  const lines = [`? ${title}`, state.query ? `  Filter: ${state.query}` : "  ↑/↓ to move, type to filter, Enter to select, Esc to cancel"];
+  const help = keyHints([["↑/↓", "move"], ["type", "to filter"], ["enter", "select"], ["esc", "cancel"]], c, sym);
+  const lines = [
+    `${c.accent("?")} ${c.bold(title)}`,
+    state.query ? `  ${c.dim("Filter:")} ${state.query} ${c.dim(`(${visible.length} of ${items.length})`)}` : `  ${help}`,
+  ];
 
   if (visible.length === 0) {
-    lines.push("  (no matches)");
-    return lines.map((l) => truncate(l, width));
+    lines.push(`  ${c.dim("(no matches)")}`);
+    return lines.map((l) => fit(l, width, sym.ellipsis));
   }
 
+  const labelWidth = hint ? Math.max(...items.map(textWidth)) : 0;
   const start = Math.max(0, Math.min(state.cursor - Math.floor(maxVisible / 2), visible.length - maxVisible));
   const end = Math.min(visible.length, start + maxVisible);
 
-  if (start > 0) lines.push(`  … ${start} more above`);
+  if (start > 0) lines.push(`  ${c.dim(`${sym.ellipsis} ${start} more above`)}`);
   for (let i = start; i < end; i++) {
-    lines.push(`${i === state.cursor ? "> " : "  "}${visible[i]}`);
+    const item = visible[i];
+    const selected = i === state.cursor;
+    const label = markMatch(item, state.query, c);
+    const note = hint?.(item);
+    const after = note ? `${" ".repeat(labelWidth - textWidth(item))}   ${c.dim(note)}` : "";
+    lines.push(selected ? `${c.accent(sym.pointer)} ${c.accent(label)}${after}` : `  ${label}${after}`);
   }
-  if (end < visible.length) lines.push(`  … ${visible.length - end} more below`);
+  if (end < visible.length) lines.push(`  ${c.dim(`${sym.ellipsis} ${visible.length - end} more below`)}`);
 
-  return lines.map((l) => truncate(l, width));
+  return lines.map((l) => fit(l, width, sym.ellipsis));
 }
 
 export interface PickOptions {
@@ -82,20 +103,21 @@ export interface PickOptions {
   input?: NodeJS.ReadStream;
   output?: NodeJS.WriteStream;
   maxVisible?: number;
+  hint?: (item: string) => string | undefined;
   echo?: (value: string) => string;
 }
 
 export function pick(items: string[], opts: PickOptions): Promise<string | null> {
   const input = opts.input ?? process.stdin;
   const output = opts.output ?? process.stderr;
+  const c = paletteFor(output);
+  const sym = symbols();
+  const region = new LiveRegion(output);
   let state: PickerState = { query: "", cursor: 0 };
-  let drawn = 0;
 
   const draw = () => {
-    if (drawn > 0) output.write(`\x1b[${drawn}A\r\x1b[0J`);
-    const lines = renderPicker(items, state, opts.title, opts.maxVisible ?? 10, (output.columns || 80) - 1);
-    output.write(lines.join("\n") + "\n");
-    drawn = lines.length;
+    const maxVisible = Math.min(opts.maxVisible ?? 10, Math.max(1, region.rows - 4));
+    region.render(renderPicker(items, state, opts.title, { maxVisible, width: region.width, palette: c, symbols: sym, hint: opts.hint }));
   };
 
   return new Promise((res) => {
@@ -109,8 +131,9 @@ export function pick(items: string[], opts: PickOptions): Promise<string | null>
       input.removeListener("keypress", onKey);
       input.setRawMode(wasRaw);
       input.pause();
-      output.write(`\x1b[${drawn}A\r\x1b[0J\x1b[?25h`);
-      if (value !== null) output.write(`? ${opts.title} ${opts.echo ? opts.echo(value) : value}\n`);
+      const shown = value === null ? [] : [`${c.accent("?")} ${opts.title} ${c.accent(opts.echo ? opts.echo(value) : value)}`];
+      region.done(shown);
+      output.write("\x1b[?25h");
       res(value);
     };
 

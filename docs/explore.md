@@ -17,26 +17,50 @@ cd ~/Projects/my-building
 aecdo explore
 ```
 
-It first checks the file against the schema, then lists the sheets.
+It opens on the sheet list, titled with the name of the set's PDF. Sheets are numbered from 1, and a blank line separates each discipline:
+
+```
+  Maple Grove Branch Library 100CD
+  19 sheets
+
+   1  G001  Cover Sheet
+   2  G002  Code Analysis & Life Safety Plan
+
+   3  C101  Site Plan
+
+   4  A101  First Floor Plan
+   5  A102  Second Floor Plan
+   …
+
+  Type a number or sheet number (like A101) and press Enter to open it. Type "help" for more.
+
+sheet>
+```
+
+Type `4` or `A101` to open the First Floor Plan. If a sheet's number is itself a plain number (such as `1`), typing it opens that sheet rather than row 1. A one-line tip like the one above appears the first time you see each kind of list.
+
+`explore` also checks the file against the schema. It only mentions this when something doesn't match, and keeps going; run `aecdo validate` to see the details.
 
 ## Sheet groups in large sets
 
 When a set has more than 25 sheets, the sheet list shows groups first, one per sheet-number prefix (the letters before the number), with the discipline name and how many sheets each holds:
 
 ```
-  Sheet groups (42 sheets):
-     1. G - General (3 sheets)
-     2. C - Civil (4 sheets)
-     3. A - Architectural (18 sheets)
-     4. S - Structural (6 sheets)
-     5. M - Mechanical (4 sheets)
-     6. P - Plumbing (3 sheets)
-     7. E - Electrical (4 sheets)
+  Riverside Clinic CD Set
+  42 sheets in 7 groups
+
+  1  G  General         3 sheets
+  2  C  Civil           4 sheets
+  3  A  Architectural  18 sheets
+  4  S  Structural      6 sheets
+  5  M  Mechanical      4 sheets
+  6  P  Plumbing        3 sheets
+  7  E  Electrical      4 sheets
 
 sheet> A
 ```
 
-Type a group's number (`3`), its prefix (`A`), or its discipline name (`architectural`) to list its sheets, then a sheet number or page index to open one. `up` (or `..`) from a sheet returns to its group, and `up` again returns to the groups. You can also type a sheet number (`A101`) straight from the group list. Groups appear in the order their first sheet appears in the set. Two-letter prefixes such as `AD` or `FP` get their own group, and sheet numbers with no leading letters go under **Other**. Sets with 25 sheets or fewer list every sheet directly.
+Type a group's number (`3`), its prefix (`A`), or its discipline name (`architectural`) to list its sheets, then a sheet's number in that list or its sheet number to open one. `up` (or `..`) from a sheet returns to its group, and `up` again returns to the groups. You can also type a sheet number (`A101`) straight from the group list. Groups appear in the order their first sheet appears in the set. Two-letter prefixes such as `AD` or `FP` get their own group, and sheet numbers with no leading letters go under **Other**. Sets with 25 sheets or fewer list every sheet directly.
 
 ## Moving around
 
@@ -46,13 +70,13 @@ A drawing set is organized in levels:
 
 A sheet holds drawings (plans, sections, elevations, details) plus tables (schedules), notes, and images. Each drawing has layers, such as Walls, Doors, Door Tags, or Room Tags, and each layer holds the items found on it.
 
-In a terminal, the output is colored to make it easier to scan: section labels like **Drawing:** and **Tables** in cyan, **Layer:** in magenta, item types like `[THING]` and `[TAG]` in yellow, and bbox values, ids, and scales dimmed. It uses your terminal's own color theme, so it reads on light and dark backgrounds. Set `NO_COLOR=1` to turn colors off; they are also off when the output is piped or redirected.
+Each screen starts with a bold name and a dim line saying where it is, such as "26 items on First Floor Plan, A101". In a terminal, names are bold and secondary details (counts, scales, row numbers) are dimmed. It uses your terminal's own color theme, so it reads on light and dark backgrounds. Set `NO_COLOR=1` to turn colors off; they are also off when the output is piped or redirected.
 
-At every level, the prompt (in green) shows where you are, such as `A101 › First Floor Plan › Door Tags › Door tag 105A`, and you type one of these:
+At every level, the prompt (in cyan) shows where you are, such as `A101 › First Floor Plan › Door Tags › Door tag 105A`, and you type one of these:
 
 | Type | To |
 |------|----|
-| a sheet number or page index (`A101`, `3`) | open a sheet, from the sheet list |
+| a sheet number or its number in the list (`A101`, `4`) | open a sheet, from the sheet list |
 | a group number or prefix (`3`, `A`) | list one group's sheets, in [sets with more than 25 sheets](#sheet-groups-in-large-sets) |
 | a number from the list (`1`, `4`) | open that drawing, table, note, image, layer, or item |
 | `r1`, `r2`, … (or `r` if there's only one) | jump to a [reference](#following-references) |
@@ -60,6 +84,7 @@ At every level, the prompt (in green) shows where you are, such as `A101 › Fir
 | `back` or `b` | go back to where you just were, such as before a jump |
 | `top` | go back to the sheet list (or the groups) |
 | `ls` | print the current list again |
+| `details` | show or hide ids and coordinates ([more](#ids-and-coordinates)) |
 | `all` | print everything on the current sheet at once |
 | `view` | open the PDF page with the current selection outlined in red |
 | `markups` | list markups the assistant proposed, and save, undo, or remove them ([details](assistant.md#marking-up-the-pdf)) |
@@ -74,58 +99,61 @@ Here's a short session with the demo set:
 ```
 sheet> A101
 
-════════════════════════════════════════════════════════════
-  Sheet A101 — First Floor Plan (page 3)
-════════════════════════════════════════════════════════════
+  A101  First Floor Plan
+  PDF page 4
 
-  Drawings (2):
-     1. First Floor Plan [plan, 1/8" = 1'-0"] — 10 layers, 214 items
-     2. Key Plan [plan] — 1 layer, 1 item
+  Drawings
+  1  First Floor Plan                             plan, 1/8" = 1'-0"
+  2  Key Plan                                     plan
 
-  Tables (1):
-     3. Wall Types — 6 rows
+  Tables
+  3  Wall Types                                   6 rows
 
-  Notes (2):
-     4. GENERAL NOTES: 1. All dimensions are to face of stud or fac…
-     5. KEYNOTES: 4.01 Brick veneer over CMU; 8.12 Aluminum storefr…
+  Notes
+  4  GENERAL NOTES: 1. All dimensions are to face of stud or fac…
+  5  KEYNOTES: 4.01 Brick veneer over CMU; 8.12 Aluminum storefr…
 
-  Images (2):
-     6. [logo] Hollis Reyes Architects logo in title block
-     7. [diagram] North arrow and graphic scale
+  Images
+  6  Hollis Reyes Architects logo in title block  logo
+  7  North arrow and graphic scale                diagram
 
 A101> 1
 
-  Drawing: First Floor Plan [plan, 1/8" = 1'-0"] (sheet A101)
-    bbox: [140, 110, 1760, 1450]
-    → [r1] Building Section 1 (A301, page 7)
-    → [r2] Building Section 2 (A301, page 7)
-    …
+  First Floor Plan
+  Plan, 1/8" = 1'-0", on A101
 
-  Layers (10):
-     1. Grids & Dimensions — 16 items
-     2. Walls — 27 items
-     3. Doors — 26 items
-     4. Door Tags — 26 items
-     …
+  Layers
+   1  Grids & Dimensions         16 items
+   2  Walls                      27 items
+   3  Doors                      26 items
+   4  Door Tags                  26 items
+   …
+
+  Links to other drawings  type r1 to r10 to open one
+  → [r1] Building Section 1 (A301, PDF page 8)
+  → [r2] Building Section 2 (A301, PDF page 8)
+  …
 
 A101 › First Floor Plan> 4
 
-  Layer: Door Tags
-  Items (26):
-     1. [TAG] Door tag 101A
-     …
-     5. [TAG] Door tag 105A
-     …
+  Door Tags
+  26 items on First Floor Plan, A101
+
+   1  Door tag 101A
+   …
+   5  Door tag 105A
+   …
 
 A101 › First Floor Plan › Door Tags> 5
 
-      [TAG] Door tag 105A
-        id:   urn:uuid:7aeb9824-195b-5531-801e-4de1b6c983d0
-        bbox: [408.5, 747.5, 428.5, 767.5]
-        data:
-          mark: 105A
-        → [r1] Table Door Schedule (A601, page 9)
-        → [r2] Door 105A (A101 › First Floor Plan › Doors)
+  Door tag 105A
+  Tag on Door Tags, First Floor Plan, A101
+
+  Mark   105A
+
+  Related  type r1 to r2 to open one
+  → [r1] Table Door Schedule (A601, PDF page 10)
+  → [r2] Door 105A (A101 › First Floor Plan › Doors)
 ```
 
 ### Following references
@@ -137,7 +165,7 @@ Each reference on screen has a tag, `[r1]`, `[r2]`, and so on. Type the tag to j
 ```
 A101 › First Floor Plan › Door Tags> r1
 
-  Jumped to Table Door Schedule (A601, page 9). "back" returns.
+  Jumped to Table Door Schedule (A601, PDF page 10). "back" returns.
 
     Door Schedule
       ┌──────┬───────────┬───────┬───
@@ -146,21 +174,23 @@ A101 › First Floor Plan › Door Tags> r1
 
 A601 › Door Schedule> back
 
-      [TAG] Door tag 105A
-      …
+  Door tag 105A
+  …
 
 A101 › First Floor Plan › Door Tags › Door tag 105A> r2
 ```
 
 After a jump, `view` outlines what you jumped to, so `r1` then `view` shows the schedule on its page. A reference to something that isn't in the file says so instead of jumping.
 
-Each item has a type:
+An item shows what was read from the drawing as a list of fields, like **Mark 105A** above. Which fields appear depends on what the tool that made the file extracted: a wall might have a material and thickness, a room tag a number and name. The line under the name says what kind of item it is:
 
-- **THING**: a physical element, such as a wall, door, window, or fixture.
-- **TAG**: an annotation or symbol, such as a door tag, room tag, grid bubble, or keynote.
-- **AREA**: a region, such as a room or zone.
+- **Element**: a physical thing, such as a wall, door, window, or fixture.
+- **Tag**: an annotation or symbol, such as a door tag, room tag, grid bubble, or keynote.
+- **Area**: a region, such as a room or zone.
 
-What's under `data:` depends on what the tool that made the file extracted: a wall might have `material` and `thickness`, a room tag a `number` and `name`.
+### Ids and coordinates
+
+Type `details` to also show each item's id, its `[THING]`/`[TAG]`/`[AREA]` type, and its `bbox` (where it sits on the page, in PDF points), and the raw `data:` fields. Type `details` again to hide them. `aecdo page` always shows them.
 
 ## See it on the page: view
 
@@ -195,7 +225,7 @@ or once during the session:
 A101> view ~/Downloads/plans-rev3.pdf
 ```
 
-If it can't find the PDF, `view` names the `.jsonld` that's open, lists each path it tried and why, and lists the other PDFs in that folder (noting when one is named after a different `.jsonld`). The sheet list also shows the file name at the top (`Sheets in plans.jsonld`), so you can check which set you're in. Of the [examples](https://github.com/jeff-carmichael/aecdo/tree/main/examples), only `sample-drawing-package-1and2family.jsonld` comes with its PDF; the Maple Grove demo and the small sample set are data only.
+If it can't find the PDF, `view` names the `.jsonld` that's open, lists each path it tried and why, and lists the other PDFs in that folder (noting when one is named after a different `.jsonld`). The sheet list is titled with the name of the set's PDF, so you can check which set you're in. Of the [examples](https://github.com/jeff-carmichael/aecdo/tree/main/examples), only `sample-drawing-package-1and2family.jsonld` comes with its PDF; the Maple Grove demo and the small sample set are data only.
 
 ### Image or PDF
 

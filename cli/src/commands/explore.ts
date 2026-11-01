@@ -1,9 +1,8 @@
 import { createInterface } from "node:readline";
 import { readdirSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
-import { validate } from "./validate.js";
+import { isValid } from "./validate.js";
 import {
-  findSheet,
   printPage,
   printItem,
   printTable,
@@ -11,8 +10,10 @@ import {
   printImage,
   buildRefResolver,
   sheetHeaderLines,
-  drawingMeta,
   itemTypeTag,
+  itemName,
+  withDetails,
+  linkNote,
   arrow,
   type RefResolver,
 } from "./page.js";
@@ -177,11 +178,6 @@ function drawingSummary(d: Drawing): Record<string, unknown> {
   return { "@id": d["@id"], label: drawingName(d), drawingType: d.drawingType };
 }
 
-function itemLabel(item: Item): string {
-  const label = item.data.label;
-  return typeof label === "string" && label ? label : item["@id"];
-}
-
 export function sheetEntries(sheet: Sheet): SheetEntry[] {
   return [
     ...(sheet.drawings ?? []).map((value) => ({ kind: "drawing" as const, value })),
@@ -191,22 +187,22 @@ export function sheetEntries(sheet: Sheet): SheetEntry[] {
   ];
 }
 
-function describeEntry(entry: SheetEntry): string {
+/** A sheet entry's name and a short dim note after it, such as the drawing's scale. */
+function describeEntry(entry: SheetEntry): [string, string?] {
   switch (entry.kind) {
     case "drawing": {
       const d = entry.value;
-      const itemCount = d.layers.reduce((n, l) => n + (l.items?.length ?? 0), 0);
-      return `${drawingName(d)}${drawingMeta(d)} — ${plural(d.layers.length, "layer")}, ${plural(itemCount, "item")}`;
+      return [drawingName(d), [d.drawingType, d.scale].filter(Boolean).join(", ") || undefined];
     }
     case "table": {
       const t = entry.value;
       const rows = t.content.split("\n").filter((r) => r.trim()).length;
-      return `${t.label ?? t.title ?? "Untitled Table"} — ${plural(rows, "row")}`;
+      return [t.label ?? t.title ?? "Untitled Table", plural(rows, "row")];
     }
     case "note":
-      return truncate(entry.value.content);
+      return [truncate(entry.value.content)];
     case "image":
-      return `${palette().tag(`[${entry.value.role}]`)} ${entry.value.caption ?? entry.value["@id"]}`;
+      return [truncate(entry.value.caption ?? entry.value.role), entry.value.role];
   }
 }
 
@@ -292,6 +288,10 @@ export class Explorer {
   private groups?: SheetGroup[];
   /** Places visited in order, newest last, including ones "back" has since left. */
   private visited: { location: string; via?: string }[] = [];
+  /** Which one-time hints have been shown. */
+  private hinted = new Set<string>();
+  /** Whether ids and coordinates are shown; "details" toggles it. */
+  private details = false;
 
   constructor(
     private data: DrawingSet,
@@ -323,7 +323,7 @@ export class Explorer {
       case "layer":
         return [v.sheet.sheetNumber, drawingName(v.drawing), v.layer.name];
       case "item":
-        return [v.sheet.sheetNumber, drawingName(v.drawing), v.layer.name, truncate(itemLabel(v.item), 30)];
+        return [v.sheet.sheetNumber, drawingName(v.drawing), v.layer.name, truncate(itemName(v.item), 30)];
       case "entry":
         return [v.sheet.sheetNumber, truncate(entryTitle(v.entry), 30)];
     }
@@ -344,6 +344,10 @@ export class Explorer {
   }
 
   render(): void {
+    withDetails(this.details, () => this.renderView());
+  }
+
+  private renderView(): void {
     const v = this.view;
     this.refs = undefined;
     switch (v.kind) {
@@ -356,9 +360,9 @@ export class Explorer {
       case "drawing":
         return this.renderDrawing(v.sheet, v.drawing);
       case "layer":
-        return this.renderLayer(v.layer);
+        return this.renderLayer(v.sheet, v.drawing, v.layer);
       case "item":
-        printItem(v.item, this.resolve, refTag, this.log);
+        printItem(v.item, this.resolve, refTag, this.log, `${v.layer.name}, ${drawingName(v.drawing)}, ${v.sheet.sheetNumber}`);
         this.refs = { view: v, ids: v.item.references ?? [] };
         this.log();
         return;
@@ -451,7 +455,7 @@ export class Explorer {
           bbox: v.layer.bbox ?? unionBBox((v.layer.items ?? []).map((i) => i.bbox)),
         };
       case "item":
-        return { sheet: v.sheet, label: `item ${truncate(itemLabel(v.item), 40)}`, bbox: v.item.bbox, id: v.item["@id"] };
+        return { sheet: v.sheet, label: `item ${truncate(itemName(v.item), 40)}`, bbox: v.item.bbox, id: v.item["@id"] };
       case "entry": {
         const e = v.entry;
         const label = e.kind === "note" ? entryTitle(e) : `${e.kind} ${entryTitle(e)}`;
@@ -464,36 +468,48 @@ export class Explorer {
     const lines: string[] = [];
     const log = this.log;
     const refs = this.refs;
+    const hinted = new Set(this.hinted);
     this.log = (line = "") => lines.push(line);
     try {
       withPalette(PLAIN, fn);
     } finally {
       this.log = log;
       this.refs = refs;
+      this.hinted = hinted;
     }
     return lines;
   }
 
   help(): void {
-    this.log();
     const kind = this.view.kind;
+    const rows: [string, string][] = [];
     if (kind === "sheets" && this.groups) {
-      this.log("  Enter a group number or prefix (e.g. \"A\") to list its sheets, or a sheet number to open it.");
+      rows.push(["3 or A", "see one group of sheets"], ["A101", "open a sheet by its sheet number"]);
     } else if (kind === "sheets" || kind === "group") {
-      this.log("  Enter a sheet number or page index to open it.");
-      if (kind === "group") this.log('  "up" (or "..") returns to the sheet groups.');
+      rows.push(["4 or A101", "open a sheet"]);
+      if (kind === "group") rows.push(["up", "go back to the groups"]);
     } else {
-      this.log("  Enter a number from the list to dive in.");
-      this.log('  "up" (or "..") goes up a level, "back" (or "b") returns to where you just were, "top" to the sheet list.');
-      this.log('  "r1", "r2", … jump to a reference (the lines marked "→ [r1]"); "back" comes back.');
+      rows.push(
+        ["1, 2, 3 …", "open something from the list"],
+        ["up", "go up one level"],
+        ["back", "go back to where you just were"],
+        ["top", "go back to the sheet list"],
+        ["r1, r2 …", 'follow a link to another sheet (shown as "→ [r1]")']
+      );
     }
-    if (kind === "sheet" || kind === "entry") this.log('  "all" prints everything on this sheet.');
+    if (kind === "sheet" || kind === "entry") rows.push(["all", "show everything on this sheet at once"]);
     if (kind !== "sheets" && kind !== "group") {
-      this.log('  "view" opens this page from the PDF with what you have open outlined in red.');
-      this.log('  "markups" lists markups the assistant proposed; "markups save" writes them to a copy of the PDF.');
+      rows.push(["view", "open this page of the PDF, outlined in red"], ["markups", "review markups the AI suggested, then save them"]);
     }
-    this.log('  "ls" reprints the current list, "quit" exits.');
-    this.log('  "@claude …" or "@chatgpt …" asks an AI assistant about this view.');
+    if (kind !== "sheets" && kind !== "group") rows.push(["details", "show or hide ids and coordinates"]);
+    rows.push(["ls", "show this list again"], ["@claude …", "ask the AI a question (or @chatgpt …)"], ["quit", "close explore"]);
+
+    const c = palette();
+    const width = Math.max(...rows.map(([cmd]) => cmd.length));
+    this.log();
+    for (const [cmd, what] of rows) this.log(`  ${c.bold(cmd.padEnd(width))}   ${what}`);
+    this.log();
+    this.log(`  ${c.dim("Type one and press Enter.")}`);
     this.log();
   }
 
@@ -514,6 +530,12 @@ export class Explorer {
     }
     if (parseMarkupsCommand(answer)) {
       this.log('"markups" can\'t be run from here; the user types it to review and save markups.');
+      return true;
+    }
+    if (cmd === "details") {
+      this.details = !this.details;
+      this.log(this.details ? '\n  Showing ids and coordinates. Type "details" again to hide them.' : "\n  Hiding ids and coordinates.");
+      this.render();
       return true;
     }
     if (cmd === "list" || cmd === "ls") {
@@ -550,12 +572,12 @@ export class Explorer {
       return true;
     }
     if (v.kind === "sheets" || v.kind === "group") {
-      this.openSheet(answer);
+      this.openSheet(answer, v.kind === "group" ? v.group.sheets : (this.data.sheets ?? []));
       return true;
     }
 
     if ((v.kind === "sheet" || v.kind === "entry") && cmd === "all") {
-      printPage(v.sheet, this.data, this.resolve);
+      withDetails(this.details, () => printPage(v.sheet, this.data, this.resolve));
       return true;
     }
 
@@ -640,10 +662,16 @@ export class Explorer {
     if (this.visited.length > HISTORY_LIMIT) this.visited.shift();
   }
 
-  private openSheet(selector: string): void {
-    const sheet = findSheet(this.data, selector);
+  /**
+   * Opens a sheet by its sheet number or its number in the list shown (1 is the first).
+   * An exact sheet number wins, so a sheet numbered "1" still opens by name.
+   */
+  private openSheet(selector: string, shown: Sheet[]): void {
+    const sel = selector.trim().toLowerCase();
+    const byNumber = shown.find((s) => s.sheetNumber.toLowerCase() === sel) ?? (this.data.sheets ?? []).find((s) => s.sheetNumber.toLowerCase() === sel);
+    const sheet = byNumber ?? (/^\d+$/.test(sel) ? shown[Number(sel) - 1] : undefined);
     if (!sheet) {
-      this.log(`No sheet matching "${selector}". Try a sheet number or page index.`);
+      this.log(`No sheet "${selector}". Type a number from 1 to ${shown.length}, or a sheet number like ${shown[0]?.sheetNumber ?? "A101"}.`);
       return;
     }
     this.go({ kind: "sheet", sheet });
@@ -666,7 +694,7 @@ export class Explorer {
         return;
       }
     }
-    this.log(`No group "${selector}". Pick 1–${groups.length}, a prefix such as "${groups[0].prefix || "other"}", or a sheet number.`);
+    this.log(`No group "${selector}". Type a number from 1 to ${groups.length}, a letter like ${groups[0].prefix || "other"}, or a sheet number.`);
   }
 
   /** From a sheet, an entry opens below it; from an open table, note, or image, it takes its place. */
@@ -734,23 +762,55 @@ export class Explorer {
     this.go(place, "push", `${raw.toLowerCase()} from ${this.where(this.view)}`);
   }
 
-  private renderGroups(groups: SheetGroup[]): void {
-    const file = this.opts.fileName ? ` in ${this.opts.fileName}` : "";
-    this.log(`\n  ${palette().heading("Sheet groups")}${file} (${plural(this.data.sheets?.length ?? 0, "sheet")}):`);
-    groups.forEach((g, i) => {
-      this.log(`    ${String(i + 1).padStart(2)}. ${palette().bold(groupLabel(g))} (${plural(g.sheets.length, "sheet")})`);
-    });
+  /** What the team calls the set: the PDF's name without the extension or underscores. */
+  private setTitle(): string {
+    const pdf = this.data.filename ? basename(this.data.filename).replace(/\.pdf$/i, "").replace(/_+/g, " ").trim() : "";
+    return pdf || this.opts.fileName || "Drawing set";
+  }
+
+  /** A one-line nudge shown the first time each kind of list appears. */
+  private hint(key: string, text: string): void {
+    if (this.hinted.has(key)) return;
+    this.hinted.add(key);
+    this.log(`  ${palette().dim(text)}`);
     this.log();
   }
 
+  private renderGroups(groups: SheetGroup[]): void {
+    const c = palette();
+    this.log(`\n  ${c.bold(this.setTitle())}`);
+    this.log(`  ${c.dim(`${plural(this.data.sheets?.length ?? 0, "sheet")} in ${groups.length} groups`)}\n`);
+    const numberWidth = String(groups.length).length;
+    const prefixWidth = Math.max(...groups.map((g) => (g.prefix || "-").length));
+    groups.forEach((g, i) => {
+      const name = g.prefix ? `${g.prefix.padEnd(prefixWidth)}  ${g.name ?? ""}` : `${"-".padEnd(prefixWidth)}  Other`;
+      this.log(`  ${c.dim(String(i + 1).padStart(numberWidth))}  ${c.bold(name)}  ${c.dim(plural(g.sheets.length, "sheet"))}`);
+    });
+    this.log();
+    this.hint("groups", 'Type a number or letter (like A) to see those sheets, then press Enter. Type "help" for more.');
+  }
+
   private renderSheets(sheets: Sheet[], group?: SheetGroup): void {
+    const c = palette();
     this.log();
-    if (group) this.log(`  ${palette().heading(groupLabel(group))} (${plural(sheets.length, "sheet")}):\n`);
-    else if (this.opts.fileName) this.log(`  ${palette().heading("Sheets")} in ${this.opts.fileName} (${sheets.length}):\n`);
-    for (const s of sheets) {
-      this.log(`  ${palette().bold(s.sheetNumber)} - ${s.title} ${palette().dim(`(page ${s.pageIndex})`)}`);
+    if (group) {
+      this.log(`  ${c.bold(groupLabel(group))}`);
+      this.log(`  ${c.dim(plural(sheets.length, "sheet"))}\n`);
+    } else {
+      this.log(`  ${c.bold(this.setTitle())}`);
+      this.log(`  ${c.dim(plural(sheets.length, "sheet"))}\n`);
     }
+    const numberWidth = String(sheets.length).length;
+    const sheetWidth = Math.max(...sheets.map((s) => s.sheetNumber.length));
+    let prefix: string | undefined;
+    sheets.forEach((s, i) => {
+      const p = sheetPrefix(s.sheetNumber);
+      if (prefix !== undefined && p !== prefix) this.log();
+      prefix = p;
+      this.log(`  ${c.dim(String(i + 1).padStart(numberWidth))}  ${c.bold(s.sheetNumber.padEnd(sheetWidth))}  ${s.title}`);
+    });
     this.log();
+    this.hint("sheets", 'Type a number or sheet number (like A101) and press Enter to open it. Type "help" for more.');
   }
 
   private renderSheet(sheet: Sheet): void {
@@ -758,57 +818,85 @@ export class Explorer {
 
     const entries = sheetEntries(sheet);
     if (entries.length === 0) {
-      this.log("\n  This sheet has no drawings, tables, notes, or images.\n");
+      this.log('\n  Nothing was found on this sheet. Type "view" to look at the PDF page, or "up" to go back.\n');
       return;
     }
 
+    const c = palette();
+    const width = String(entries.length).length;
+    const described = entries.map(describeEntry);
+    const nameWidth = Math.min(50, Math.max(...described.filter(([, note]) => note).map(([name]) => name.length), 0));
     let current: SheetEntry["kind"] | undefined;
     entries.forEach((entry, i) => {
       if (entry.kind !== current) {
         current = entry.kind;
-        const count = entries.filter((e) => e.kind === current).length;
-        this.log(`\n  ${palette().heading(GROUP_TITLES[current])} (${count}):`);
+        this.log(`\n  ${c.bold(GROUP_TITLES[current])}`);
       }
-      this.log(`    ${String(i + 1).padStart(2)}. ${describeEntry(entry)}`);
+      const [name, note] = described[i];
+      const after = note ? `  ${" ".repeat(Math.max(0, nameWidth - name.length))}${c.dim(note)}` : "";
+      this.log(`  ${c.dim(String(i + 1).padStart(width))}  ${name}${after}`);
     });
     this.log();
+    this.hint("sheet", 'Type a number to open it, "view" to see the PDF page, or "up" to go back.');
+  }
+
+  /** A list of named rows with a dim count or note after each, numbered from 1. */
+  private numbered(rows: [name: string, note?: string][]): void {
+    const c = palette();
+    const width = String(rows.length).length;
+    const nameWidth = Math.min(50, Math.max(...rows.map(([n]) => n.length)));
+    rows.forEach(([name, note], i) => {
+      const after = note ? `  ${" ".repeat(Math.max(0, nameWidth - name.length))}${c.dim(note)}` : "";
+      this.log(`  ${c.dim(String(i + 1).padStart(width))}  ${name}${after}`);
+    });
   }
 
   private renderDrawing(sheet: Sheet, drawing: Drawing): void {
     const c = palette();
-    this.log(`\n  ${c.heading("Drawing:")} ${drawingName(drawing)}${drawingMeta(drawing)} (sheet ${sheet.sheetNumber})`);
-    this.log(`    id:   ${c.dim(drawing["@id"])}`);
-    this.log(`    bbox: ${bboxText(drawing.bbox)}`);
-    const refs = drawing.references ?? [];
-    refs.forEach((ref, i) => this.log(`    ${arrow()}${refTag(i)}${this.resolve(ref)}`));
-    this.refs = { view: this.view, ids: refs };
+    const kind = [drawing.drawingType, drawing.scale].filter(Boolean).join(", ");
+    this.log(`\n  ${c.bold(drawingName(drawing))}`);
+    this.log(`  ${c.dim(`${kind ? `${kind[0].toUpperCase()}${kind.slice(1)}, on` : "On"} ${sheet.sheetNumber}`)}`);
+    if (this.details) {
+      this.log(`  ${c.dim(`id    ${drawing["@id"]}`)}`);
+      this.log(`  ${c.dim("bbox")}  ${bboxText(drawing.bbox)}`);
+    }
 
     if (drawing.layers.length === 0) {
-      this.log("\n  No layers.\n");
-      return;
+      this.log("\n  Nothing was found in this drawing.\n");
+    } else {
+      this.log(`\n  ${c.bold("Layers")}`);
+      this.numbered(drawing.layers.map((layer) => [layer.name, plural(layer.items?.length ?? 0, "item")]));
     }
-    this.log(`\n  ${c.layer("Layers")} (${drawing.layers.length}):`);
-    drawing.layers.forEach((layer, i) => {
-      this.log(`    ${String(i + 1).padStart(2)}. ${layer.name} — ${plural(layer.items?.length ?? 0, "item")}`);
-    });
+
+    const refs = drawing.references ?? [];
+    if (refs.length) {
+      this.log(`\n  ${c.bold("Links to other drawings")}  ${c.dim(linkNote(refs.length))}`);
+      refs.forEach((ref, i) => this.log(`  ${arrow()}${refTag(i)}${this.resolve(ref)}`));
+    }
+    this.refs = { view: this.view, ids: refs };
     this.log();
+    this.hint("drawing", drawing.layers.length ? 'Type a number to open a layer, or "up" to go back.' : 'Type "up" to go back.');
   }
 
-  private renderLayer(layer: Layer): void {
+  private renderLayer(sheet: Sheet, drawing: Drawing, layer: Layer): void {
     const items = layer.items ?? [];
     const c = palette();
-    this.log(`\n  ${c.layer("Layer:")} ${layer.name}`);
-    if (layer.bbox) this.log(`    bbox: ${bboxText(layer.bbox)}`);
+    this.log(`\n  ${c.bold(layer.name)}`);
+    this.log(`  ${c.dim(`${plural(items.length, "item")} on ${drawingName(drawing)}, ${sheet.sheetNumber}`)}`);
+    if (this.details && layer.bbox) this.log(`  ${c.dim("bbox")}  ${bboxText(layer.bbox)}`);
 
     if (items.length === 0) {
-      this.log("\n  No items.\n");
+      this.log("\n  Nothing was found on this layer.\n");
       return;
     }
-    this.log(`\n  ${c.heading("Items")} (${items.length}):`);
-    items.forEach((item, i) => {
-      this.log(`    ${String(i + 1).padStart(2)}. ${itemTypeTag(item)} ${truncate(itemLabel(item))}`);
-    });
     this.log();
+    if (this.details) {
+      items.forEach((item, i) => this.log(`  ${c.dim(String(i + 1).padStart(String(items.length).length))}  ${itemTypeTag(item)} ${truncate(itemName(item))}`));
+    } else {
+      this.numbered(items.map((item) => [truncate(itemName(item))]));
+    }
+    this.log();
+    this.hint("layer", 'Type a number to see what was read for it, or "up" to go back.');
   }
 }
 
@@ -995,7 +1083,7 @@ export class PageViewer {
         log(`Note: the box [${target.bbox!.join(", ")}] runs past the page (${Math.round(width)} × ${Math.round(height)} pt), so it may be in different units.`);
       }
       const what = target.bbox ? ` with ${target.label} in red` : "";
-      log(`Opening sheet ${target.sheet.sheetNumber} (page ${target.sheet.pageIndex}) of ${basename(pdf.path)}${what}:`);
+      log(`Opening sheet ${target.sheet.sheetNumber} (PDF page ${target.sheet.pageIndex + 1}) of ${basename(pdf.path)}${what}:`);
       log(`  ${result.path}`);
       (this.deps.open ?? openWithDefaultApp)(result.path);
     } catch (err) {
@@ -1053,25 +1141,28 @@ export class PageViewer {
   }
 }
 
+/** Bold cyan, the same accent the pickers use, so the prompt is the one colored thing to look for. */
+const PROMPT_COLOR = "\x1b[1;36m";
+
 export async function explore(data: DrawingSet, filePath: string, opts: CommandOptions = {}): Promise<void> {
   if (opts.format === "json" || !process.stdin.isTTY) {
     await sheetsCmd(data, filePath, opts);
     return;
   }
 
-  const valid = await validate(data, filePath, opts);
-  if (!valid) {
-    console.log("\nFile has validation errors. Continuing anyway…\n");
+  if (!(await isValid(data, opts.schema))) {
+    const name = filePath.startsWith("job:") ? "this file" : basename(filePath);
+    console.log(`\n  ${palette().warn(`Some of ${name} doesn't match the AECDO format, so parts may be missing.`)}`);
+    console.log(`  ${palette().dim(`Run "aecdo validate ${name}" to see what's wrong.`)}`);
   }
 
   if ((data.sheets ?? []).length === 0) {
-    console.log("\nNo sheets found.");
+    console.log("\n  This file has no sheets to show.");
     return;
   }
 
   const explorer = new Explorer(data, console.log, { fileName: basename(filePath) });
   explorer.render();
-  explorer.help();
 
   const rl = createInterface({ input: process.stdin, output: process.stdout, completer: completeMention });
   let editing = false;
@@ -1106,7 +1197,7 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
 
   let running = true;
   while (running && !closed) {
-    const input = await ask(color ? stylePrompt(explorer.prompt()) : explorer.prompt());
+    const input = await ask(color ? stylePrompt(explorer.prompt(), PROMPT_COLOR) : explorer.prompt());
     const mention = parseMention(input);
     if (mention) {
       await assistant.run(mention);

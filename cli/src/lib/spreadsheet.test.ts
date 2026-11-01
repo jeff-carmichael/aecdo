@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, copyFileSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   parseDelimited,
   formatDelimited,
@@ -61,13 +62,13 @@ test("zip archives round-trip", () => {
 });
 
 test("reads an Excel-style workbook with shared strings, numbers and formulas", async () => {
-  const data = await readSpreadsheet(FIXTURE.pathname);
+  const data = await readSpreadsheet(fileURLToPath(FIXTURE));
   assert.deepEqual(data.sheets, ["Door Schedule", "Info"]);
   assert.equal(data.sheet, "Door Schedule");
   assert.deepEqual(data.rows[0], ["Mark", "Width (in)", "Height (in)", "Type", "Sheet", null, "Total width"]);
   assert.deepEqual(data.rows[1], ["D101", 36, 84, "Single", "A101", null, 108]);
 
-  const info = await readSpreadsheet(FIXTURE.pathname, "info");
+  const info = await readSpreadsheet(fileURLToPath(FIXTURE), "info");
   assert.equal(info.rows[0][1], "Sample & Co <test>");
 });
 

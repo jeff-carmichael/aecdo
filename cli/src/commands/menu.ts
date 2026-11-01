@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline/promises";
 import { pick, listJsonld } from "../lib/picker.js";
+import { paletteFor } from "../lib/style.js";
 
 export type MenuAction =
   | "explore"
@@ -35,11 +36,6 @@ export const MENU: MenuEntry[] = [
   { action: "help", label: "Show all commands", hint: "aecdo --help" },
   { action: "quit", label: "Quit", hint: "" },
 ];
-
-export function menuLines(entries: MenuEntry[] = MENU): string[] {
-  const width = Math.max(...entries.map((e) => e.label.length));
-  return entries.map((e) => (e.hint ? `${e.label.padEnd(width)}   ${e.hint}` : e.label));
-}
 
 export interface MenuDeps {
   pickFile: (files: string[], title: string) => Promise<string | null>;
@@ -90,11 +86,16 @@ export interface RunMenuOptions {
 }
 
 export async function runMenu(opts: RunMenuOptions): Promise<string[] | null> {
-  const lines = menuLines();
-  process.stderr.write(`aecdo v${opts.version}: pick what to do (or run "aecdo --help" for all commands)\n`);
-  const choice = await pick(lines, { title: "What do you want to do?", maxVisible: MENU.length, echo: (value) => value.split("   ")[0] });
+  const c = paletteFor(process.stderr);
+  process.stderr.write(`\n${c.bold("aecdo")} ${c.dim(`v${opts.version} · run "aecdo --help" for all commands`)}\n\n`);
+  const labels = MENU.map((e) => e.label);
+  const choice = await pick(labels, {
+    title: "What do you want to do?",
+    maxVisible: MENU.length,
+    hint: (label) => MENU.find((e) => e.label === label)?.hint || undefined,
+  });
   if (choice === null) return null;
-  const entry = MENU[lines.indexOf(choice)];
+  const entry = MENU[labels.indexOf(choice)];
 
   const deps: MenuDeps = {
     pickFile: (files, title) => pick(files, { title }),
@@ -112,7 +113,7 @@ export async function runMenu(opts: RunMenuOptions): Promise<string[] | null> {
 
   const args = await argsFor(entry.action, deps);
   if (args && entry.action !== "help") {
-    process.stderr.write(`  (next time: aecdo ${args.map((a) => (/\s/.test(a) ? JSON.stringify(a) : a)).join(" ")})\n`);
+    process.stderr.write(`  ${c.dim(`(next time: aecdo ${args.map((a) => (/\s/.test(a) ? JSON.stringify(a) : a)).join(" ")})`)}\n`);
   }
   return args;
 }

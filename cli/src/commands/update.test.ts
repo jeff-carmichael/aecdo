@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, existsSync, statSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expectedChecksum, replaceBinary, resolveAsset, sha256, update } from "./update.js";
+import { expectedChecksum, replaceBinary, resolveAsset, sha256, systemTar, update } from "./update.js";
 import { readCache, RELEASES_URL } from "../lib/update-check.js";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "aecdo-update-test-"));
@@ -14,7 +14,7 @@ function makeTarball(binaryContent: string): Buffer {
   writeFileSync(join(dir, "aecdo"), binaryContent);
   writeFileSync(join(dir, "README.md"), "readme");
   const out = join(tmp(), "aecdo-linux-x64.tar.gz");
-  const res = spawnSync("tar", ["-C", dir, "-czf", out, "."]);
+  const res = spawnSync(systemTar(), ["-C", dir, "-czf", out, "."]);
   assert.equal(res.status, 0, res.stderr.toString());
   return readFileSync(out);
 }
@@ -101,7 +101,8 @@ test("downloads, verifies, and swaps in the new binary", async () => {
     log: () => {},
   });
   assert.equal(readFileSync(execPath, "utf-8"), "new binary");
-  assert.equal(statSync(execPath).mode & 0o777, 0o755);
+  // Windows has no execute bit; chmod only toggles read-only there.
+  if (process.platform !== "win32") assert.equal(statSync(execPath).mode & 0o777, 0o755);
   assert.deepEqual(readdirSync(join(execPath, "..")), ["aecdo"]);
   assert.equal(readCache(cachePath)?.latestVersion, "0.4.0");
 });

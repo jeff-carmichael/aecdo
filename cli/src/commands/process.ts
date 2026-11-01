@@ -2,8 +2,11 @@ import { resolve, basename, dirname, extname, join } from "node:path";
 import { stat, writeFile } from "node:fs/promises";
 import { loadConfig } from "../lib/config.js";
 import { getToken } from "../lib/auth.js";
-import { createUpload, uploadFile, getJobStatus, getJobResult, downloadResult } from "../lib/api.js";
-import { renderStatus, renderComplete, renderError } from "../lib/progress.js";
+import { getJobStatus, getJobResult, downloadResult } from "../lib/api.js";
+import { ProgressView } from "../lib/progress.js";
+import { paletteFor } from "../lib/style.js";
+import { formatBytes, symbols, task } from "../lib/tui.js";
+import { uploadPdf } from "./upload.js";
 import { validate } from "./validate.js";
 import { summary } from "./summary.js";
 import { explore } from "./explore.js";
@@ -25,8 +28,9 @@ export async function processPdf(filePath: string, opts: ProcessOptions): Promis
 
   const resolved = resolve(filePath);
 
+  let size: number;
   try {
-    await stat(resolved);
+    size = (await stat(resolved)).size;
   } catch {
     throw new Error(`Could not read file "${filePath}": No such file or directory`);
   }
@@ -34,38 +38,40 @@ export async function processPdf(filePath: string, opts: ProcessOptions): Promis
   const config = await loadConfig();
   const token = await getToken(config);
   const pollInterval = (opts.poll ?? 5) * 1000;
+  const c = paletteFor(process.stderr);
+  const sep = ` ${symbols().sep} `;
+  const name = basename(resolved);
 
-  process.stderr.write(`Uploading ${basename(resolved)}...\n`);
+  const { jobId } = await uploadPdf(token, resolved, config.baseUrl);
+  process.stderr.write(`  ${c.dim(`${formatBytes(size)}${sep}job ID ${jobId}`)}\n\n`);
 
-  const { jobId, uploadUrl } = await createUpload(token, basename(resolved), config.baseUrl);
-  await uploadFile(uploadUrl, resolved);
-
-  process.stderr.write(`Upload complete. Job ID: ${jobId}\n\n`);
-
+  const progress = new ProgressView();
   let current = await getJobStatus(token, jobId, config.baseUrl);
-  renderStatus(current);
+  progress.update(current);
 
   while (current.globalStatus === "Pending" || current.globalStatus === "Processing") {
     await sleep(pollInterval);
     current = await getJobStatus(token, jobId, config.baseUrl);
-    renderStatus(current);
+    progress.update(current);
   }
 
   if (current.globalStatus === "Error") {
-    renderError(current);
+    progress.fail(current);
     process.exit(1);
   }
 
-  renderComplete(current);
+  progress.complete(current);
+  process.stderr.write("\n");
 
-  const result = await getJobResult(token, jobId, config.baseUrl);
-  process.stderr.write("\nDownloading result...\n");
-  const content = await downloadResult(result.downloadUrl);
+  const content = await task("Downloading the result", async () => {
+    const result = await getJobResult(token, jobId, config.baseUrl);
+    return downloadResult(result.downloadUrl);
+  }, { done: () => `Downloaded the result for ${name}` });
 
   if (!opts.stdout) {
     const outPath = opts.output ?? defaultResultPath(resolved);
     await writeFile(outPath, content + "\n", "utf-8");
-    process.stderr.write(`Result saved to ${outPath}\n`);
+    process.stderr.write(`${c.ok(symbols().ok)} Saved to ${c.bold(outPath)}\n`);
   }
 
   if (opts.then) {

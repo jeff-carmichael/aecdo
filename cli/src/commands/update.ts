@@ -82,9 +82,16 @@ export async function cleanupOldBinary(execPath = process.execPath): Promise<voi
   }
 }
 
-// Windows' own tar.exe (bsdtar) reads zip files; a Git Bash tar on PATH does not.
-function extract(archivePath: string, destDir: string, platform: NodeJS.Platform): void {
-  const tar = platform === "win32" ? join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
+/**
+ * The tar to run on this machine. On Windows it's the system tar.exe (bsdtar): it reads zip
+ * files, while a Git Bash tar on PATH doesn't and reads "C:\…" as a remote host.
+ */
+export function systemTar(host: NodeJS.Platform = process.platform): string {
+  return host === "win32" ? join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
+}
+
+function extract(archivePath: string, destDir: string): void {
+  const tar = systemTar();
   const result = spawnSync(tar, ["-xf", archivePath, "-C", destDir], { stdio: ["ignore", "ignore", "pipe"] });
   if (result.error) throw new Error(`Could not run tar to unpack the update: ${result.error.message}`);
   if (result.status !== 0) {
@@ -165,7 +172,7 @@ export async function update(opts: UpdateOptions): Promise<void> {
   try {
     const archivePath = join(work, asset.archive);
     await writeFile(archivePath, archive);
-    extract(archivePath, work, platform);
+    extract(archivePath, work);
 
     let binary: Buffer;
     try {

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { createModels, fauxProvider, fauxAssistantMessage, fauxToolCall, fauxText, Type } from "@earendil-works/pi-ai";
 import { Explorer, PageViewer } from "../commands/explore.js";
 import { buildTools, createAssistantSession, loadFolderInstructions, resolveInCwd, withFolderInstructions, wrapPrompt, type AssistantHost } from "./assistant.js";
@@ -79,7 +79,7 @@ test("the assistant can navigate, take notes and fill a spreadsheet", async () =
 
   assert.match(firstPrompt, /"view": "sheet list"/);
   assert.equal(explorer.view.kind, "sheet");
-  assert.ok(screen.some((l) => l.includes("Sheet A101")), "user sees the navigation");
+  assert.ok(screen.some((l) => l.includes("A101  ")), "user sees the navigation");
   assert.equal(readFileSync(join(cwd, "notes.md"), "utf-8"), "- A101 has one drawing\n");
   assert.equal(readFileSync(join(cwd, "takeoff.csv"), "utf-8"), "Sheet,Drawings\nA101,1\n");
   const printed = out.join("");
@@ -104,7 +104,10 @@ test("file tools stay inside the current folder", () => {
   assert.throws(() => resolveInCwd("/work", "../secrets.md", [".md"]), /outside the current folder/);
   assert.throws(() => resolveInCwd("/work", "/etc/passwd.md", [".md"]), /outside the current folder/);
   assert.throws(() => resolveInCwd("/work", "set.jsonld", [".md"]), /must end in/);
-  assert.equal(resolveInCwd("/work", "sub/notes.md", [".md"]), "/work/sub/notes.md");
+  assert.equal(resolveInCwd("/work", "sub/notes.md", [".md"]), resolve("/work", "sub/notes.md"));
+  if (process.platform === "win32") {
+    assert.throws(() => resolveInCwd("C:\\work", "D:\\notes.md", [".md"]), /outside the current folder/);
+  }
 });
 
 test("the assistant can open the page view with the item outlined", async () => {

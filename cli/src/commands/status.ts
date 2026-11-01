@@ -1,7 +1,7 @@
 import { loadConfig } from "../lib/config.js";
 import { getToken } from "../lib/auth.js";
 import { getJobStatus } from "../lib/api.js";
-import { renderStatus, renderComplete, renderError } from "../lib/progress.js";
+import { ProgressView } from "../lib/progress.js";
 import { output } from "../lib/output.js";
 import type { ProcessOptions } from "../types.js";
 
@@ -14,20 +14,22 @@ export async function status(jobId: string, opts: ProcessOptions): Promise<void>
   const token = await getToken(config);
   const pollInterval = (opts.poll ?? 5) * 1000;
 
+  const progress = new ProgressView();
+
   if (opts.wait) {
     let current = await getJobStatus(token, jobId, config.baseUrl);
-    renderStatus(current);
+    progress.update(current);
 
     while (current.globalStatus === "Pending" || current.globalStatus === "Processing") {
       await sleep(pollInterval);
       current = await getJobStatus(token, jobId, config.baseUrl);
-      renderStatus(current);
+      progress.update(current);
     }
 
     if (current.globalStatus === "Done") {
-      renderComplete(current);
+      progress.complete(current);
     } else {
-      renderError(current);
+      progress.fail(current);
       process.exit(1);
     }
     return;
@@ -38,6 +40,6 @@ export async function status(jobId: string, opts: ProcessOptions): Promise<void>
   if (opts.format === "json") {
     await output(current, opts);
   } else {
-    renderStatus(current);
+    progress.snapshot(current);
   }
 }

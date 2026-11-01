@@ -4,6 +4,11 @@ import type { DrawingSet, CommandOptions } from "../types.js";
 import type { ErrorObject } from "ajv";
 import { palette } from "../lib/style.js";
 
+/** Checks a set against the schema without printing anything. */
+export async function isValid(data: DrawingSet, schemaPath?: string): Promise<boolean> {
+  return Boolean(createValidator(await loadSchema(schemaPath))(data));
+}
+
 export async function validate(data: DrawingSet, filePath: string, opts: CommandOptions = {}): Promise<boolean> {
   const schema = await loadSchema(opts.schema);
   const validateFn = createValidator(schema);
