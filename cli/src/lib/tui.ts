@@ -1,3 +1,4 @@
+import { release } from "node:os";
 import { paletteFor, PLAIN } from "./style.js";
 import type { Palette } from "./style.js";
 
@@ -38,9 +39,13 @@ export const ASCII: Symbols = {
   box: { tl: "+", tr: "+", bl: "+", br: "+", h: "-", v: "|" },
 };
 
-/** Same test as the is-unicode-supported package: the classic Windows console font lacks these glyphs. */
-export function unicodeSupported(env: NodeJS.ProcessEnv = process.env, platform: string = process.platform): boolean {
+/**
+ * Based on the is-unicode-supported package: the classic Windows console font lacks these glyphs.
+ * Windows 11 (build 22000+) opens Windows Terminal with a font that has them.
+ */
+export function unicodeSupported(env: NodeJS.ProcessEnv = process.env, platform: string = process.platform, osRelease = release()): boolean {
   if (platform !== "win32") return env.TERM !== "linux";
+  if (Number(osRelease.split(".")[2]) >= 22000) return true;
   return Boolean(
     env.WT_SESSION ||
       env.TERMINUS_SUBLIME ||

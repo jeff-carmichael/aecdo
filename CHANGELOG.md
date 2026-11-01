@@ -14,6 +14,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - **Pickers and the menu:** highlight the selected row, bold the filter match, show "N of M" while filtering, and dim the menu hints.
   - **`explore`:** opens with a box naming the file and its sheet, drawing and item counts, and `help` is now a two-column list of commands.
   - **Plain-text fallbacks:** terminals without Unicode glyphs (the classic Windows console) get ASCII symbols. Outside a terminal, `process` prints one status line each time the counts change instead of repeating the whole block.
+- `explore` is simpler for people new to the terminal:
+  - **Sheet list:** titled with the set's PDF name, numbered from 1, with a blank line between disciplines. Typing `1` now opens the first sheet, where before it took a 0-based page index and opened the second; an exact sheet number still wins.
+  - **Opening screen:** no box, no command table and no "is valid against AECDO schema" line. A one-line tip appears the first time each kind of list is shown, and the schema check only speaks up when something doesn't match.
+  - **Sheet header:** the ═══ rules are gone; it reads "A101  First Floor Plan" with "PDF page 4" under it.
+  - **Page numbers:** references and `view` messages count pages from 1, like a PDF viewer.
+  - **Help:** `help` uses plain wording.
+  - **Sheet, drawing, layer and item screens:** each opens with a bold name and a dim line saying where it is ("26 items on First Floor Plan, A101"). Lists share one numbered layout with counts and scales dimmed in a column.
+  - **Links:** a drawing's links, and an item's under "Related", say how to follow them with the real range ("type r1 to r10 to open one"). The tip no longer mentions links when a drawing has none.
+  - **Items:** shown like a form, with plain field names ("Room name   Story Time") instead of `data:` and `roomName:`. Items without a label get a readable name instead of their id.
+  - **Ids and coordinates:** ids, bbox coordinates and `[THING]`/`[TAG]` labels are hidden. The new `details` command shows or hides them, and `aecdo page` always prints them.
+  - **Color:** the prompt is cyan, the same accent as the pickers.
+  - **Symbols:** Windows 11 gets the Unicode symbols instead of the ASCII fallback.
 - `aecdo completion` with no shell named now recognizes a Windows path in `$SHELL`, such as `C:\Program Files\Git\bin\bash.exe`, as bash.
 - `aecdo update` picks which `tar` to run by the operating system it's running on, not by the release it downloads. Windows always uses its own `tar.exe`.
 - The test suite passes on Windows: path assertions use the platform's separators, the shell-syntax check passes scripts on stdin, and the file-permission check is skipped where Windows has no execute bit.

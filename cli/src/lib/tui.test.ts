@@ -60,8 +60,9 @@ test("box draws a border around padded lines", () => {
 });
 
 test("unicodeSupported falls back to ASCII in the classic Windows console", () => {
-  assert.equal(unicodeSupported({}, "win32"), false);
-  assert.equal(unicodeSupported({ WT_SESSION: "1" }, "win32"), true);
+  assert.equal(unicodeSupported({}, "win32", "10.0.19045"), false);
+  assert.equal(unicodeSupported({ WT_SESSION: "1" }, "win32", "10.0.19045"), true);
+  assert.equal(unicodeSupported({}, "win32", "10.0.26100"), true);
   assert.equal(unicodeSupported({ TERM: "xterm-256color" }, "linux"), true);
   assert.equal(unicodeSupported({ TERM: "linux" }, "linux"), false);
 });

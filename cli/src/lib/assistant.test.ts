@@ -79,7 +79,7 @@ test("the assistant can navigate, take notes and fill a spreadsheet", async () =
 
   assert.match(firstPrompt, /"view": "sheet list"/);
   assert.equal(explorer.view.kind, "sheet");
-  assert.ok(screen.some((l) => l.includes("Sheet A101")), "user sees the navigation");
+  assert.ok(screen.some((l) => l.includes("A101  ")), "user sees the navigation");
   assert.equal(readFileSync(join(cwd, "notes.md"), "utf-8"), "- A101 has one drawing\n");
   assert.equal(readFileSync(join(cwd, "takeoff.csv"), "utf-8"), "Sheet,Drawings\nA101,1\n");
   const printed = out.join("");
