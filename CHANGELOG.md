@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-11-01
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
 - `explore` opens full screen in a terminal, with no new dependencies:
   - **Layout:** the sheet list sits on the left, what you've opened on the right, and the keys that work along the bottom.
