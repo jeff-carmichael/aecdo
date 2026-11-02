@@ -1074,6 +1074,13 @@ const SETUP_WAYS = {
   openrouter: "OpenRouter",
 } as const;
 
+/** Where the assistant's answer goes: the terminal for the typed prompt, the chat panel in full screen. */
+interface AssistantOutput {
+  write(text: string): void;
+  print(line?: string): void;
+  confirm(question: string): Promise<boolean>;
+}
+
 class AssistantBridge {
   private models?: MutableModels;
   private sessions = new Map<AssistantName, AssistantSession>();
@@ -1083,24 +1090,25 @@ class AssistantBridge {
     private data: DrawingSet,
     private filePath: string,
     private explorer: Explorer,
-    private ask: (q: string) => Promise<string>,
+    private out: AssistantOutput,
     private viewer?: PageViewer,
     private markups?: MarkupSession
   ) {}
 
   async run(mention: Mention): Promise<void> {
     const info = mention.assistant;
+    const print = (line = "") => this.out.print(line);
     if (!info) {
       const names = Object.values(ASSISTANTS).map((a) => `@${a.name}`).join(", ");
-      console.log(`Unknown assistant "@${mention.word}". Try one of ${names}.`);
+      print(`Unknown assistant "@${mention.word}". Try one of ${names}.`);
       return;
     }
     if (!mention.text) {
-      console.log(`Ask something after @${info.name}, e.g. "@${info.name} summarize this sheet".`);
+      print(`Ask something after @${info.name}, e.g. "@${info.name} summarize this sheet".`);
       return;
     }
     if (!nodeSupportsAssistant()) {
-      console.log(`The AI assistant needs Node.js 22.19 or newer (you have ${process.versions.node}), or the standalone aecdo binary.`);
+      print(`The AI assistant needs Node.js 22.19 or newer (you have ${process.versions.node}), or the standalone aecdo binary.`);
       return;
     }
 
@@ -1108,11 +1116,11 @@ class AssistantBridge {
       const session = await this.session(info);
       if (!session) return;
       this.active = session;
-      console.log();
+      print();
       await session.ask(mention.text);
-      console.log();
+      print();
     } catch (err) {
-      console.log(`\n${info.label}: ${(err as Error).message}`);
+      print(`\n${info.label}: ${(err as Error).message}`);
     } finally {
       this.active = undefined;
     }
@@ -1125,11 +1133,11 @@ class AssistantBridge {
     this.models ??= await createLlmModels();
     const route = await pickRoute(this.models, info.name);
     if (!route) {
-      console.log(notSetUpMessage(info));
+      this.out.print(notSetUpMessage(info));
       return undefined;
     }
     const model = resolveModel(this.models, info.name, route);
-    console.log(palette().dim(`  ${info.label} via ${routeLabel(route.route, await getCustomEndpoint())} (${route.modelId})`));
+    this.out.print(palette().dim(`  ${info.label} via ${routeLabel(route.route, await getCustomEndpoint())} (${route.modelId})`));
     const session = await createAssistantSession(
       {
         data: this.data,
@@ -1138,9 +1146,9 @@ class AssistantBridge {
         view: this.explorer,
         showPage: this.viewer ? async () => (await this.viewer!.show(this.explorer)).join("\n") : undefined,
         markups: this.markups,
-        write: (text) => process.stdout.write(text),
-        print: (line) => console.log(line),
-        confirm: async (q) => /^y(es)?$/i.test((await this.ask(q)).trim()),
+        write: (text) => this.out.write(text),
+        print: (line) => this.out.print(line),
+        confirm: (q) => this.out.confirm(q),
       },
       info,
       this.models,
@@ -1288,11 +1296,10 @@ export function useFullScreen(opts: CommandOptions, env = process.env, out: Node
 }
 
 /** Asks one question on the normal terminal; Ctrl+C answers "". */
-function questionOnce(q: string, onInterrupt?: () => boolean): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout, completer: completeMention });
+function questionOnce(q: string): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
   return new Promise<string>((res) => {
     rl.on("SIGINT", () => {
-      if (onInterrupt?.()) return;
       process.stdout.write("\n");
       rl.close();
       res("");
@@ -1308,23 +1315,23 @@ async function exploreFullScreen(data: DrawingSet, filePath: string, opts: Comma
   let sink: (line: string) => void = () => undefined;
   const explorer = new Explorer(data, (line = "") => sink(line), { fileName: basename(filePath) });
   const screen = new Screen();
-  // Called only after `assistant` below is set up.
-  const stopAssistant = () => {
-    if (!assistant.active) return false;
-    assistant.active.abort();
-    return true;
-  };
-  const ask = (q: string) => questionOnce(q, stopAssistant);
+  const ask = (q: string) => questionOnce(q);
   const confirm = async (q: string) => /^y(es)?$/i.test((await ask(q)).trim());
-  const viewerDeps: PageViewerDeps = {};
+  // The chat lives in `app`, created below; nothing calls these before then.
+  const chat: AssistantOutput = {
+    write: (text) => app.chatWrite(text),
+    print: (line = "") => app.chatPrint(line),
+    confirm: (q) => (screen.suspended ? confirm(q) : app.chatConfirm(q)),
+  };
+  const viewerDeps: PageViewerDeps = { log: (line = "") => chat.print(line) };
   const viewer = new PageViewer(data, filePath, opts.pdf, viewerDeps);
   const markups = new MarkupSession(data, { locatePdf: () => viewer.locatePdf(), target: () => explorer.viewTarget(), confirm });
   viewerDeps.markups = markups;
-  const assistant = new AssistantBridge(data, filePath, explorer, ask, viewer, markups);
+  const assistant = new AssistantBridge(data, filePath, explorer, chat, viewer, markups);
   const c = palette();
-  const backToSet = () => ask(c.dim("\nPress Enter to go back to the drawing set. "));
+  let lastAssistant = "claude";
 
-  const app = new ExploreApp(explorer, screen, {
+  const app: ExploreApp = new ExploreApp(explorer, screen, {
     collect: (fn) => {
       const lines: string[] = [];
       const previous = sink;
@@ -1338,30 +1345,22 @@ async function exploreFullScreen(data: DrawingSet, filePath: string, opts: Comma
     },
     view: async () => {
       const lines: string[] = [];
+      const previous = viewerDeps.log;
       viewerDeps.log = (line = "") => lines.push(line);
       try {
         await viewer.show(explorer);
       } finally {
-        viewerDeps.log = undefined;
+        viewerDeps.log = previous;
       }
       return lines;
     },
-    ask: async () => {
-      const where = explorer.prompt().replace(/>\s*$/, "");
-      console.log(`\n${c.bold("Ask the AI")} ${c.dim(`about ${where === "sheet" ? "this drawing set" : where}`)}`);
-      console.log(c.dim("Type your question and press Enter. Start with @chatgpt (or another name) to pick an assistant; leave it empty to go back.\n"));
-      const text = (await ask(`${c.accent("›")} `)).trim();
-      if (!text) return;
-      const mention = parseMention(text.startsWith("@") ? text : `@claude ${text}`)!;
-      const onSigint = () => stopAssistant();
-      process.on("SIGINT", onSigint);
-      try {
-        await assistant.run(mention);
-      } finally {
-        process.removeListener("SIGINT", onSigint);
-      }
-      await backToSet();
+    ask: async (text) => {
+      // A question without @name goes to whichever assistant was asked last.
+      const mention = parseMention(text.startsWith("@") ? text : `@${lastAssistant} ${text}`)!;
+      if (mention.assistant) lastAssistant = mention.assistant.name;
+      await assistant.run(mention);
     },
+    stopAsking: () => assistant.active?.abort(),
     markups: async () => {
       for (;;) {
         console.log();
@@ -1432,7 +1431,14 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
   const viewer = new PageViewer(data, filePath, opts.pdf, viewerDeps);
   const markups = new MarkupSession(data, { locatePdf: () => viewer.locatePdf(), target: () => explorer.viewTarget(), confirm });
   viewerDeps.markups = markups;
-  const assistant = new AssistantBridge(data, filePath, explorer, ask, viewer, markups);
+  const assistant = new AssistantBridge(
+    data,
+    filePath,
+    explorer,
+    { write: (text) => process.stdout.write(text), print: (line = "") => console.log(line), confirm },
+    viewer,
+    markups
+  );
 
   let closed = false;
   rl.on("close", () => (closed = true));

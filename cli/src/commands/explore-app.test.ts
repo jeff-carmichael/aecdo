@@ -34,10 +34,11 @@ function setup(width = 110, height = 30, overrides: Partial<AppActions> = {}) {
       return lines;
     },
     view: () => Promise.resolve(["Opening sheet A101 (PDF page 4) of plans.pdf:"]),
-    ask: () => {
-      calls.push("ask");
+    ask: (text) => {
+      calls.push(`ask ${text}`);
       return Promise.resolve();
     },
+    stopAsking: () => calls.push("stop"),
     markups: () => Promise.resolve(),
     hasPendingMarkups: () => false,
     beforeQuit: () => Promise.resolve(),
@@ -135,11 +136,76 @@ test("? shows the keys and any key closes them", () => {
   assert.doesNotMatch(text(), /ask the AI about what's on screen/);
 });
 
-test("asking the AI leaves full screen and comes back", async () => {
-  const { key, calls } = setup();
+const type = (key: (name?: string, str?: string) => void, text: string) => {
+  for (const ch of text) key(undefined, ch);
+};
+
+test("the chat bar sits at the bottom and a opens it without leaving full screen", async () => {
+  const { app, key, text, calls, frames } = setup();
+  assert.match(frames[0].at(-2)!, /Ask the AI about this drawing set… press a/);
   key(undefined, "a");
+  assert.match(text(), /Ask the AI ─/);
+  assert.match(text(), /Which doors are fire rated\?/);
+  type(key, "how many doors?");
+  assert.match(frames.at(-1)!.at(-2)!, /how many doors\?▏/);
+  key("return");
   await tick();
-  assert.deepEqual(calls, ["suspend", "ask", "resume"]);
+  assert.deepEqual(calls, ["ask how many doors?"]);
+  app.chatWrite("There are ");
+  app.chatWrite("26 doors on A101.");
+  app.chatPrint("  ✎ Added a note to notes.md");
+  assert.match(text(), /❯ how many doors\?\n +There are 26 doors on A101\.\n +✎ Added a note/);
+  assert.match(text(), /G001 +Cover Sheet/);
+  key("escape");
+  assert.doesNotMatch(text(), /Ask the AI ─/);
+  key(undefined, "q");
+});
+
+test("Esc stops an answer that's still being written", () => {
+  let finish: () => void = () => undefined;
+  const { key, text, calls } = setup(110, 30, {
+    ask: () => new Promise<void>((res) => (finish = res)),
+    stopAsking: () => {
+      calls.push("stop");
+      finish();
+    },
+  });
+  key(undefined, "a");
+  type(key, "hi");
+  key("return");
+  assert.match(text(), /Answering… press Esc to stop/);
+  assert.match(text(), /Thinking…/);
+  key("escape");
+  assert.deepEqual(calls, ["stop"]);
+  assert.match(text(), /Stopped\./);
+});
+
+test("the AI's yes/no questions are answered in the chat bar", async () => {
+  let answer: boolean | undefined;
+  const { app, key, text } = setup(110, 30, {
+    ask: async () => {
+      answer = await app.chatConfirm("Create doors.xlsx? [y/N]");
+    },
+  });
+  key(undefined, "a");
+  type(key, "make a door list");
+  key("return");
+  assert.match(text(), /Create doors\.xlsx\? \[y\/N\]/);
+  assert.match(text(), /type y or n, then Enter/);
+  key(undefined, "y");
+  key("return");
+  await tick();
+  assert.equal(answer, true);
+});
+
+test("long answers scroll with the arrow keys while the chat is open", () => {
+  const { app, key, text } = setup(110, 20);
+  key(undefined, "a");
+  app.chatWrite(Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join("\n"));
+  assert.match(text(), /line 30/);
+  for (let i = 0; i < 5; i++) key("up");
+  assert.doesNotMatch(text(), /line 30/);
+  assert.match(text(), /↓ 5 more lines/);
 });
 
 test("v shows what the viewer reported in the status line", async () => {

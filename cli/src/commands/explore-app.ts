@@ -1,6 +1,7 @@
 import type { Key } from "node:readline";
 import type { Explorer, ScreenModel, ScreenRow } from "./explore.js";
 import { palette } from "../lib/style.js";
+import { wrapText } from "../lib/table.js";
 import { box, fit, keyHints, padEnd, symbols, textWidth } from "../lib/tui.js";
 
 /** What the app needs from the terminal; the real one is `Screen`, tests pass a fake. */
@@ -18,8 +19,10 @@ export interface AppActions {
   collect(fn: () => void): string[];
   /** Opens the PDF page for what's selected; returns the messages to show. */
   view(): Promise<string[]>;
-  /** Asks the AI in the normal terminal (the screen is suspended while it runs). */
-  ask(): Promise<void>;
+  /** Sends a question to the AI; its answer comes back through `chatWrite`/`chatPrint`/`chatConfirm`. */
+  ask(text: string): Promise<void>;
+  /** Stops the answer being written. */
+  stopAsking(): void;
   /** Reviews and saves markups in the normal terminal. */
   markups(): Promise<void>;
   hasPendingMarkups(): boolean;
@@ -34,7 +37,7 @@ const HELP: [string, string][] = [
   ["b", "back to where you were, after following a link"],
   ["/", "find a sheet by number or title"],
   ["v", "open this page of the PDF, outlined in red"],
-  ["a", "ask the AI about what's on screen"],
+  ["a", "ask the AI about what's on screen (Esc closes the chat)"],
   ["m", "review and save markups the AI suggested"],
   ["d", "show or hide ids and coordinates"],
   ["q", "quit"],
@@ -44,6 +47,11 @@ interface PaneLine {
   text: string;
   /** Index into the selectable rows, for lines that are one. */
   row?: number;
+}
+
+interface ChatEntry {
+  kind: "you" | "ai" | "info";
+  text: string;
 }
 
 /**
@@ -59,6 +67,13 @@ export class ExploreApp {
   private overlay?: string[];
   private busy = false;
   private finish?: () => void;
+  private chatOpen = false;
+  private chatInput = "";
+  private transcript: ChatEntry[] = [];
+  /** Lines scrolled up from the newest part of the chat. */
+  private chatScroll = 0;
+  private asking = false;
+  private question?: (answer: string) => void;
 
   constructor(
     private explorer: Explorer,
@@ -126,6 +141,7 @@ export class ExploreApp {
       this.redraw();
       return;
     }
+    if (this.chatOpen) return this.chatKey(str, key);
     this.status = "";
     const name = key.name;
     const rows = this.rows();
@@ -208,10 +224,99 @@ export class ExploreApp {
         return void this.viewPage();
       case "a":
       case "@":
-        return void this.outside(() => this.actions.ask());
+        this.chatOpen = true;
+        this.chatInput = str === "@" ? "@" : "";
+        this.chatScroll = 0;
+        return this.redraw();
       case "m":
         return void this.outside(() => this.actions.markups());
     }
+  }
+
+  /** Keys while the chat bar has focus: typing goes into the question, arrows scroll the answers. */
+  private chatKey(str: string | undefined, key: Key): void {
+    const name = key.name;
+    const page = Math.max(1, this.chatHeight() - 1);
+    if (name === "up" || name === "down" || name === "pageup" || name === "pagedown") {
+      const step = name === "up" || name === "down" ? 1 : page;
+      this.chatScroll = Math.max(0, this.chatScroll + (name === "up" || name === "pageup" ? step : -step));
+      return this.redraw();
+    }
+    if (this.asking && !this.question) {
+      if (name === "escape" || (key.ctrl && name === "c")) {
+        this.actions.stopAsking();
+        this.chatPrint("Stopped.");
+      }
+      return;
+    }
+    if (key.ctrl && name === "c") {
+      if (!this.chatInput) return void this.quit();
+      this.chatInput = "";
+    } else if (name === "escape") {
+      if (this.question) this.answer("");
+      else this.chatOpen = false;
+      this.chatInput = "";
+    } else if (name === "return" || name === "enter") {
+      const text = this.chatInput.trim();
+      this.chatInput = "";
+      if (this.question) this.answer(text);
+      else if (text) return void this.send(text);
+    } else if (name === "backspace") {
+      this.chatInput = [...this.chatInput].slice(0, -1).join("");
+    } else if (str && !key.ctrl && !key.meta) {
+      // eslint-disable-next-line no-control-regex
+      this.chatInput += str.replace(/[\x00-\x1f\x7f]/g, " ");
+    }
+    this.redraw();
+  }
+
+  private answer(text: string): void {
+    const resolve = this.question!;
+    this.question = undefined;
+    this.transcript.push({ kind: "you", text: text || "no" });
+    resolve(text);
+  }
+
+  private async send(text: string): Promise<void> {
+    this.transcript.push({ kind: "you", text });
+    this.chatScroll = 0;
+    this.asking = true;
+    this.redraw();
+    try {
+      await this.actions.ask(text);
+    } catch (err) {
+      this.chatPrint((err as Error).message);
+    } finally {
+      this.asking = false;
+      this.question = undefined;
+      this.redraw();
+    }
+  }
+
+  /** Streams part of the AI's answer into the chat. */
+  chatWrite(text: string): void {
+    const last = this.transcript.at(-1);
+    if (last?.kind === "ai") last.text += text;
+    else this.transcript.push({ kind: "ai", text });
+    this.redraw();
+  }
+
+  /** Adds a status line (tool activity, errors) to the chat. */
+  chatPrint(line: string): void {
+    const text = line.trim();
+    if (!text) return;
+    this.transcript.push({ kind: "info", text });
+    this.redraw();
+  }
+
+  /** Asks a yes/no question in the chat bar. */
+  chatConfirm(question: string): Promise<boolean> {
+    this.chatOpen = true;
+    this.chatPrint(question);
+    return new Promise((res) => {
+      this.question = (answer) => res(/^y(es)?$/i.test(answer));
+      this.redraw();
+    });
   }
 
   private move(delta: number, count: number, wrap = true): void {
@@ -311,7 +416,8 @@ export class ExploreApp {
     const pane = this.explorer.sheetPane();
     const where = this.sheetFocus ? "" : this.place().replace(/>\s*$/, "");
     const header = `${c.bold(pane.title)}${where ? c.dim(`  ${sym.pointer}  ${where}`) : ""}`;
-    const bodyHeight = Math.max(1, height - 4);
+    const chatRows = this.chatOpen ? this.chatHeight() : 0;
+    const bodyHeight = Math.max(1, height - 5 - (chatRows ? chatRows + 1 : 0));
 
     let body: string[];
     if (this.twoPanes()) {
@@ -323,8 +429,78 @@ export class ExploreApp {
       body = this.sheetFocus ? this.leftPane(width - 1, bodyHeight) : this.mainPane(width - 2, bodyHeight).map((l) => ` ${l}`);
     }
 
-    const lines = [` ${header}`, c.dim(sym.box.h.repeat(width)), ...body, this.statusLine(), ` ${this.footer()}`];
+    const chat = chatRows ? this.chatPane(width, chatRows) : [];
+    const lines = [` ${header}`, c.dim(sym.box.h.repeat(width)), ...body, ...chat, this.statusLine(), this.chatBar(width), ` ${this.footer()}`];
     return this.overlay ? this.withOverlay(lines) : lines;
+  }
+
+  /** Rows for the chat's answers: a bit under half the screen, leaving room for the drawings above. */
+  private chatHeight(): number {
+    const free = this.screen.height - 5;
+    return Math.max(3, Math.min(Math.floor(free * 0.45), free - 4));
+  }
+
+  private where(): string {
+    const w = this.place().replace(/>\s*$/, "");
+    return w === "sheet" ? "this drawing set" : w;
+  }
+
+  private chatPane(width: number, height: number): string[] {
+    const c = palette();
+    const sym = symbols();
+    const label = " Ask the AI ";
+    const rule = c.dim(sym.box.h.repeat(2)) + c.bold(label) + c.dim(sym.box.h.repeat(Math.max(0, width - 2 - label.length)));
+    const inner = width - 2;
+    let lines: string[] = [];
+    if (this.transcript.length === 0) {
+      lines = [
+        c.dim(`Ask anything about ${this.where()}, for example "Which doors are fire rated?"`),
+        c.dim("The AI can open sheets for you, and what it opens shows above."),
+      ].flatMap((l) => wrapKeepingIndent(l, inner));
+    } else {
+      this.transcript.forEach((entry, i) => {
+        if (entry.kind === "you") {
+          if (i > 0) lines.push("");
+          const [first, ...rest] = wrapKeepingIndent(entry.text, inner - 2);
+          lines.push(`${c.accent(sym.pointer)} ${c.bold(first)}`, ...rest.map((l) => `  ${c.bold(l)}`));
+        } else if (entry.kind === "info") {
+          lines.push(...wrapKeepingIndent(entry.text, inner).map((l) => c.dim(l)));
+        } else {
+          const paragraphs = entry.text.replace(/\n{3,}/g, "\n\n").trim().split("\n");
+          for (const p of paragraphs) {
+            const heading = /^#{1,6}\s+/.test(p);
+            for (const l of wrapKeepingIndent(p.replace(/^#{1,6}\s+/, ""), inner)) {
+              const styled = l.replace(/\*\*(.+?)\*\*/g, (_, t: string) => c.bold(t)).replace(/\*\*/g, "");
+              lines.push(heading ? c.bold(styled) : styled);
+            }
+          }
+        }
+      });
+      const last = this.transcript.at(-1);
+      if (this.asking && !this.question && last?.kind !== "ai") lines.push(c.dim("Thinking…"));
+    }
+    this.chatScroll = Math.min(this.chatScroll, Math.max(0, lines.length - height));
+    const start = Math.max(0, lines.length - height - this.chatScroll);
+    const shown = lines.slice(start, start + height).map((l) => ` ${fit(l, inner)}`);
+    if (this.chatScroll > 0) shown[height - 1] = ` ${c.dim(`↓ ${this.chatScroll} more line${this.chatScroll === 1 ? "" : "s"}, press ↓ to read on`)}`;
+    while (shown.length < height) shown.push("");
+    return [rule, ...shown];
+  }
+
+  /** The line you type into: always at the bottom, so it's clear where to ask. */
+  private chatBar(width: number): string {
+    const c = palette();
+    const sym = symbols();
+    if (!this.chatOpen) return ` ${c.dim(sym.pointer)} ${c.dim(`Ask the AI about ${this.where()}… press a`)}`;
+    if (this.asking && !this.question) return ` ${c.dim(sym.pointer)} ${c.dim("Answering… press Esc to stop")}`;
+    const caret = c.accent("▏");
+    const hint = this.question ? c.dim("  type y or n, then Enter") : "";
+    const room = Math.max(4, width - 4 - textWidth(hint));
+    let input = this.chatInput;
+    if (textWidth(input) > room - 1) input = `…${[...input].slice(-(room - 2)).join("")}`;
+    const shown = input || c.dim("Type a question and press Enter");
+    const mark = this.question ? c.warn("?") : c.accent(sym.pointer);
+    return ` ${mark} ${input ? shown + caret : caret + shown}${hint}`;
   }
 
   private statusLine(): string {
@@ -338,8 +514,15 @@ export class ExploreApp {
 
   private footer(): string {
     const c = palette();
+    if (this.chatOpen) {
+      const chatKeys: [string, string][] =
+        this.asking && !this.question
+          ? [["Esc", "stop"], ["↑↓", "scroll"]]
+          : [["Enter", "send"], ["↑↓", "scroll"], ["Esc", "close chat"], ["@chatgpt", "pick another AI"]];
+      return keyHints(chatKeys, c);
+    }
     const keys: [string, string][] = this.sheetFocus
-      ? [["↑↓", "move"], ["Enter", "open"], ["/", "find"], ["?", "help"], ["q", "quit"]]
+      ? [["↑↓", "move"], ["Enter", "open"], ["/", "find"], ["a", "ask AI"], ["?", "help"], ["q", "quit"]]
       : [["↑↓", "move"], ["Enter", "open"], ["←", "back"], ["v", "view PDF"], ["a", "ask AI"], ["?", "help"], ["q", "quit"]];
     return keyHints(keys, c);
   }
@@ -428,6 +611,14 @@ export class ExploreApp {
     });
     return out;
   }
+}
+
+/** Wraps one line of text, keeping its leading indent (list items in answers) on every piece. */
+function wrapKeepingIndent(text: string, width: number): string[] {
+  if (!text.trim()) return [""];
+  const indent = /^\s*/.exec(text)![0].replace(/\t/g, "  ");
+  const room = Math.max(8, width - indent.length);
+  return wrapText(text.trim(), room).map((l) => indent + l);
 }
 
 /** First index to show so `selected` stays visible, keeping `margin` rows of context when possible. */
