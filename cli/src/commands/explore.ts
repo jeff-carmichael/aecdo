@@ -14,11 +14,15 @@ import {
   itemName,
   withDetails,
   linkNote,
+  fieldName,
   arrow,
   type RefResolver,
 } from "./page.js";
 import { palette, withPalette, bboxText, PLAIN } from "../lib/style.js";
 import { sheets as sheetsCmd } from "./sheets.js";
+import { formatTable, wrapText } from "../lib/table.js";
+import { Screen } from "../lib/screen.js";
+import { ExploreApp } from "./explore-app.js";
 import {
   ASSISTANTS,
   assistantForMention,
@@ -273,6 +277,30 @@ function samePlace(a: Place, b: Place): boolean {
 const HISTORY_FOR_ASSISTANT = 6;
 const HISTORY_LIMIT = 20;
 
+/** One selectable line in the full-screen view; `command` is what typing it at the prompt would do. */
+export interface ScreenRow {
+  label: string;
+  note?: string;
+  command: string;
+  sheet?: Sheet;
+}
+
+export interface ScreenSection {
+  heading?: string;
+  note?: string;
+  rows: ScreenRow[];
+}
+
+/** A screen's content as data: a title, a "where" line, free text, then selectable rows. */
+export interface ScreenModel {
+  title: string;
+  subtitle: string;
+  body?: string[];
+  sections: ScreenSection[];
+}
+
+const ITEM_KIND_NAMES: Record<Item["itemType"], string> = { tag: "Tag", thing: "Element", area: "Area" };
+
 export interface ExplorerOptions {
   /** The .jsonld file name, shown above the sheet list. */
   fileName?: string;
@@ -311,6 +339,10 @@ export class Explorer {
     return this.stack[this.stack.length - 1];
   }
 
+  get showingDetails(): boolean {
+    return this.details;
+  }
+
   private path(v: Place): string[] {
     switch (v.kind) {
       case "sheets":
@@ -345,6 +377,114 @@ export class Explorer {
 
   render(): void {
     withDetails(this.details, () => this.renderView());
+  }
+
+  /** The set's name and the list the sheet pane shows: groups, one group's sheets, or every sheet. */
+  sheetPane(): { title: string; rows: ScreenRow[]; current?: string } {
+    const v = this.view;
+    const current = v.kind === "sheets" || v.kind === "group" ? undefined : v.sheet.sheetNumber;
+    const sheetRow = (s: Sheet): ScreenRow => ({ label: s.sheetNumber, note: s.title, command: s.sheetNumber, sheet: s });
+    if (v.kind === "group") return { title: this.setTitle(), rows: v.group.sheets.map(sheetRow) };
+    if (this.groups && v.kind === "sheets") {
+      return {
+        title: this.setTitle(),
+        rows: this.groups.map((g, i) => ({ label: g.prefix || "-", note: `${g.name ?? "Other"} (${g.sheets.length})`, command: String(i + 1) })),
+      };
+    }
+    const parent = current ? this.groups?.find((g) => g.sheets.some((s) => s.sheetNumber === current)) : undefined;
+    return { title: this.setTitle(), rows: (parent?.sheets ?? this.data.sheets ?? []).map(sheetRow), current };
+  }
+
+  /** What the main pane shows for the current place (or for `sheet`, as a preview), without printing. */
+  screenModel(width = 80, sheet?: Sheet): ScreenModel {
+    return withDetails(this.details, () => this.model(sheet ? { kind: "sheet", sheet } : this.view, width));
+  }
+
+  private model(v: Place, width: number): ScreenModel {
+    const rows = <T>(list: T[], toRow: (x: T, i: number) => ScreenRow) => list.map(toRow);
+    const links = (refs: string[], heading: string): ScreenSection[] =>
+      refs.length ? [{ heading, rows: rows(refs, (ref, i) => ({ label: this.resolve(ref), command: `r${i + 1}` })) }] : [];
+    switch (v.kind) {
+      case "sheets":
+      case "group": {
+        const sheets = v.kind === "group" ? v.group.sheets : (this.data.sheets ?? []);
+        const sections: ScreenSection[] = [];
+        for (const s of sheets) {
+          const name = disciplineName(sheetPrefix(s.sheetNumber)) ?? "Other";
+          if (sections.at(-1)?.heading !== name) sections.push({ heading: name, rows: [] });
+          sections.at(-1)!.rows.push({ label: s.sheetNumber, note: s.title, command: s.sheetNumber });
+        }
+        return { title: v.kind === "group" ? groupLabel(v.group) : this.setTitle(), subtitle: plural(sheets.length, "sheet"), sections };
+      }
+      case "sheet": {
+        const sections: ScreenSection[] = [];
+        sheetEntries(v.sheet).forEach((entry, i) => {
+          const heading = GROUP_TITLES[entry.kind];
+          if (sections.at(-1)?.heading !== heading) sections.push({ heading, rows: [] });
+          const [label, note] = describeEntry(entry);
+          sections.at(-1)!.rows.push({ label, note, command: String(i + 1) });
+        });
+        const empty = sections.length ? undefined : ["Nothing was found on this sheet. Press v to look at the PDF page."];
+        return { title: `${v.sheet.sheetNumber}  ${v.sheet.title}`, subtitle: `PDF page ${v.sheet.pageIndex + 1}`, sections, body: empty };
+      }
+      case "drawing": {
+        const d = v.drawing;
+        const kind = [d.drawingType, d.scale].filter(Boolean).join(", ");
+        const layers: ScreenSection = {
+          heading: "Layers",
+          rows: rows(d.layers, (l, i) => ({ label: l.name, note: plural(l.items?.length ?? 0, "item"), command: String(i + 1) })),
+        };
+        return {
+          title: drawingName(d),
+          subtitle: `${kind ? `${kind[0].toUpperCase()}${kind.slice(1)}, on` : "On"} ${v.sheet.sheetNumber}`,
+          body: this.details ? [`id    ${d["@id"]}`, `bbox  [${d.bbox.join(", ")}]`] : undefined,
+          sections: [...(d.layers.length ? [layers] : []), ...links(d.references ?? [], "Links to other drawings")],
+        };
+      }
+      case "layer": {
+        const items = v.layer.items ?? [];
+        return {
+          title: v.layer.name,
+          subtitle: `${plural(items.length, "item")} on ${drawingName(v.drawing)}, ${v.sheet.sheetNumber}`,
+          body: this.details && v.layer.bbox ? [`bbox  [${v.layer.bbox.join(", ")}]`] : undefined,
+          sections: [{ rows: rows(items, (item, i) => ({ label: truncate(itemName(item), 80), note: this.details ? `[${item.itemType.toUpperCase()}]` : undefined, command: String(i + 1) })) }],
+        };
+      }
+      case "item": {
+        const item = v.item;
+        const fields = Object.entries(item.data).filter(([k]) => k !== "label");
+        const keyWidth = Math.max(0, ...fields.map(([k]) => fieldName(k).length));
+        const body = fields.flatMap(([k, value]) => {
+          const text = typeof value === "string" ? value : Array.isArray(value) && value.every((x) => typeof x !== "object") ? value.join(", ") : JSON.stringify(value);
+          return wrapText(text, Math.max(20, width - keyWidth - 5)).map((line, i) => `${i === 0 ? fieldName(k).padEnd(keyWidth) : " ".repeat(keyWidth)}   ${line}`);
+        });
+        if (this.details) body.push("", `id    ${item["@id"]}`, `type  ${item.itemType}`, ...(item.bbox ? [`bbox  [${item.bbox.join(", ")}]`] : []));
+        return {
+          title: itemName(item),
+          subtitle: `${ITEM_KIND_NAMES[item.itemType]} on ${v.layer.name}, ${drawingName(v.drawing)}, ${v.sheet.sheetNumber}`,
+          body: body.length ? body : ["Nothing else was read for this item."],
+          sections: links(item.references ?? [], "Related"),
+        };
+      }
+      case "entry": {
+        const e = v.entry;
+        const where = `on ${v.sheet.sheetNumber}`;
+        if (e.kind === "table") {
+          const t = e.value;
+          return { title: t.label ?? t.title ?? "Untitled Table", subtitle: `Table ${where}`, sections: [], body: formatTable(t.content, Math.max(30, width - 2)) };
+        }
+        if (e.kind === "note") {
+          return { title: "Note", subtitle: `Note ${where}`, sections: [], body: e.value.content.split("\n").flatMap((l) => wrapText(l, Math.max(20, width - 2))) };
+        }
+        const img = e.value;
+        return {
+          title: img.caption ?? img.role,
+          subtitle: `${img.role[0].toUpperCase()}${img.role.slice(1)} ${where}`,
+          sections: [],
+          body: ["Press v to see it on the PDF page."],
+        };
+      }
+    }
   }
 
   private renderView(): void {
@@ -934,6 +1074,13 @@ const SETUP_WAYS = {
   openrouter: "OpenRouter",
 } as const;
 
+/** Where the assistant's answer goes: the terminal for the typed prompt, the chat panel in full screen. */
+interface AssistantOutput {
+  write(text: string): void;
+  print(line?: string): void;
+  confirm(question: string): Promise<boolean>;
+}
+
 class AssistantBridge {
   private models?: MutableModels;
   private sessions = new Map<AssistantName, AssistantSession>();
@@ -943,24 +1090,25 @@ class AssistantBridge {
     private data: DrawingSet,
     private filePath: string,
     private explorer: Explorer,
-    private ask: (q: string) => Promise<string>,
+    private out: AssistantOutput,
     private viewer?: PageViewer,
     private markups?: MarkupSession
   ) {}
 
   async run(mention: Mention): Promise<void> {
     const info = mention.assistant;
+    const print = (line = "") => this.out.print(line);
     if (!info) {
       const names = Object.values(ASSISTANTS).map((a) => `@${a.name}`).join(", ");
-      console.log(`Unknown assistant "@${mention.word}". Try one of ${names}.`);
+      print(`Unknown assistant "@${mention.word}". Try one of ${names}.`);
       return;
     }
     if (!mention.text) {
-      console.log(`Ask something after @${info.name}, e.g. "@${info.name} summarize this sheet".`);
+      print(`Ask something after @${info.name}, e.g. "@${info.name} summarize this sheet".`);
       return;
     }
     if (!nodeSupportsAssistant()) {
-      console.log(`The AI assistant needs Node.js 22.19 or newer (you have ${process.versions.node}), or the standalone aecdo binary.`);
+      print(`The AI assistant needs Node.js 22.19 or newer (you have ${process.versions.node}), or the standalone aecdo binary.`);
       return;
     }
 
@@ -968,11 +1116,11 @@ class AssistantBridge {
       const session = await this.session(info);
       if (!session) return;
       this.active = session;
-      console.log();
+      print();
       await session.ask(mention.text);
-      console.log();
+      print();
     } catch (err) {
-      console.log(`\n${info.label}: ${(err as Error).message}`);
+      print(`\n${info.label}: ${(err as Error).message}`);
     } finally {
       this.active = undefined;
     }
@@ -985,11 +1133,11 @@ class AssistantBridge {
     this.models ??= await createLlmModels();
     const route = await pickRoute(this.models, info.name);
     if (!route) {
-      console.log(notSetUpMessage(info));
+      this.out.print(notSetUpMessage(info));
       return undefined;
     }
     const model = resolveModel(this.models, info.name, route);
-    console.log(palette().dim(`  ${info.label} via ${routeLabel(route.route, await getCustomEndpoint())} (${route.modelId})`));
+    this.out.print(palette().dim(`  ${info.label} via ${routeLabel(route.route, await getCustomEndpoint())} (${route.modelId})`));
     const session = await createAssistantSession(
       {
         data: this.data,
@@ -998,9 +1146,9 @@ class AssistantBridge {
         view: this.explorer,
         showPage: this.viewer ? async () => (await this.viewer!.show(this.explorer)).join("\n") : undefined,
         markups: this.markups,
-        write: (text) => process.stdout.write(text),
-        print: (line) => console.log(line),
-        confirm: async (q) => /^y(es)?$/i.test((await this.ask(q)).trim()),
+        write: (text) => this.out.write(text),
+        print: (line) => this.out.print(line),
+        confirm: (q) => this.out.confirm(q),
       },
       info,
       this.models,
@@ -1141,6 +1289,103 @@ export class PageViewer {
   }
 }
 
+/** Full screen needs a real terminal big enough for two lines of chrome plus a list. */
+export function useFullScreen(opts: CommandOptions, env = process.env, out: NodeJS.WriteStream = process.stdout): boolean {
+  if (opts.classic || env.AECDO_EXPLORE === "classic" || env.TERM === "dumb") return false;
+  return Boolean(out.isTTY && process.stdin.isTTY) && (out.columns ?? 0) >= 50 && (out.rows ?? 0) >= 12;
+}
+
+/** Asks one question on the normal terminal; Ctrl+C answers "". */
+function questionOnce(q: string): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise<string>((res) => {
+    rl.on("SIGINT", () => {
+      process.stdout.write("\n");
+      rl.close();
+      res("");
+    });
+    rl.question(q, (answer) => {
+      rl.close();
+      res(answer);
+    });
+  });
+}
+
+async function exploreFullScreen(data: DrawingSet, filePath: string, opts: CommandOptions): Promise<void> {
+  let sink: (line: string) => void = () => undefined;
+  const explorer = new Explorer(data, (line = "") => sink(line), { fileName: basename(filePath) });
+  const screen = new Screen();
+  const ask = (q: string) => questionOnce(q);
+  const confirm = async (q: string) => /^y(es)?$/i.test((await ask(q)).trim());
+  // The chat lives in `app`, created below; nothing calls these before then.
+  const chat: AssistantOutput = {
+    write: (text) => app.chatWrite(text),
+    print: (line = "") => app.chatPrint(line),
+    confirm: (q) => (screen.suspended ? confirm(q) : app.chatConfirm(q)),
+  };
+  const viewerDeps: PageViewerDeps = { log: (line = "") => chat.print(line) };
+  const viewer = new PageViewer(data, filePath, opts.pdf, viewerDeps);
+  const markups = new MarkupSession(data, { locatePdf: () => viewer.locatePdf(), target: () => explorer.viewTarget(), confirm });
+  viewerDeps.markups = markups;
+  const assistant = new AssistantBridge(data, filePath, explorer, chat, viewer, markups);
+  const c = palette();
+  let lastAssistant = "claude";
+
+  const app: ExploreApp = new ExploreApp(explorer, screen, {
+    collect: (fn) => {
+      const lines: string[] = [];
+      const previous = sink;
+      sink = (line) => lines.push(line);
+      try {
+        fn();
+      } finally {
+        sink = previous;
+      }
+      return lines;
+    },
+    view: async () => {
+      const lines: string[] = [];
+      const previous = viewerDeps.log;
+      viewerDeps.log = (line = "") => lines.push(line);
+      try {
+        await viewer.show(explorer);
+      } finally {
+        viewerDeps.log = previous;
+      }
+      return lines;
+    },
+    ask: async (text) => {
+      // A question without @name goes to whichever assistant was asked last.
+      const mention = parseMention(text.startsWith("@") ? text : `@${lastAssistant} ${text}`)!;
+      if (mention.assistant) lastAssistant = mention.assistant.name;
+      await assistant.run(mention);
+    },
+    stopAsking: () => assistant.active?.abort(),
+    markups: async () => {
+      for (;;) {
+        console.log();
+        await markups.run("list", []);
+        const answer = (await ask(c.dim('\nType "save", "undo", or "remove 2" — or press Enter to go back: '))).trim();
+        if (!answer) return;
+        const cmd = parseMarkupsCommand(`markups ${answer}`);
+        if (cmd) await markups.run(cmd.action, cmd.args);
+      }
+    },
+    hasPendingMarkups: () => markups.pending.length > 0,
+    beforeQuit: () => markups.beforeQuit(),
+  });
+
+  screen.start(
+    (str, key) => app.handleKey(str, key),
+    () => app.redraw()
+  );
+  try {
+    await app.run();
+  } finally {
+    screen.stop();
+  }
+}
+
 /** Bold cyan, the same accent the pickers use, so the prompt is the one colored thing to look for. */
 const PROMPT_COLOR = "\x1b[1;36m";
 
@@ -1158,6 +1403,11 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
 
   if ((data.sheets ?? []).length === 0) {
     console.log("\n  This file has no sheets to show.");
+    return;
+  }
+
+  if (useFullScreen(opts)) {
+    await exploreFullScreen(data, filePath, opts);
     return;
   }
 
@@ -1181,7 +1431,14 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
   const viewer = new PageViewer(data, filePath, opts.pdf, viewerDeps);
   const markups = new MarkupSession(data, { locatePdf: () => viewer.locatePdf(), target: () => explorer.viewTarget(), confirm });
   viewerDeps.markups = markups;
-  const assistant = new AssistantBridge(data, filePath, explorer, ask, viewer, markups);
+  const assistant = new AssistantBridge(
+    data,
+    filePath,
+    explorer,
+    { write: (text) => process.stdout.write(text), print: (line = "") => console.log(line), confirm },
+    viewer,
+    markups
+  );
 
   let closed = false;
   rl.on("close", () => (closed = true));

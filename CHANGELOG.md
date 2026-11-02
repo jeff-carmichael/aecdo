@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- `explore` opens full screen in a terminal, with no new dependencies:
+  - **Layout:** the sheet list sits on the left, what you've opened on the right, and the keys that work along the bottom.
+  - **Keys:** arrow keys move, Enter opens (including links), ← goes back up, `b` returns after a link, `/` finds a sheet, `v` views the PDF, `a` asks the AI, `m` reviews markups, `d` shows ids and coordinates, and `?` lists the keys.
+  - **Sheet previews and tables:** the highlighted sheet is previewed before you open it, and tables take the whole width.
+  - **Chat bar:** a line at the bottom for asking the AI is always visible. Press `a` to type into it. The answer appears in a panel above the bar while the drawings stay on screen, and sheets the AI opens show up as it opens them. ↑/↓ scroll long answers, Esc stops an answer or closes the chat, and the AI's yes/no questions are answered in the same bar. A question without `@name` goes to the assistant asked last.
+  - **Markups** briefly return to the normal terminal and then come back.
+  - **The typed prompt** is still there with `--classic` or `AECDO_EXPLORE=classic`, and is used automatically for windows under 50 × 12 and outside a terminal.
+
 ## [0.4.8] - 2026-11-01
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.

@@ -36,7 +36,11 @@ Commands:
   sheets <file>       List all sheets (non-interactive; agent-friendly)
   page <file> <id>    Print one sheet by sheet number or page index
   explore [file]      Browse interactively (humans): sheet → drawings/tables/notes/
-                      images → layers → items. Sets with more than 25 sheets
+                      images → layers → items. In a terminal it opens full
+                      screen: arrow keys move, Enter opens, ← goes back,
+                      v views the PDF, a asks the AI, ? lists the keys.
+                      --classic (or AECDO_EXPLORE=classic) uses the typed
+                      prompt described here instead. Sets with more than 25 sheets
                       list groups by prefix (G, A, S, …) first. With no file
                       in a terminal, pick a .jsonld file from the current
                       folder. Type "r1", "r2", … to jump to a reference
@@ -202,6 +206,7 @@ async function main(): Promise<void> {
         then: { type: "string" },
         stdout: { type: "boolean", default: false },
         pdf: { type: "string" },
+        classic: { type: "boolean", default: false },
         force: { type: "boolean", default: false },
       },
       allowPositionals: true,
@@ -221,6 +226,7 @@ async function main(): Promise<void> {
     then: options.values.then,
     stdout: options.values.stdout,
     pdf: options.values.pdf,
+    classic: options.values.classic,
   };
 
   try {
