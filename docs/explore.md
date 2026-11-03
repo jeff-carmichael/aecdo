@@ -32,16 +32,16 @@ In a terminal, `explore` fills the window: the sheet list on the left, what you'
                                     │   …
 
  ❯ Ask the AI about A101 › First Floor Plan › Door Tags… press a
- ↑↓ move · Enter open · ← back · v view PDF · a ask AI · ? help · q quit
+ ↑↓ move · Enter open · ← back · u up · v view PDF · a ask AI · ? help · q quit
 ```
 
 | Key | Does |
 |-----|------|
 | ↑ ↓ (Page Up/Down, Home/End) | move through the list, or scroll a table or note |
 | Enter or → | open what's highlighted, including a link under **Related** or **Links to other drawings** |
-| ← or Esc | go back up one level |
-| `b` | go back to where you were before following a link |
-| `/` | find a sheet: type part of its number or title, then Enter |
+| ← or Esc (or `b`) | go back to where you were; after following a link, this returns to where the link was |
+| `u` | go up one level, to what this is on (after following a link, this climbs the linked sheet instead) |
+| `/` | find a sheet: type part of its number or title, then Enter (Esc leaves you where you were, and ← comes back after opening it) |
 | `v` | open this page of the PDF with what's selected outlined in red |
 | `a` | type a question for the AI in the bar at the bottom ([more](#asking-the-ai-in-full-screen)) |
 | `m` | review markups the AI suggested, and save them |
@@ -55,10 +55,10 @@ Reviewing markups (`m`) briefly returns to the normal terminal so you can type c
 
 ### Asking the AI in full screen
 
-The bar above the keys is where you ask the [AI assistant](assistant.md). Press `a`, type a question, and press Enter. A panel opens above the bar: your question, then the answer as it's written. The drawings stay on screen above it, and when the assistant opens a sheet or drawing, it shows up there.
+The bar above the keys is where you ask the [AI assistant](assistant.md). Press `a`, type a question, and press Enter. A panel opens above the bar: your question, then the answer as it's written. The drawings stay on screen above it, and when the assistant opens a sheet or drawing, it shows up there right away, and the chat notes where it went (for example "Now showing A601 › Door Schedule above").
 
 ```
-── Ask the AI ─────────────────────────────────────────────────────────────────
+── Ask the AI · Claude (claude-sonnet-5-5 via Anthropic) ──── type @name to change models ──
  ❯ which doors are fire rated?
  A101 has 26 door tags. The fire-rated ones are:
 
@@ -66,10 +66,10 @@ The bar above the keys is where you ask the [AI assistant](assistant.md). Press 
  - 104B (20 min)
 
  ❯ ▏Type a question and press Enter
- Enter send · ↑↓ scroll · Esc close chat · @chatgpt pick another AI
+ Enter send · ↑↓ scroll · Esc close chat · @name change models
 ```
 
-- Questions go to `@claude` unless you start with another name, such as `@chatgpt which rooms have carpet?`. After that, questions without a name go to the same assistant.
+- The line above the chat shows which model answers and how it's reached. Questions go to the first model you've set up (Claude, then ChatGPT, Gemini, …) unless you start with another name, such as `@chatgpt which rooms have carpet?`. After that, questions without a name go to the same model. Type just a name, like `@gemini`, to switch without asking anything.
 - ↑ and ↓ scroll back through long answers.
 - Esc stops an answer while it's being written. Otherwise it closes the chat and goes back to moving around; press `a` to open it again with the conversation still there.
 - When the assistant asks first (for example before creating a spreadsheet), type `y` or `n` in the bar and press Enter.

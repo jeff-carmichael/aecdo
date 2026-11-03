@@ -28,13 +28,24 @@ export interface AppActions {
   hasPendingMarkups(): boolean;
   /** Offers to save pending markups before quitting (in the normal terminal). */
   beforeQuit(): Promise<void>;
+  /** Which AI questions without an @name go to; the chat shows it. */
+  aiModel?(): Promise<AiModel | undefined>;
+}
+
+export interface AiModel {
+  /** The model family, e.g. "Claude". */
+  label: string;
+  /** The model and how it's reached, e.g. "claude-sonnet-5-5 via Anthropic", or "not set up". */
+  detail?: string;
+  /** The other @names that are set up, e.g. ["@chatgpt"]. */
+  others: string[];
 }
 
 const HELP: [string, string][] = [
   ["↑ ↓", "move"],
   ["Enter or →", "open"],
-  ["← or Esc", "go back up"],
-  ["b", "back to where you were, after following a link"],
+  ["← or Esc", "go back to where you were, even after following a link"],
+  ["u", "go up one level, to what this is on"],
   ["/", "find a sheet by number or title"],
   ["v", "open this page of the PDF, outlined in red"],
   ["a", "ask the AI about what's on screen (Esc closes the chat)"],
@@ -74,6 +85,9 @@ export class ExploreApp {
   private chatScroll = 0;
   private asking = false;
   private question?: (answer: string) => void;
+  private ai?: AiModel;
+  /** Where the AI last moved to, so each move is mentioned once in the chat. */
+  private aiShown?: string;
 
   constructor(
     private explorer: Explorer,
@@ -98,12 +112,23 @@ export class ExploreApp {
     return kind === "sheets" || kind === "group";
   }
 
+  /** True while "/" is finding a sheet; it can start anywhere and only moves once a sheet is picked. */
+  private get finding(): boolean {
+    return this.filter !== undefined;
+  }
+
+  /** The sheet list has the cursor: on a sheet list, or while finding a sheet. */
+  private get listFocus(): boolean {
+    return this.sheetFocus || this.finding;
+  }
+
+  /** Each place keeps its own cursor; finding a sheet has one too, so the place's cursor survives Esc. */
   private place(): string {
-    return this.explorer.prompt();
+    return this.finding ? "\0find" : this.explorer.prompt();
   }
 
   private sheetRows(): ScreenRow[] {
-    const rows = this.explorer.sheetPane().rows;
+    const rows = this.finding && !this.sheetFocus ? this.explorer.allSheetRows() : this.explorer.sheetPane().rows;
     if (!this.filter) return rows;
     const q = this.filter.toLowerCase();
     return rows.filter((r) => `${r.label} ${r.note ?? ""}`.toLowerCase().includes(q));
@@ -122,7 +147,7 @@ export class ExploreApp {
   }
 
   private rows(): ScreenRow[] {
-    return this.sheetFocus ? this.sheetRows() : this.mainRows();
+    return this.listFocus ? this.sheetRows() : this.mainRows();
   }
 
   private get cursor(): number {
@@ -152,7 +177,6 @@ export class ExploreApp {
     if (this.filter !== undefined) {
       if (name === "escape") {
         this.filter = undefined;
-        this.cursor = 0;
       } else if (name === "backspace") {
         this.filter = this.filter.slice(0, -1);
         this.cursor = 0;
@@ -197,18 +221,20 @@ export class ExploreApp {
       case "left":
       case "backspace":
       case "escape":
-        if (this.explorer.view.kind !== "sheets") this.go("up");
+        this.back();
         return this.redraw();
     }
 
     switch (str) {
       case "/":
-        if (!this.sheetFocus) this.go("top");
         this.filter = "";
         this.cursor = 0;
         return this.redraw();
       case "b":
-        this.go("back");
+        this.back();
+        return this.redraw();
+      case "u":
+        this.go("up");
         return this.redraw();
       case "d":
         this.actions.collect(() => this.explorer.handle("details"));
@@ -227,6 +253,7 @@ export class ExploreApp {
         this.chatOpen = true;
         this.chatInput = str === "@" ? "@" : "";
         this.chatScroll = 0;
+        this.refreshAi();
         return this.redraw();
       case "m":
         return void this.outside(() => this.actions.markups());
@@ -290,6 +317,36 @@ export class ExploreApp {
       this.asking = false;
       this.question = undefined;
       this.redraw();
+      this.refreshAi();
+    }
+  }
+
+  /** Looks up which model questions go to; an @name in a question can change it. */
+  private refreshAi(): void {
+    if (!this.actions.aiModel) return;
+    this.actions
+      .aiModel()
+      .then((ai) => {
+        this.ai = ai;
+        this.redraw();
+      })
+      .catch(() => undefined);
+  }
+
+  /**
+   * Called after the AI moves the view, so the move shows above the chat right away and the
+   * chat says where it went. Clears anything that would hide it.
+   */
+  assistantMoved(): void {
+    this.filter = undefined;
+    this.overlay = undefined;
+    this.bodyScroll = 0;
+    const where = this.explorer.location();
+    if (where !== this.aiShown) {
+      this.aiShown = where;
+      this.chatPrint(`Now showing ${where} above`);
+    } else {
+      this.redraw();
     }
   }
 
@@ -337,13 +394,26 @@ export class ExploreApp {
     if (this.explorer.view !== before) {
       this.bodyScroll = 0;
       const jumped = lines.find((l) => l.trim().startsWith("Jumped to"));
-      if (jumped) this.status = jumped.trim().replace(/ "back" returns\.$/, " Press b to come back.");
+      if (jumped) this.status = jumped.trim().replace(/ "back" returns\.$/, " Press ← to come back.");
     } else if (reportFailure) {
       this.status = lines.map((l) => l.trim()).find(Boolean) ?? "";
     }
   }
 
+  /** Retraces your steps, so after following a link it returns to where the link was. */
+  private back(): void {
+    if (this.explorer.canGoBack) this.go("back");
+    else if (this.explorer.view.kind !== "sheets") this.go("up");
+  }
+
   private open(row: ScreenRow): void {
+    if (row.sheet && !this.sheetFocus) {
+      const before = this.explorer.view;
+      const sheet = row.sheet;
+      this.actions.collect(() => this.explorer.openSheetFromAnywhere(sheet));
+      if (this.explorer.view !== before) this.bodyScroll = 0;
+      return;
+    }
     this.go(row.command, true);
   }
 
@@ -400,7 +470,7 @@ export class ExploreApp {
   /** Tables get the whole width, so schedules wrap as little as possible. */
   private twoPanes(): boolean {
     const v = this.explorer.view;
-    const table = v.kind === "entry" && v.entry.kind === "table";
+    const table = v.kind === "entry" && v.entry.kind === "table" && !this.finding;
     return this.screen.width >= 70 && !table;
   }
 
@@ -426,7 +496,7 @@ export class ExploreApp {
       const main = this.mainPane(width - lw - 3, bodyHeight);
       body = Array.from({ length: bodyHeight }, (_, i) => `${padEnd(fit(left[i] ?? "", lw), lw)} ${c.dim(sym.box.v)} ${main[i] ?? ""}`);
     } else {
-      body = this.sheetFocus ? this.leftPane(width - 1, bodyHeight) : this.mainPane(width - 2, bodyHeight).map((l) => ` ${l}`);
+      body = this.listFocus ? this.leftPane(width - 1, bodyHeight) : this.mainPane(width - 2, bodyHeight).map((l) => ` ${l}`);
     }
 
     const chat = chatRows ? this.chatPane(width, chatRows) : [];
@@ -448,14 +518,15 @@ export class ExploreApp {
   private chatPane(width: number, height: number): string[] {
     const c = palette();
     const sym = symbols();
-    const label = " Ask the AI ";
-    const rule = c.dim(sym.box.h.repeat(2)) + c.bold(label) + c.dim(sym.box.h.repeat(Math.max(0, width - 2 - label.length)));
+    const rule = this.chatRule(width);
     const inner = width - 2;
     let lines: string[] = [];
     if (this.transcript.length === 0) {
+      const others = this.ai?.others ?? [];
       lines = [
         c.dim(`Ask anything about ${this.where()}, for example "Which doors are fire rated?"`),
         c.dim("The AI can open sheets for you, and what it opens shows above."),
+        ...(others.length ? [c.dim(`Also set up: ${others.join(", ")}. Type one, alone or before a question, to change models.`)] : []),
       ].flatMap((l) => wrapKeepingIndent(l, inner));
     } else {
       this.transcript.forEach((entry, i) => {
@@ -487,18 +558,36 @@ export class ExploreApp {
     return [rule, ...shown];
   }
 
+  /** "── Ask the AI · Claude (claude-sonnet-5-5 via Anthropic) ─── type @name to change models ──" */
+  private chatRule(width: number): string {
+    const c = palette();
+    const h = symbols().box.h;
+    const title = " Ask the AI ";
+    const model = this.ai ? `· ${this.ai.label}${this.ai.detail ? ` (${this.ai.detail})` : ""} ` : "";
+    const hint = " type @name to change models ";
+    const used = 2 + textWidth(title) + textWidth(model);
+    const fitsHint = used + textWidth(hint) + 4 <= width;
+    const fill = Math.max(0, width - used - (fitsHint ? textWidth(hint) + 2 : 0));
+    const left = c.dim(h.repeat(2)) + c.bold(title) + (model ? c.accent(fit(model, Math.max(0, width - 2 - textWidth(title)))) : "");
+    return left + c.dim(h.repeat(fill)) + (fitsHint ? c.dim(hint) + c.dim(h.repeat(2)) : "");
+  }
+
+  private aiName(): string {
+    return this.ai?.label ?? "the AI";
+  }
+
   /** The line you type into: always at the bottom, so it's clear where to ask. */
   private chatBar(width: number): string {
     const c = palette();
     const sym = symbols();
-    if (!this.chatOpen) return ` ${c.dim(sym.pointer)} ${c.dim(`Ask the AI about ${this.where()}… press a`)}`;
+    if (!this.chatOpen) return ` ${c.dim(sym.pointer)} ${c.dim(`Ask ${this.aiName()} about ${this.where()}… press a`)}`;
     if (this.asking && !this.question) return ` ${c.dim(sym.pointer)} ${c.dim("Answering… press Esc to stop")}`;
     const caret = c.accent("▏");
     const hint = this.question ? c.dim("  type y or n, then Enter") : "";
     const room = Math.max(4, width - 4 - textWidth(hint));
     let input = this.chatInput;
     if (textWidth(input) > room - 1) input = `…${[...input].slice(-(room - 2)).join("")}`;
-    const shown = input || c.dim("Type a question and press Enter");
+    const shown = input || c.dim(this.ai ? `Type a question for ${this.ai.label} and press Enter, or @name to change models` : "Type a question and press Enter");
     const mark = this.question ? c.warn("?") : c.accent(sym.pointer);
     return ` ${mark} ${input ? shown + caret : caret + shown}${hint}`;
   }
@@ -518,12 +607,12 @@ export class ExploreApp {
       const chatKeys: [string, string][] =
         this.asking && !this.question
           ? [["Esc", "stop"], ["↑↓", "scroll"]]
-          : [["Enter", "send"], ["↑↓", "scroll"], ["Esc", "close chat"], ["@chatgpt", "pick another AI"]];
+          : [["Enter", "send"], ["↑↓", "scroll"], ["Esc", "close chat"], ["@name", "change models"]];
       return keyHints(chatKeys, c);
     }
     const keys: [string, string][] = this.sheetFocus
       ? [["↑↓", "move"], ["Enter", "open"], ["/", "find"], ["a", "ask AI"], ["?", "help"], ["q", "quit"]]
-      : [["↑↓", "move"], ["Enter", "open"], ["←", "back"], ["v", "view PDF"], ["a", "ask AI"], ["?", "help"], ["q", "quit"]];
+      : [["↑↓", "move"], ["Enter", "open"], ["←", "back"], ["u", "up"], ["v", "view PDF"], ["a", "ask AI"], ["?", "help"], ["q", "quit"]];
     return keyHints(keys, c);
   }
 
@@ -531,20 +620,21 @@ export class ExploreApp {
     const c = palette();
     const sym = symbols();
     const pane = this.explorer.sheetPane();
-    const rows = this.sheetFocus ? this.sheetRows() : pane.rows;
+    const focus = this.listFocus;
+    const rows = focus ? this.sheetRows() : pane.rows;
     const labelWidth = Math.min(8, Math.max(0, ...rows.map((r) => textWidth(r.label))));
-    const selected = this.sheetFocus ? this.cursor : rows.findIndex((r) => r.label === pane.current);
+    const selected = focus ? this.cursor : rows.findIndex((r) => r.label === pane.current);
     const start = window(selected, rows.length, height);
     return rows.slice(start, start + height).map((r, i) => {
       const index = start + i;
       const text = fit(`${padEnd(r.label, labelWidth)}  ${r.note ?? ""}`, width - 3);
       if (index !== selected) return `   ${text}`;
-      return this.sheetFocus ? ` ${c.accent(sym.pointer)} ${c.accent(c.bold(text))}` : ` ${c.dim(sym.pointer)} ${c.bold(text)}`;
+      return focus ? ` ${c.accent(sym.pointer)} ${c.accent(c.bold(text))}` : ` ${c.dim(sym.pointer)} ${c.bold(text)}`;
     });
   }
 
   private mainPane(width: number, height: number): string[] {
-    const preview = this.sheetFocus;
+    const preview = this.listFocus;
     let model: ScreenModel;
     if (preview) {
       const row = this.sheetRows()[this.cursor];
@@ -555,8 +645,10 @@ export class ExploreApp {
     }
     const lines = this.modelLines(model, width, preview ? -1 : this.cursor);
     const selectedLine = lines.findIndex((l) => l.row === this.cursor);
+    // Somewhere just opened (by you or the AI) starts at its title, so you can see where you are.
+    const fresh = !this.cursors.has(this.place());
     let start: number;
-    if (!preview && selectedLine >= 0) {
+    if (!preview && selectedLine >= 0 && !(fresh && this.bodyScroll === 0)) {
       start = window(selectedLine, lines.length, height, 3);
     } else {
       start = Math.min(this.bodyScroll, Math.max(0, lines.length - height));
