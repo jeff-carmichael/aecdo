@@ -22,10 +22,11 @@ import { palette, withPalette, bboxText, PLAIN } from "../lib/style.js";
 import { sheets as sheetsCmd } from "./sheets.js";
 import { formatTable, wrapText } from "../lib/table.js";
 import { Screen } from "../lib/screen.js";
-import { ExploreApp } from "./explore-app.js";
+import { ExploreApp, type AiModel } from "./explore-app.js";
 import {
   ASSISTANTS,
   assistantForMention,
+  availableRoutes,
   createLlmModels,
   getCustomEndpoint,
   pickRoute,
@@ -341,6 +342,26 @@ export class Explorer {
 
   get showingDetails(): boolean {
     return this.details;
+  }
+
+  /** True when "back" has somewhere to return to. */
+  get canGoBack(): boolean {
+    return this.stack.length > 1;
+  }
+
+  /** Where the user is, as the prompt and history name it, e.g. "A101 › First Floor Plan". */
+  location(): string {
+    return this.where(this.view);
+  }
+
+  /** Every sheet as a row, for finding one from anywhere. */
+  allSheetRows(): ScreenRow[] {
+    return (this.data.sheets ?? []).map((s) => ({ label: s.sheetNumber, note: s.title, command: s.sheetNumber, sheet: s }));
+  }
+
+  /** Opens a sheet on top of where the user is, so "back" returns there. */
+  openSheetFromAnywhere(sheet: Sheet): void {
+    this.go({ kind: "sheet", sheet });
   }
 
   private path(v: Place): string[] {
@@ -1085,6 +1106,7 @@ class AssistantBridge {
   private models?: MutableModels;
   private sessions = new Map<AssistantName, AssistantSession>();
   active?: AssistantSession;
+  private setUpNames?: AssistantName[];
 
   constructor(
     private data: DrawingSet,
@@ -1092,8 +1114,31 @@ class AssistantBridge {
     private explorer: Explorer,
     private out: AssistantOutput,
     private viewer?: PageViewer,
-    private markups?: MarkupSession
+    private markups?: MarkupSession,
+    /** Called after each move the assistant makes, so the screen can show it. */
+    private onNavigate?: () => void
   ) {}
+
+  /** The model families that have a way to reach them set up, in the usual order. */
+  async setUp(): Promise<AssistantName[]> {
+    if (this.setUpNames) return this.setUpNames;
+    if (!nodeSupportsAssistant()) return (this.setUpNames = []);
+    this.models ??= await createLlmModels();
+    const names = Object.keys(ASSISTANTS) as AssistantName[];
+    const routes = await Promise.all(names.map((n) => availableRoutes(this.models!, n)));
+    return (this.setUpNames = names.filter((_, i) => routes[i].length > 0));
+  }
+
+  /** Which model @name uses and how it's reached, without starting a conversation. */
+  async describe(name: AssistantName): Promise<AiModel> {
+    const info = ASSISTANTS[name];
+    const setUp = await this.setUp();
+    const others = setUp.filter((n) => n !== name).map((n) => `@${n}`);
+    if (!this.models || !setUp.includes(name)) return { label: info.label, detail: "not set up", others };
+    const route = await pickRoute(this.models, name);
+    if (!route) return { label: info.label, detail: "not set up", others };
+    return { label: info.label, detail: `${route.modelId} via ${routeLabel(route.route, await getCustomEndpoint())}`, others };
+  }
 
   async run(mention: Mention): Promise<void> {
     const info = mention.assistant;
@@ -1143,7 +1188,14 @@ class AssistantBridge {
         data: this.data,
         filePath: this.filePath,
         cwd: process.cwd(),
-        view: this.explorer,
+        view: {
+          context: () => this.explorer.context(),
+          navigate: (command) => {
+            const result = this.explorer.navigate(command);
+            this.onNavigate?.();
+            return result;
+          },
+        },
         showPage: this.viewer ? async () => (await this.viewer!.show(this.explorer)).join("\n") : undefined,
         markups: this.markups,
         write: (text) => this.out.write(text),
@@ -1327,9 +1379,11 @@ async function exploreFullScreen(data: DrawingSet, filePath: string, opts: Comma
   const viewer = new PageViewer(data, filePath, opts.pdf, viewerDeps);
   const markups = new MarkupSession(data, { locatePdf: () => viewer.locatePdf(), target: () => explorer.viewTarget(), confirm });
   viewerDeps.markups = markups;
-  const assistant = new AssistantBridge(data, filePath, explorer, chat, viewer, markups);
+  const assistant = new AssistantBridge(data, filePath, explorer, chat, viewer, markups, () => app.assistantMoved());
   const c = palette();
-  let lastAssistant = "claude";
+  let lastAssistant: AssistantName = "claude";
+  // Until the user names one, questions go to the first model that's set up.
+  let named = false;
 
   const app: ExploreApp = new ExploreApp(explorer, screen, {
     collect: (fn) => {
@@ -1357,8 +1411,21 @@ async function exploreFullScreen(data: DrawingSet, filePath: string, opts: Comma
     ask: async (text) => {
       // A question without @name goes to whichever assistant was asked last.
       const mention = parseMention(text.startsWith("@") ? text : `@${lastAssistant} ${text}`)!;
-      if (mention.assistant) lastAssistant = mention.assistant.name;
+      if (mention.assistant) {
+        lastAssistant = mention.assistant.name;
+        named = true;
+      }
+      if (mention.assistant && !mention.text) {
+        const ai = await assistant.describe(mention.assistant.name);
+        if (ai.detail === "not set up") chat.print(notSetUpMessage(mention.assistant));
+        else chat.print(`Questions now go to ${ai.label}${ai.detail ? ` (${ai.detail})` : ""}.`);
+        return;
+      }
       await assistant.run(mention);
+    },
+    aiModel: async () => {
+      if (!named) lastAssistant = (await assistant.setUp())[0] ?? lastAssistant;
+      return assistant.describe(lastAssistant);
     },
     stopAsking: () => assistant.active?.abort(),
     markups: async () => {

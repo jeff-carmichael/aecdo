@@ -37,7 +37,7 @@ Commands:
   page <file> <id>    Print one sheet by sheet number or page index
   explore [file]      Browse interactively (humans): sheet → drawings/tables/notes/
                       images → layers → items. In a terminal it opens full
-                      screen: arrow keys move, Enter opens, ← goes back,
+                      screen: arrow keys move, Enter opens, ← goes back, u goes up,
                       v views the PDF, a asks the AI, ? lists the keys.
                       --classic (or AECDO_EXPLORE=classic) uses the typed
                       prompt described here instead. Sets with more than 25 sheets

@@ -81,17 +81,54 @@ test("Enter drills in, ← goes back up, and the cursor is remembered", () => {
   assert.match(text(), /❯ A101/);
 });
 
-test("following a related link jumps, says how to come back, and b returns", () => {
+test("following a related link jumps, and ← returns to where the link was", () => {
   const { key, text, explorer } = setup();
   for (const cmd of ["A101", "1", "4", "5"]) explorer.handle(cmd);
+  const item = explorer.prompt();
   key("down");
   key("up");
   key("return");
   assert.equal(explorer.prompt(), "A601 › Door Schedule> ");
-  assert.match(text(), /Jumped to Table Door Schedule .* Press b to come back\./);
+  assert.match(text(), /Jumped to Table Door Schedule .* Press ← to come back\./);
   assert.match(text(), /│ Mark/);
+  key("left");
+  assert.equal(explorer.prompt(), item);
+  key("escape");
+  assert.equal(explorer.prompt(), "A101 › First Floor Plan › Door Tags> ");
   key(undefined, "b");
-  assert.equal(explorer.view.kind, "item");
+  assert.equal(explorer.prompt(), "A101 › First Floor Plan> ");
+});
+
+test("u climbs the linked sheet, and ← still returns to where the link was", () => {
+  const { key, explorer } = setup();
+  for (const cmd of ["A101", "1", "4", "5"]) explorer.handle(cmd);
+  const item = explorer.prompt();
+  key("return");
+  assert.equal(explorer.prompt(), "A601 › Door Schedule> ");
+  key(undefined, "u");
+  assert.equal(explorer.prompt(), "A601> ");
+  key("left");
+  assert.equal(explorer.prompt(), item);
+});
+
+test("/ from inside a sheet keeps your place: Esc stays put, and ← returns after opening", () => {
+  const { key, text, explorer } = setup();
+  for (const cmd of ["A101", "1"]) explorer.handle(cmd);
+  key("down");
+  key(undefined, "/");
+  for (const ch of "a601") key(undefined, ch);
+  assert.match(text(), /Find: a601.*1 match/);
+  assert.match(text(), /❯ A601 +Door & Window Schedules/);
+  key("escape");
+  assert.equal(explorer.prompt(), "A101 › First Floor Plan> ");
+  assert.match(text(), /❯ Walls/);
+  key(undefined, "/");
+  for (const ch of "a601") key(undefined, ch);
+  key("return");
+  assert.equal(explorer.prompt(), "A601> ");
+  key("left");
+  assert.equal(explorer.prompt(), "A101 › First Floor Plan> ");
+  assert.match(text(), /❯ Walls/);
 });
 
 test("/ finds a sheet by number or title", () => {
@@ -159,6 +196,39 @@ test("the chat bar sits at the bottom and a opens it without leaving full screen
   key("escape");
   assert.doesNotMatch(text(), /Ask the AI ─/);
   key(undefined, "q");
+});
+
+test("the chat shows which model answers and how to change it", async () => {
+  const { app, key, text, frames } = setup(110, 30, {
+    aiModel: () => Promise.resolve({ label: "Claude", detail: "claude-sonnet-5-5 via Anthropic", others: ["@chatgpt"] }),
+  });
+  key(undefined, "a");
+  await tick();
+  assert.match(text(), /Ask the AI · Claude \(claude-sonnet-5-5 via Anthropic\) ─+ type @name to change models ─/);
+  assert.match(text(), /Also set up: @chatgpt\. Type one, alone or before a question, to change models\./);
+  assert.match(frames.at(-1)!.at(-2)!, /Type a question for Claude and press Enter, or @name to change models/);
+  assert.match(frames.at(-1)!.at(-1)!, /@name change models/);
+  assert.doesNotMatch(text(), /pick another AI/);
+  key("escape");
+  app.redraw();
+  assert.match(frames.at(-1)!.at(-2)!, /Ask Claude about this drawing set… press a/);
+});
+
+test("when the AI moves, the move shows above the chat and the chat says where", () => {
+  const { app, key, text, explorer } = setup(110, 24);
+  key(undefined, "a");
+  explorer.navigate("A101");
+  explorer.navigate("1");
+  explorer.navigate("4");
+  explorer.navigate("5");
+  app.assistantMoved();
+  const screen = text();
+  assert.match(screen, /Door tag 105A\n.*│ Tag on Door Tags/);
+  assert.match(screen, /Now showing A101 › First Floor Plan › Door Tags › Door tag 105A above/);
+  explorer.navigate("r1");
+  app.assistantMoved();
+  assert.match(text(), /Now showing A601 › Door Schedule above/);
+  assert.match(text(), /│ Mark/);
 });
 
 test("Esc stops an answer that's still being written", () => {
