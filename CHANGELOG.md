@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Full-screen `explore` navigation fixes:
   - ← (and Esc) now retrace your steps: after following a link, ← returns to the drawing or item the link was on, instead of walking up the linked sheet. The new `u` key goes up one level when you do want the linked sheet's parent.
   - `/` finds a sheet without leaving where you are: Esc keeps your place, and ← after opening the sheet comes back.
+  - `/` matches the start of the sheet number or of title words instead of any part of the title: `/a` lists the architectural sheets, `/a1` the A1xx ones, and `/fl pl` finds Floor Plan sheets. When the typed text starts a sheet number, only sheet numbers are matched.
   - When the AI moves around, the screen redraws at once, the chat says where it went ("Now showing A601 › Door Schedule above"), and the opened place starts at its title so you can follow along.
 - The full-screen AI chat shows which model answers (e.g. "Claude (claude-sonnet-5-5 via Anthropic)") and says "type @name to change models", replacing "@chatgpt pick another AI". Typing just `@gemini` switches models, and questions start with the first model that's set up instead of always `@claude`.
 

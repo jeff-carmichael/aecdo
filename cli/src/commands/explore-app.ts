@@ -130,8 +130,10 @@ export class ExploreApp {
   private sheetRows(): ScreenRow[] {
     const rows = this.finding && !this.sheetFocus ? this.explorer.allSheetRows() : this.explorer.sheetPane().rows;
     if (!this.filter) return rows;
-    const q = this.filter.toLowerCase();
-    return rows.filter((r) => `${r.label} ${r.note ?? ""}`.toLowerCase().includes(q));
+    const query = words(this.filter);
+    if (!query.length) return rows;
+    const byNumber = rows.filter((r) => compact(r.label).startsWith(query.join("")));
+    return byNumber.length ? byNumber : rows.filter((r) => startsWords(query, r));
   }
 
   private mainWidth(): number {
@@ -718,4 +720,13 @@ export function window(selected: number, count: number, height: number, margin =
   if (count <= height || selected < 0) return 0;
   const ideal = selected - Math.max(margin, Math.floor(height / 3));
   return Math.max(0, Math.min(ideal, count - height));
+}
+
+const words = (s: string): string[] => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+const compact = (s: string): string => words(s).join("");
+
+/** Each typed word must start a word of the sheet number or title. */
+function startsWords(query: string[], row: ScreenRow): boolean {
+  const all = [...words(row.label), ...words(row.note ?? "")];
+  return query.every((q) => all.some((w) => w.startsWith(q)));
 }

@@ -41,7 +41,7 @@ In a terminal, `explore` fills the window: the sheet list on the left, what you'
 | Enter or → | open what's highlighted, including a link under **Related** or **Links to other drawings** |
 | ← or Esc (or `b`) | go back to where you were; after following a link, this returns to where the link was |
 | `u` | go up one level, to what this is on (after following a link, this climbs the linked sheet instead) |
-| `/` | find a sheet: type part of its number or title, then Enter (Esc leaves you where you were, and ← comes back after opening it) |
+| `/` | find a sheet: type the start of its number (`a` lists the A sheets, `a1` the A1xx ones) or the start of words in its title (`fl pl` finds Floor Plan), then Enter (Esc leaves you where you were, and ← comes back after opening it) |
 | `v` | open this page of the PDF with what's selected outlined in red |
 | `a` | type a question for the AI in the bar at the bottom ([more](#asking-the-ai-in-full-screen)) |
 | `m` | review markups the AI suggested, and save them |
