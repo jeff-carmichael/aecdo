@@ -141,6 +141,26 @@ test("/ finds a sheet by number or title", () => {
   assert.equal(explorer.prompt(), "S201> ");
 });
 
+test("/ matches the start of a sheet number before title words", () => {
+  const { key, text } = setup();
+  key(undefined, "/");
+  key(undefined, "a");
+  assert.match(text(), /Find: a.*8 matches/);
+  assert.doesNotMatch(text(), /G002/);
+  key(undefined, "1");
+  assert.match(text(), /Find: a1.*3 matches/);
+});
+
+test("/ matches the start of title words, not the middle", () => {
+  const { key, text } = setup();
+  key(undefined, "/");
+  for (const ch of "lan") key(undefined, ch);
+  assert.match(text(), /Find: lan.*0 matches/);
+  for (let i = 0; i < 3; i++) key("backspace");
+  for (const ch of "first fl") key(undefined, ch);
+  assert.match(text(), /Find: first fl.*4 matches/);
+});
+
 test("long lists scroll to keep the cursor in view", () => {
   const { key, text, explorer } = setup(110, 16);
   for (const cmd of ["A101", "1", "4"]) explorer.handle(cmd);
