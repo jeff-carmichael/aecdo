@@ -3,6 +3,7 @@ import type { Explorer, ScreenModel, ScreenRow } from "./explore.js";
 import { palette } from "../lib/style.js";
 import { wrapText } from "../lib/table.js";
 import { box, fit, keyHints, padEnd, symbols, textWidth } from "../lib/tui.js";
+import { ASCII_MAP, UNICODE_MAP, mapSize, pageExtent, renderMinimap } from "../lib/minimap.js";
 
 /** What the app needs from the terminal; the real one is `Screen`, tests pass a fake. */
 export interface AppScreen {
@@ -362,7 +363,7 @@ export class ExploreApp {
 
   /** Adds a status line (tool activity, errors) to the chat. */
   chatPrint(line: string): void {
-    const text = line.trim();
+    const text = quitFirst(line.trim(), "Press Esc, then q,");
     if (!text) return;
     this.transcript.push({ kind: "info", text });
     this.redraw();
@@ -476,6 +477,11 @@ export class ExploreApp {
     return this.screen.width >= 70 && !table;
   }
 
+  /** The layout map takes the bottom half of the right column when there's height for both halves. */
+  private mapHeight(bodyHeight: number): number {
+    return this.twoPanes() && bodyHeight >= 16 ? Math.floor((bodyHeight - 1) / 2) : 0;
+  }
+
   private leftWidth(): number {
     return Math.max(24, Math.min(40, Math.floor(this.screen.width * 0.32)));
   }
@@ -495,8 +501,19 @@ export class ExploreApp {
     if (this.twoPanes()) {
       const lw = this.leftWidth();
       const left = this.leftPane(lw, bodyHeight);
-      const main = this.mainPane(width - lw - 3, bodyHeight);
-      body = Array.from({ length: bodyHeight }, (_, i) => `${padEnd(fit(left[i] ?? "", lw), lw)} ${c.dim(sym.box.v)} ${main[i] ?? ""}`);
+      const rw = this.mainWidth();
+      const mh = this.mapHeight(bodyHeight);
+      const top = mh ? bodyHeight - mh - 1 : bodyHeight;
+      const right = this.mainPane(rw, top);
+      if (mh) {
+        while (right.length < top) right.push("");
+        right.push(c.dim(sym.box.h.repeat(rw + 1)), ...this.mapPane(rw, mh));
+      }
+      const tee = sym.box.tl === "+" ? "+" : "├";
+      body = Array.from({ length: bodyHeight }, (_, i) => {
+        const leftCell = padEnd(fit(left[i] ?? "", lw), lw);
+        return mh && i === top ? `${leftCell} ${c.dim(tee)}${right[i]}` : `${leftCell} ${c.dim(sym.box.v)} ${right[i] ?? ""}`;
+      });
     } else {
       body = this.listFocus ? this.leftPane(width - 1, bodyHeight) : this.mainPane(width - 2, bodyHeight).map((l) => ` ${l}`);
     }
@@ -600,7 +617,7 @@ export class ExploreApp {
       const count = this.sheetRows().length;
       return ` ${c.accent("Find:")} ${this.filter}${c.accent("▏")}  ${c.dim(`${count} ${count === 1 ? "match" : "matches"} · Enter to open, Esc to stop`)}`;
     }
-    return this.status ? ` ${c.warn(this.status)}` : "";
+    return this.status ? ` ${c.warn(quitFirst(this.status, this.chatOpen ? "Press Esc, then q," : "Press q"))}` : "";
   }
 
   private footer(): string {
@@ -661,6 +678,21 @@ export class ExploreApp {
     return shown;
   }
 
+  /** The sheet's layout drawn from its bounding boxes, for the bottom half of the right column. */
+  private mapPane(width: number, height: number): string[] {
+    const c = palette();
+    const sheet = this.listFocus ? this.sheetRows()[this.cursor]?.sheet : undefined;
+    const map = this.listFocus ? sheet && this.explorer.sheetMap(-1, sheet) : this.explorer.sheetMap(this.cursor);
+    if (!map?.boxes.length) return [];
+    // The map keeps the page's shape, so it grows with the window and is centered in the space.
+    const page = pageExtent(map.boxes.map((b) => b.bbox));
+    const [w, h] = mapSize(page, width, height);
+    const glyphs = symbols().box.tl === "+" ? ASCII_MAP : UNICODE_MAP;
+    const indent = " ".repeat(Math.floor((width - w) / 2));
+    const above = Array<string>(Math.floor((height - h) / 2)).fill("");
+    return [...above, ...renderMinimap(map.boxes, w, h, { c, glyphs, page }).map((l) => indent + l)];
+  }
+
   private groupPreview(row: ScreenRow, width: number): string[] {
     const c = palette();
     return [c.bold(fit(`${row.label}  ${row.note ?? ""}`, width)), "", c.dim("Press Enter to see these sheets.")];
@@ -705,6 +737,14 @@ export class ExploreApp {
     });
     return out;
   }
+}
+
+/**
+ * Turns 'Run "aecdo configure ai"' into an instruction to leave explore first, since other
+ * aecdo commands can't run inside it. `how` is the key press, e.g. "Press q".
+ */
+export function quitFirst(text: string, how: string): string {
+  return text.replace(/\bRun ["'](aecdo [^"']+)["']/g, `${how} to leave explore, then run "$1"`);
 }
 
 /** Wraps one line of text, keeping its leading indent (list items in answers) on every piece. */

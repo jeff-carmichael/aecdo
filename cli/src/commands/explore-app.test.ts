@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Explorer, useFullScreen } from "./explore.js";
-import { ExploreApp, window, type AppActions } from "./explore-app.js";
+import { ExploreApp, quitFirst, window, type AppActions } from "./explore-app.js";
 import type { DrawingSet } from "../types.js";
 
 const demo = JSON.parse(
@@ -178,6 +178,32 @@ test("tables use the full width, with the sheet list stepping aside", () => {
   assert.match(text(), /│ Mark │ Room +│ Width │/);
 });
 
+test("the right column's bottom half draws the sheet's layout, highlighting what the cursor is on", () => {
+  const { key, text } = setup(130, 34);
+  for (let i = 0; i < 3; i++) key("down");
+  const map = () => text().split("├")[1] ?? "";
+  assert.match(map(), /╭─+╮/);
+  assert.doesNotMatch(map(), /Layout of|D drawing|First Floor Plan/, "the map has no text");
+  assert.doesNotMatch(map(), /┏/, "previewing a sheet highlights nothing");
+  key("return");
+  const drawing = /┏━{10,}┓/;
+  assert.match(map(), drawing, "the first drawing is highlighted");
+  key("down");
+  assert.doesNotMatch(map(), drawing);
+  assert.match(map(), /┏━+┓|■/, "the key plan is highlighted instead");
+  key("up");
+  key("return");
+  key("down");
+  assert.match(map(), drawing, "inside a drawing, the drawing stays highlighted");
+  assert.doesNotMatch(map(), /▒/, "layers and items aren't marked");
+});
+
+test("short windows leave the layout out", () => {
+  const { key, text } = setup(110, 20);
+  for (let i = 0; i < 3; i++) key("down");
+  assert.doesNotMatch(text(), /Layout/);
+});
+
 test("narrow windows show one pane at a time", () => {
   const { key, text } = setup(60, 20);
   assert.doesNotMatch(text(), /│/);
@@ -232,6 +258,19 @@ test("the chat shows which model answers and how to change it", async () => {
   key("escape");
   app.redraw();
   assert.match(frames.at(-1)!.at(-2)!, /Ask Claude about this drawing set… press a/);
+});
+
+test("messages that say to run another aecdo command say to leave explore first", () => {
+  const { app, key, text } = setup(110, 30);
+  key(undefined, "a");
+  app.chatPrint('Gemini isn\'t set up yet. Run "aecdo configure ai" to add a Google API key.');
+  assert.match(text(), /Press Esc, then q, to leave explore, then run "aecdo configure ai" to add/);
+  assert.doesNotMatch(text(), /Run "aecdo/);
+});
+
+test("quitFirst rewrites Run \"aecdo …\" with the key that leaves explore", () => {
+  assert.equal(quitFirst("Run 'aecdo update' to upgrade.", "Type q"), 'Type q to leave explore, then run "aecdo update" to upgrade.');
+  assert.equal(quitFirst("Nothing to change here.", "Press q"), "Nothing to change here.");
 });
 
 test("when the AI moves, the move shows above the chat and the chat says where", () => {
