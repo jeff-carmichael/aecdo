@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-08
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
 - Full-screen `explore` draws a layout map of the sheet in the bottom half of the right column (when the window is tall enough): boxes for each drawing, table, note, and image from their bounding boxes, sized to the window. The one under the cursor is highlighted, and the drawing stays highlighted while you look through its layers and items.
 - When `explore` (or its AI) suggests another command such as `aecdo configure ai`, it now says to press `q` to leave explore first (Esc, then `q`, while the chat is open; type `q` at the classic prompt).
