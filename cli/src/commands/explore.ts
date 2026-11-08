@@ -22,7 +22,7 @@ import { palette, withPalette, bboxText, PLAIN } from "../lib/style.js";
 import { sheets as sheetsCmd } from "./sheets.js";
 import { formatTable, wrapText } from "../lib/table.js";
 import { Screen } from "../lib/screen.js";
-import { ExploreApp, type AiModel } from "./explore-app.js";
+import { ExploreApp, quitFirst, type AiModel } from "./explore-app.js";
 import {
   ASSISTANTS,
   assistantForMention,
@@ -301,6 +301,18 @@ export interface ScreenModel {
 }
 
 const ITEM_KIND_NAMES: Record<Item["itemType"], string> = { tag: "Tag", thing: "Element", area: "Area" };
+
+export interface SheetMapBox {
+  bbox: BBox;
+  kind: SheetEntry["kind"];
+  selected: boolean;
+}
+
+/** The boxes the layout map draws for a sheet. */
+export interface SheetMap {
+  sheet: Sheet;
+  boxes: SheetMapBox[];
+}
 
 export interface ExplorerOptions {
   /** The .jsonld file name, shown above the sheet list. */
@@ -595,6 +607,35 @@ export class Explorer {
   navigate(command: string): Record<string, unknown> {
     this.handle(command);
     return this.context();
+  }
+
+  /**
+   * The sheet's main features for the layout map: one box per drawing, table, note, and image.
+   * `cursor` is the selected row in the main pane; `sheet` previews a sheet from the sheet list.
+   */
+  sheetMap(cursor: number, sheet?: Sheet): SheetMap | undefined {
+    const v: Place = sheet ? { kind: "sheet", sheet } : this.view;
+    if (v.kind === "sheets" || v.kind === "group") return undefined;
+    const entries = sheetEntries(v.sheet);
+    let selected: unknown;
+    switch (v.kind) {
+      case "sheet":
+        selected = sheet ? undefined : entries[cursor]?.value;
+        break;
+      case "drawing":
+      case "layer":
+      case "item":
+        selected = v.drawing;
+        break;
+      case "entry":
+        selected = v.entry.value;
+        break;
+    }
+    const boxes: SheetMapBox[] = [];
+    for (const e of entries) {
+      if (e.value.bbox) boxes.push({ bbox: e.value.bbox, kind: e.kind, selected: e.value === selected });
+    }
+    return { sheet: v.sheet, boxes };
   }
 
   /** What "view" should show: the current sheet's page, outlining what is open. */
@@ -1502,7 +1543,7 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
     data,
     filePath,
     explorer,
-    { write: (text) => process.stdout.write(text), print: (line = "") => console.log(line), confirm },
+    { write: (text) => process.stdout.write(text), print: (line = "") => console.log(quitFirst(line, "Type q")), confirm },
     viewer,
     markups
   );

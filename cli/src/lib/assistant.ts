@@ -104,6 +104,8 @@ You can write files in the current folder (${host.cwd}):
 - append_note adds Markdown to ${DEFAULT_NOTES_FILE} (or another .md file). Use it when the user asks you to note, record or remember something.
 - Spreadsheets: ${SPREADSHEET_EXTENSIONS.join(", ")}. Use list_spreadsheets first and work in the user's existing file and layout when there is one; read it before writing so new rows match its columns. Only create a new spreadsheet if none fits or the user asks.
 
+Other aecdo commands (such as "aecdo configure ai" or "aecdo update") can't run inside explore. When you suggest one, tell the user to quit explore first: press Esc to close the chat, then q (at the typed prompt, type q).
+
 Answer in plain text suited to a terminal: short paragraphs or simple lists, no tables wider than 80 columns, no headings.
 Base answers on the drawing data; say so when the data does not contain something rather than guessing. Cite sheet numbers.`;
 }

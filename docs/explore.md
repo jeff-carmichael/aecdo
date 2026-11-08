@@ -51,6 +51,10 @@ In a terminal, `explore` fills the window: the sheet list on the left, what you'
 
 While a sheet list is showing, the right side previews the highlighted sheet. A table takes the whole width while it's open, so schedules wrap as little as possible.
 
+When the window is tall enough, the right column splits in two: what you've opened on top, and underneath, the sheet's layout drawn from the bounding boxes, as plain outlines of each drawing, table, note, and image. The map keeps the page's shape and grows to fill that space as you resize the window. The box the cursor is on gets heavy, colored lines, and the drawing stays highlighted while you look through its layers and items.
+
+Other `aecdo` commands, such as `aecdo configure ai` or `aecdo update`, can't run inside `explore`. When a message suggests one, it tells you to press `q` to leave first (Esc, then `q`, while the chat is open). The page size isn't stored in the data, so the map assumes the smallest common sheet size (Letter up to ARCH E) that holds every box.
+
 Reviewing markups (`m`) briefly returns to the normal terminal so you can type commands like `save`; press Enter to go back.
 
 ### Asking the AI in full screen
