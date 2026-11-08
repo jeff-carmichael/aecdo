@@ -169,7 +169,7 @@ For example, the door tag `[408.5, 747.5, 428.5, 767.5]` is a 20 × 20 point box
 
 To draw a bbox on an image of the page rendered at a given DPI, multiply each value by `DPI / 72`. At 72 DPI, one pixel is one point.
 
-This is exactly how [`view`](explore.md#see-it-on-the-page-view) draws its red box. If the box lands in the wrong place, or `view` warns that it "runs past the page", the file was probably made with different units.
+This is exactly how `explore` draws its [red box on the PDF](explore.md#see-it-on-the-pdf-page) and its sheet map. If the box lands in the wrong place, or `explore` warns that it "runs past the page", the file was probably made with different units.
 
 ## Producing your own files
 
@@ -177,8 +177,8 @@ AECDO is an open standard, and `aecdo` works with any file that matches the sche
 
 1. Follow the structure above, starting from [`sample-drawing-set.jsonld`](https://github.com/jeff-carmichael/aecdo/blob/main/examples/sample-drawing-set.jsonld).
 2. Give every object a unique `urn:uuid:` `@id`.
-3. Write each `bbox` in PDF points from the top-left of the page, as described above, so `view` lines up.
-4. Set `filename` to the source PDF's name, and save the `.jsonld` next to the PDF with the same base name, so `view` can find it.
+3. Write each `bbox` in PDF points from the top-left of the page, as described above, so the red box lines up.
+4. Set `filename` to the source PDF's name, and save the `.jsonld` next to the PDF with the same base name, so `explore` can find it.
 5. Check it with `aecdo validate`.
 
 To check a file:

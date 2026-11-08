@@ -48,7 +48,7 @@ aecdo process plans.pdf
 2. shows live progress while the sheets are processed;
 3. downloads the result and saves it as **`plans.jsonld` next to `plans.pdf`**, printing the path it saved to.
 
-Keeping the `.jsonld` next to the PDF matters: that's where [`view`](explore.md#see-it-on-the-page-view) looks for the PDF later.
+Keeping the `.jsonld` next to the PDF matters: that's where `explore` looks for it when you press <kbd>v</kbd> to [see something on the PDF page](explore.md#see-it-on-the-pdf-page).
 
 > `process` overwrites an existing file at the save path without asking. Use `-o` to keep an older result.
 
@@ -66,7 +66,7 @@ aecdo process plans.pdf --poll 10                 # check progress every 10 seco
 | Option | What it does |
 |--------|--------------|
 | `-o`, `--output <file>` | Save the result to this path instead of next to the PDF |
-| `--then validate\|summary\|explore` | After saving, run that command on the result. `--then explore` already knows where the PDF is, so `view` works right away |
+| `--then validate\|summary\|explore` | After saving, run that command on the result. `--then explore` already knows where the PDF is, so <kbd>v</kbd> works right away |
 | `--stdout` | Print the JSON-LD to standard output and don't save a file. Status messages go to stderr, so piping stays clean |
 | `--poll <seconds>` | How often to check progress |
 

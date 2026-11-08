@@ -4,18 +4,21 @@ title: AI assistant
 
 # AI assistant in explore
 
-Inside `aecdo explore`, start a line with the name of a model, like **`@claude`**, **`@chatgpt`**, or **`@grok`**, to ask an AI assistant about the drawing set. It sees what's on your screen, can move around the set for you, open pages with things outlined, take notes, and fill in spreadsheets.
+Inside `aecdo explore`, you can ask an AI model such as Claude or ChatGPT about the drawing set. It sees what's on your screen, can move around the set for you, open pages with things outlined, take notes, fill in spreadsheets, and cloud problems on the PDF.
+
+Press <kbd>a</kbd> in `explore`, type a question, and press <kbd>Enter</kbd>:
 
 ```
-A101> @claude which rooms on this floor don't have a door tag?
-A601> @chatgpt compare the door schedule to the door tags on A101 and A102
-sheet> @claude show me door 105A
-sheet> @gemini list the rooms with no finish in the room finish schedule
+which rooms on this floor don't have a door tag?
+compare the door schedule to the door tags on A101 and A102
+show me door 105A
 ```
+
+First you need to connect `aecdo` to a model, once.
 
 ## Set it up
 
-Each `@name` is a model. You choose how `aecdo` reaches it: straight from the company that makes it, through Amazon Bedrock, through your own endpoint, or through OpenRouter. Set up any one of these and the models it offers work right away:
+Each model has a name you can use in `explore`: `@claude`, `@chatgpt`, `@gemini`, `@grok`, `@deepseek`, and `@kimi`. You choose how `aecdo` reaches it: straight from the company that makes it, through Amazon Bedrock, through your own endpoint, or through OpenRouter. Set up any one of these and the models it offers work right away:
 
 | Way to connect | Models | How | Cost |
 |----------------|--------|-----|------|
@@ -26,13 +29,13 @@ Each `@name` is a model. You choose how `aecdo` reaches it: straight from the co
 | **Custom endpoint** | the ones you list | A base URL and token for an OpenAI- or Anthropic-compatible API, such as a company gateway, LiteLLM, Azure, vLLM, or Ollama | Up to whoever runs it |
 | **OpenRouter** | all six | *Sign in with OpenRouter*, or an [OpenRouter API key](https://openrouter.ai/settings/keys) | Billed per use from your OpenRouter credits |
 
-Run:
+If `explore` is open, quit it first with <kbd>q</kbd>. Then run:
 
 ```bash
 aecdo configure ai
 ```
 
-and pick from the menu with the arrow keys:
+and pick from the menu with <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>. Most people want one of the first options: **Sign in with ChatGPT** if you pay for ChatGPT Plus or Pro, or **Enter an Anthropic API key** for Claude. All the choices:
 
 - **Sign in with ChatGPT (uses your ChatGPT plan)** opens your browser to sign in. You can cap how much `aecdo` may use in ChatGPT's settings.
 - **Enter an OpenAI API key**, **Enter an Anthropic API key**, or **Enter an OpenRouter API key** asks you to paste the key (it isn't shown as you type).
@@ -52,21 +55,38 @@ The assistant works with the installed `aecdo` program. If you [built from sourc
 
 ## Asking questions
 
-Type `@claude`, `@chatgpt` (or `@gpt`), `@gemini`, `@grok`, `@deepseek`, or `@kimi` at the start of a line, then your question. Type `@` and a few letters, then press **Tab**, to complete the name. The name turns cyan as you type it when it matches an assistant, so you know the line will go to the assistant and not be read as a command.
+In `explore`, press <kbd>a</kbd>. The bar at the bottom becomes a text box: type your question in plain words and press <kbd>Enter</kbd>. A chat panel opens with the answer as it's written, and the drawings stay on screen above it.
 
-The assistant gets the current view as context: the sheet list, the sheet, the drawing, the layer, or the item, table, note, or image you have open. So "this floor", "these doors", or "this layer" mean what's on your screen. It also gets the last few places you visited, and the reference you followed if you jumped here with `r1`, so after jumping from a door tag to the door schedule you can ask "@claude is the door I came from in this schedule?".
+```
+── Ask the AI · Claude (claude-sonnet-5-5 via Anthropic) ──── type @name to change models ──
+ ❯ which doors are fire rated?
+ A101 has 26 door tags. The fire-rated ones are:
 
-- **It remembers the conversation** until you quit `explore`. Each name (`@claude`, `@chatgpt`, `@gemini`, …) keeps its own conversation.
-- **Press Ctrl+C** to stop an answer partway through.
-- Answers appear as they're written. When the assistant navigates, you see your view change; when it writes a note or a spreadsheet, it prints a line saying which file.
+ - 101A (90 min)
+ - 104B (20 min)
+
+ ❯ ▏Type a question and press Enter
+ Enter send · ↑↓ scroll · Esc close chat · @name change models
+```
+
+- **Which model answers** is shown above the chat. It's the first one you set up. To ask a different one, start your question with its name, like `@chatgpt which rooms have carpet?`; later questions go to that one too. Type just the name, like `@gemini`, to switch without asking anything.
+- **Ask about what's on screen.** The assistant knows what you have open (a sheet, a drawing, a layer, an item, a table), so "this floor", "these doors", or "this layer" mean what you're looking at. It also knows the last few places you visited and the link you followed to get here, so after jumping from a door tag to the door schedule you can ask "is the door I came from in this schedule?".
+- **It remembers the conversation** until you quit `explore`. Each model keeps its own conversation.
+- **When it moves around** (for example, "show me door 105A"), your view changes above the chat, and the chat says where it went. When it writes a note or a spreadsheet, the chat says which file.
+- **When it asks first** (for example, before changing a spreadsheet), type `y` or `n` and press <kbd>Enter</kbd>.
+- <kbd>↑</kbd> <kbd>↓</kbd> scroll through long answers. <kbd>Esc</kbd> stops an answer partway through; otherwise it closes the chat, so the arrow keys move around the set again. <kbd>a</kbd> opens it again.
+
+If you use the typed prompt (`explore --classic`), start a line with the model's name instead, like `@claude which rooms have carpet?`. Type `@` and a few letters, then <kbd>Tab</kbd>, to complete the name, and press <kbd>Ctrl</kbd> <kbd>C</kbd> to stop an answer.
+
+**"Claude isn't set up yet"?** That model isn't connected. Quit `explore` (<kbd>Esc</kbd>, then <kbd>q</kbd>), run `aecdo configure ai`, and start `explore` again.
 
 ## What it can do
 
 | It can | For example |
 |--------|-------------|
-| **Navigate** the set with the same commands you type, so your view moves as it works | "go to the second floor plan door tags" |
+| **Move around** the set for you, so your view changes as it works | "go to the second floor plan door tags" |
 | **Read** any sheet without moving your view | "what does the general structural notes sheet say about concrete strength?" |
-| **Show you the page** with something outlined in red, like typing `view` | "show me door 105A", "where's the book drop detail?" |
+| **Show you the page** with something outlined in red, like pressing <kbd>v</kbd> | "show me door 105A", "where's the book drop detail?" |
 | **Mark up the PDF** with clouds, callouts, and sticky notes that Bluebeam and Acrobat open as normal markups (you review and save them) | "cloud every door that's missing from the door schedule" |
 | **Take notes** by adding Markdown to `notes.md` (or another `.md` file you name) in the current folder | "note the doors that are missing from the schedule" |
 | **Fill in a spreadsheet** (`.xlsx`, `.csv`, or `.tsv`) in the current folder | "add every door on A101 to doors.xlsx" |
@@ -93,27 +113,34 @@ Ask the assistant to cloud, call out, or note something, and it adds real PDF ma
 
 **Nothing changes until you save.** The assistant only proposes markups. Then:
 
-1. Type `view` to see them drawn on the page.
-2. Type `markups` to list them. `markups drop 2` discards one, `markups clear` discards them all.
-3. Type `markups save` to write them.
+1. Press <kbd>Esc</kbd> to close the chat, then <kbd>v</kbd> to see them drawn on the page.
+2. Press <kbd>m</kbd> to review them. `explore` steps aside to show the list and asks what to do. Type one of these and press <kbd>Enter</kbd>:
+   - `save` writes them to the PDF (see below);
+   - `drop 2` discards markup 2, and `clear` discards them all;
+   - `undo` takes back the last save;
+   - `remove` deletes every markup `aecdo` saved earlier.
+3. Press <kbd>Enter</kbd> on an empty line to go back to `explore`.
 
 ```
-A101> @claude cloud door 209B and say it's missing from the door schedule
-  ✎ Markup 1 pending: cloud A102 on item Door tag 209B: Door 209B is not in the door schedule (A601).
-A102 › Second Floor Plan › Door Tags> markups save
+Pending (not saved yet):
+  1. cloud A102 on Door tag 209B: Door 209B is not in the door schedule (A601).
+
+Type "save", "undo", or "remove 2" — or press Enter to go back: save
 Saved 1 markup to /projects/library/plans-markups.pdf. "markups undo" takes them back.
 ```
 
-**Saving goes to a copy** next to your PDF, `plans-markups.pdf` for `plans.pdf`. Your original stays as it was. Later saves add to the same copy. To mark up the original instead, type `markups save --in-place`. If the PDF is open in Bluebeam or Acrobat on Windows, close it first; the save tells you if the file is locked.
+At the typed prompt (`explore --classic`), type `view` to see them, and put `markups` in front of the other words: `markups` lists them, then `markups save`, `markups drop 2`, and so on.
+
+**Saving goes to a copy** next to your PDF, `plans-markups.pdf` for `plans.pdf`. Your original stays as it was. Later saves add to the same copy. To mark up the original instead, type `save --in-place`. If the PDF is open in Bluebeam or Acrobat on Windows, close it first; the save tells you if the file is locked.
 
 **Saves only add to the end of the file.** Every byte of the original stays the same, so a digitally signed or sealed set keeps a valid signature, and undo is exact:
 
-- `markups undo` takes back the last save in this session (or the last `markups remove`). If the save created the copy, the copy is deleted. Undo refuses if the file has changed since, for example after someone edited it in Bluebeam.
-- `markups remove` deletes every markup aecdo added, plus replies people attached to them, and leaves everyone else's markups alone. It asks first. Add `--in-place` to clean the original PDF.
+- `undo` takes back the last save in this session (or the last `remove`). If the save created the copy, the copy is deleted. Undo refuses if the file has changed since, for example after someone edited it in Bluebeam.
+- `remove` deletes every markup aecdo added, plus replies people attached to them, and leaves everyone else's markups alone. It asks first. Add `--in-place` to clean the original PDF.
 
 If you quit with markups still pending, `explore` asks whether to save them.
 
-Markups go where the drawing data says the item is, so they're only as accurate as its [bounding boxes](data-model.md#bbox-coordinates). Check with `view` before saving. Encrypted or password-protected PDFs can't be marked up.
+Markups go where the drawing data says the item is, so they're only as accurate as its [bounding boxes](data-model.md#bbox-coordinates). Check with <kbd>v</kbd> before saving. Encrypted or password-protected PDFs can't be marked up.
 
 ## Project instructions: AGENTS.md
 
@@ -142,6 +169,6 @@ How it works:
 
 - **What's sent:** your questions, plus the parts of the drawing set the assistant needs (the current view and any sheets it reads), go to whichever way that `@name` uses: OpenAI, Anthropic, Amazon Bedrock in your AWS account, your custom endpoint, or OpenRouter and on to the company that runs the model (OpenRouter's privacy settings control which providers may receive them). Your PDF itself isn't sent.
 - **File access** is limited to the folder you ran `explore` from. There it can only read and write spreadsheets and add to Markdown notes. It can't run commands or reach other folders.
-- **Nothing is sent** unless you start a line with an assistant's name, like `@claude`.
+- **Nothing is sent** unless you ask a question in the chat (or, at the typed prompt, start a line with a name like `@claude`).
 
 The assistant is built on the open-source [pi](https://github.com/earendil-works/pi) libraries (`pi-ai` and `pi-agent-core`).
