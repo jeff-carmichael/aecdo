@@ -146,6 +146,22 @@ code {
   border-radius: 4px;
 }
 
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.05em 0.4em;
+  font-family: var(--mono);
+  font-size: 0.85em;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
 pre {
   margin: 0 0 1.2em;
   padding: 14px 16px;

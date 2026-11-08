@@ -4,7 +4,9 @@ title: Install and update
 
 # Install and update
 
-`aecdo` is a single program with nothing else to install. Pick your operating system below, then open a new terminal and run `aecdo --version` to check it worked.
+`aecdo` is a single program with nothing else to install. Pick your operating system below, paste the command into a terminal, and press Enter. Then close the terminal, open a new one, and run `aecdo --version` to check it worked.
+
+Never used a terminal? See [New to the command line?](index.md#new-to-the-command-line) for how to open one and paste a command.
 
 ## macOS and Linux
 
@@ -68,7 +70,7 @@ At the end of the install, both scripts ask whether to download the example draw
 | File | What it is |
 |------|------------|
 | `maple-grove-library.jsonld` | The 19-sheet [demo set](demo.md) for a fictional library (data only, no PDF) |
-| `sample-drawing-package-1and2family.jsonld` and `.pdf` | The City of Vancouver's [sample house permit set](demo.md#real-drawings-vancouver-sample-house) with its PDF, for trying `view` and markups |
+| `sample-drawing-package-1and2family.jsonld` and `.pdf` | The City of Vancouver's [sample house permit set](demo.md#real-drawings-vancouver-sample-house) with its PDF, for seeing items outlined on the PDF and trying markups |
 | `sample-drawing-set.jsonld` | A minimal complete example |
 | `README.md` | Where each file comes from |
 
