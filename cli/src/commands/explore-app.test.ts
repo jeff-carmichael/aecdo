@@ -178,11 +178,27 @@ test("tables use the full width, with the sheet list stepping aside", () => {
   assert.match(text(), /│ Mark │ Room +│ Width │/);
 });
 
-test("the right column's bottom half draws the sheet's layout, highlighting what the cursor is on", () => {
+/** The map inset: the rows from its top corner down, cut at the corner's column. */
+function mapOf(text: string): string {
+  const lines = text.split("\n");
+  const top = lines.findIndex((l) => l.includes("╭"));
+  if (top < 0) return "";
+  const col = lines[top].indexOf("╭");
+  return lines.slice(top).map((l) => l.slice(col)).join("\n");
+}
+
+test("a small map in the right column's bottom-right corner draws the sheet's layout, highlighting what the cursor is on", () => {
   const { key, text } = setup(130, 34);
   for (let i = 0; i < 3; i++) key("down");
-  const map = () => text().split("├")[1] ?? "";
+  const map = () => mapOf(text());
   assert.match(map(), /╭─+╮/);
+  const rows = map().split("\n").filter((l) => /[╭│╰]/.test(l));
+  assert.ok(rows.length <= 12, "the map is a small inset, not half the column");
+  assert.ok(rows[0].length <= 36);
+  const lines = text().split("\n");
+  const top = lines.findIndex((l) => l.includes("╭"));
+  assert.ok(top > lines.length / 2, "the map sits at the bottom");
+  assert.ok(lines[top].trimEnd().endsWith("╮"), "the map sits at the right edge");
   assert.doesNotMatch(map(), /Layout of|D drawing|First Floor Plan/, "the map has no text");
   assert.doesNotMatch(map(), /┏/, "previewing a sheet highlights nothing");
   key("return");
@@ -198,10 +214,19 @@ test("the right column's bottom half draws the sheet's layout, highlighting what
   assert.doesNotMatch(map(), /▒/, "layers and items aren't marked");
 });
 
-test("short windows leave the layout out", () => {
-  const { key, text } = setup(110, 20);
+test("short windows leave the map out", () => {
+  const { key, text } = setup(110, 16);
   for (let i = 0; i < 3; i++) key("down");
-  assert.doesNotMatch(text(), /Layout/);
+  assert.doesNotMatch(text(), /╭/);
+});
+
+test("the list keeps the full width above the map", () => {
+  const { key, text } = setup(130, 34);
+  for (let i = 0; i < 3; i++) key("down");
+  key("return");
+  const lines = text().split("\n");
+  const top = lines.findIndex((l) => l.includes("╭"));
+  assert.ok(lines.slice(0, top).some((l) => /Wall Types|General Notes|Keynotes/i.test(l)));
 });
 
 test("narrow windows show one pane at a time", () => {

@@ -40,7 +40,7 @@ aecdo explore maple-grove-library.jsonld
 
 ## 2. Walk the first floor plan
 
-1. Press <kbd>↓</kbd> three times to highlight **A101 First Floor Plan**, then press <kbd>Enter</kbd>. The right side lists what's on the sheet: two drawings (the plan and a key plan), a Wall Types table, general notes and keynotes, and two images. Press <kbd>↓</kbd> a few times and watch the map in the bottom half: the highlighted box moves to show where each one sits on the sheet.
+1. Press <kbd>↓</kbd> three times to highlight **A101 First Floor Plan**, then press <kbd>Enter</kbd>. The right side lists what's on the sheet: two drawings (the plan and a key plan), a Wall Types table, general notes and keynotes, and two images. Press <kbd>↓</kbd> a few times and watch the small map in the bottom-right corner: the highlighted box moves to show where each one sits on the sheet.
 2. Go back up to **First Floor Plan** and press <kbd>Enter</kbd> to open the drawing. You'll see its 10 layers, from Grids & Dimensions to Keynotes. Below them, **Links to other drawings** lists its callouts: building sections on A301, elevations on A201, and details on A501.
 3. Highlight **Door Tags** (26 tags, 101A through 123A) and press <kbd>Enter</kbd>.
 4. Highlight **Door tag 105A** and press <kbd>Enter</kbd>. Under **Related** it links to two things: the door schedule and the door itself.

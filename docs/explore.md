@@ -64,7 +64,7 @@ From top to bottom:
 - **The top line** names the drawing set and where you are, such as `A101 › First Floor Plan › Door Tags`.
 - **The left column** lists the sheets, with the open one marked `❯`.
 - **The right column, top half,** shows what you've opened. The `❯` marks the highlighted line, the one <kbd>Enter</kbd> opens. `↓ 6 more` means the list continues; keep pressing <kbd>↓</kbd>.
-- **The right column, bottom half,** is a [map of the sheet](#the-sheet-map).
+- **The right column, bottom-right corner,** has a small [map of the sheet](#the-sheet-map).
 - **The chat bar** is where you [ask the AI](#ask-the-ai).
 - **The bottom line** lists the keys that work right now.
 
@@ -125,9 +125,9 @@ Press <kbd>d</kbd> to also show ids, item types, and each thing's `bbox` (where 
 
 ## The sheet map
 
-The bottom half of the right column is a small map of the sheet, drawn from where each drawing, table, note, and image sits on the page. It's there to help you find your way: the box for the highlighted thing has thick, colored lines, so as you move up and down the list you can see which part of the sheet you're on. While you're inside a drawing (its layers and items), the drawing's box stays highlighted. Things too small to draw as a box show as a dot.
+The bottom-right corner of the right column holds a small map of the sheet, drawn from where each drawing, table, note, and image sits on the page. It's there to help you find your way: the box for the highlighted thing has thick, colored lines, so as you move up and down the list you can see which part of the sheet you're on. While you're inside a drawing (its layers and items), the drawing's box stays highlighted. Things too small to draw as a box show as a dot.
 
-The map keeps the shape of the page and grows or shrinks to fit the space as you resize the window. It needs some room, so it's hidden in short windows (and while a table is open). Make the window taller, or close the AI chat with <kbd>Esc</kbd>, to bring it back.
+The map keeps the shape of the page and stays small, like a footnote, so the list above it keeps the full width. The rows beside it are shortened a little to make room. It needs some room, so it's hidden in short windows (and while a table is open). Make the window taller, or close the AI chat with <kbd>Esc</kbd>, to bring it back.
 
 The data doesn't record the page size, so the map assumes the smallest standard sheet size (from Letter up to ARCH E) that holds everything on the sheet. If nothing on a sheet reaches its edges, the map may be a little off in shape.
 
