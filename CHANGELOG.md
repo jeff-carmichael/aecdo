@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- Full-screen `explore` draws the sheet map as a small inset in the bottom-right corner of the right column instead of filling its bottom half, so the list of drawings, tables, notes, and images gets most of the column back. Rows beside the map are shortened to make room; rows above it keep the full width.
+
 ## [0.5.1] - 2026-11-08
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.

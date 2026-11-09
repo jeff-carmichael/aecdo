@@ -477,11 +477,6 @@ export class ExploreApp {
     return this.screen.width >= 70 && !table;
   }
 
-  /** The layout map takes the bottom half of the right column when there's height for both halves. */
-  private mapHeight(bodyHeight: number): number {
-    return this.twoPanes() && bodyHeight >= 16 ? Math.floor((bodyHeight - 1) / 2) : 0;
-  }
-
   private leftWidth(): number {
     return Math.max(24, Math.min(40, Math.floor(this.screen.width * 0.32)));
   }
@@ -502,17 +497,20 @@ export class ExploreApp {
       const lw = this.leftWidth();
       const left = this.leftPane(lw, bodyHeight);
       const rw = this.mainWidth();
-      const mh = this.mapHeight(bodyHeight);
-      const top = mh ? bodyHeight - mh - 1 : bodyHeight;
-      const right = this.mainPane(rw, top);
-      if (mh) {
-        while (right.length < top) right.push("");
-        right.push(c.dim(sym.box.h.repeat(rw + 1)), ...this.mapPane(rw, mh));
+      const right = this.mainPane(rw, bodyHeight);
+      const inset = this.mapInset(rw, bodyHeight);
+      if (inset.lines.length) {
+        // Rows beside the map give up their right end to it; everything above keeps the full width.
+        const room = rw - inset.width - 2;
+        const first = bodyHeight - inset.lines.length - 1;
+        for (let i = first; i < bodyHeight; i++) {
+          const map = i > first ? `  ${inset.lines[i - first - 1]}` : "";
+          right[i] = `${padEnd(fit(right[i] ?? "", room), room)}${map}`;
+        }
       }
-      const tee = sym.box.tl === "+" ? "+" : "├";
       body = Array.from({ length: bodyHeight }, (_, i) => {
         const leftCell = padEnd(fit(left[i] ?? "", lw), lw);
-        return mh && i === top ? `${leftCell} ${c.dim(tee)}${right[i]}` : `${leftCell} ${c.dim(sym.box.v)} ${right[i] ?? ""}`;
+        return `${leftCell} ${c.dim(sym.box.v)} ${right[i] ?? ""}`;
       });
     } else {
       body = this.listFocus ? this.leftPane(width - 1, bodyHeight) : this.mainPane(width - 2, bodyHeight).map((l) => ` ${l}`);
@@ -678,19 +676,22 @@ export class ExploreApp {
     return shown;
   }
 
-  /** The sheet's layout drawn from its bounding boxes, for the bottom half of the right column. */
-  private mapPane(width: number, height: number): string[] {
-    const c = palette();
+  /**
+   * The sheet's layout drawn from its bounding boxes, as a small inset in the right column's
+   * bottom-right corner: big enough to show the structure, small enough to leave the list its room.
+   */
+  private mapInset(width: number, height: number): { lines: string[]; width: number } {
+    const none = { lines: [], width: 0 };
+    const maxW = Math.min(36, Math.max(20, Math.floor(width * 0.4)));
+    const maxH = Math.min(12, Math.floor(height * 0.4));
+    if (width < 50 || maxH < 6) return none;
     const sheet = this.listFocus ? this.sheetRows()[this.cursor]?.sheet : undefined;
     const map = this.listFocus ? sheet && this.explorer.sheetMap(-1, sheet) : this.explorer.sheetMap(this.cursor);
-    if (!map?.boxes.length) return [];
-    // The map keeps the page's shape, so it grows with the window and is centered in the space.
+    if (!map?.boxes.length) return none;
     const page = pageExtent(map.boxes.map((b) => b.bbox));
-    const [w, h] = mapSize(page, width, height);
+    const [w, h] = mapSize(page, maxW, maxH);
     const glyphs = symbols().box.tl === "+" ? ASCII_MAP : UNICODE_MAP;
-    const indent = " ".repeat(Math.floor((width - w) / 2));
-    const above = Array<string>(Math.floor((height - h) / 2)).fill("");
-    return [...above, ...renderMinimap(map.boxes, w, h, { c, glyphs, page }).map((l) => indent + l)];
+    return { lines: renderMinimap(map.boxes, w, h, { c: palette(), glyphs, page }), width: w };
   }
 
   private groupPreview(row: ScreenRow, width: number): string[] {
