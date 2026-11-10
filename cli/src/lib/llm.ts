@@ -388,7 +388,7 @@ export async function createLlmModels(store: CredentialStore = new FileCredentia
   return models;
 }
 
-/** Whether a route has credentials. Bedrock counts only once set up in "aecdo configure ai", not from stray AWS env vars. */
+/** Whether a route has credentials. Bedrock counts only once set up in Settings, not from stray AWS env vars. */
 export async function isRouteConfigured(models: MutableModels, route: RouteId, path = llmConfigPath()): Promise<boolean> {
   const config = await readLlmConfig(path);
   if (route === "amazon-bedrock") return config.credentials?.["amazon-bedrock"] !== undefined;
@@ -425,8 +425,23 @@ export function resolveModel(models: MutableModels, name: AssistantName, { route
   const model = models.getModel(route, modelId);
   if (!model) {
     throw new Error(
-      `Unknown ${ASSISTANTS[name].label} model "${modelId}" on ${ROUTE_LABELS[route]}. Run "aecdo configure ai" to pick another.`
+      `Unknown ${ASSISTANTS[name].label} model "${modelId}" on ${ROUTE_LABELS[route]}. Pick another in Settings.`
     );
   }
   return model;
+}
+
+/**
+ * Current model first. Shared catalogs (Bedrock, OpenRouter) are narrowed to the family and
+ * lead with its default; OpenRouter's batch-only variants are left out.
+ */
+export function modelChoices(route: RouteId, catalog: string[], current: string, info: AssistantInfo): string[] {
+  let ids = [...catalog].reverse();
+  if (route === "openrouter") ids = ids.filter((id) => !id.endsWith(":batch"));
+  if (route === "openrouter" || route === "amazon-bedrock") {
+    ids = ids.filter((id) => info.match.test(id));
+    const preferred = info.routes[route];
+    if (preferred) ids = [preferred, ...ids.filter((id) => id !== preferred)];
+  }
+  return [...new Set([current, ...ids].filter(Boolean))];
 }

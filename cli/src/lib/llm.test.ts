@@ -22,7 +22,7 @@ import {
   type RouteId,
 } from "./llm.js";
 import { parseMention, nodeSupportsAssistant, notSetUpMessage } from "../commands/explore.js";
-import { modelChoices } from "../commands/configure-ai.js";
+import { modelChoices } from "./llm.js";
 
 function tempConfig(): string {
   return join(mkdtempSync(join(tmpdir(), "aecdo-llm-")), "llm.json");
@@ -170,7 +170,7 @@ test("model picker narrows shared catalogs to the family and leads with its defa
 test("not-set-up message lists every way to reach the model", () => {
   assert.equal(
     notSetUpMessage(ASSISTANTS.claude),
-    'Claude isn\'t set up yet. Run "aecdo configure ai" to add an Anthropic API key, Amazon Bedrock, a custom endpoint, or OpenRouter.'
+    'Claude isn\'t set up yet. Open Settings (press ",") to add an Anthropic API key, Amazon Bedrock, a custom endpoint, or OpenRouter.'
   );
   assert.match(notSetUpMessage(ASSISTANTS.gemini), /a custom endpoint, or OpenRouter\.$/);
   assert.deepEqual(routesFor("gemini"), ["custom", "openrouter"]);

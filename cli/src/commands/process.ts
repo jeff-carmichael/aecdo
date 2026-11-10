@@ -3,17 +3,20 @@ import { stat, writeFile } from "node:fs/promises";
 import { loadConfig } from "../lib/config.js";
 import { getToken } from "../lib/auth.js";
 import { getJobStatus, getJobResult, downloadResult } from "../lib/api.js";
-import { ProgressView } from "../lib/progress.js";
-import { paletteFor } from "../lib/style.js";
-import { formatBytes, symbols, task } from "../lib/tui.js";
+import { JobProgress } from "../lib/progress.js";
 import { uploadPdf } from "./upload.js";
 import { validate } from "./validate.js";
 import { summary } from "./summary.js";
-import { explore } from "./explore.js";
 import type { DrawingSet, ProcessOptions } from "../types.js";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms));
+}
+
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function defaultResultPath(pdfPath: string): string {
@@ -38,14 +41,12 @@ export async function processPdf(filePath: string, opts: ProcessOptions): Promis
   const config = await loadConfig();
   const token = await getToken(config);
   const pollInterval = (opts.poll ?? 5) * 1000;
-  const c = paletteFor(process.stderr);
-  const sep = ` ${symbols().sep} `;
-  const name = basename(resolved);
 
+  process.stderr.write(`Uploading ${basename(resolved)} (${formatBytes(size)})\n`);
   const { jobId } = await uploadPdf(token, resolved, config.baseUrl);
-  process.stderr.write(`  ${c.dim(`${formatBytes(size)}${sep}job ID ${jobId}`)}\n\n`);
+  process.stderr.write(`Job ID: ${jobId}\n`);
 
-  const progress = new ProgressView();
+  const progress = new JobProgress();
   let current = await getJobStatus(token, jobId, config.baseUrl);
   progress.update(current);
 
@@ -61,17 +62,14 @@ export async function processPdf(filePath: string, opts: ProcessOptions): Promis
   }
 
   progress.complete(current);
-  process.stderr.write("\n");
 
-  const content = await task("Downloading the result", async () => {
-    const result = await getJobResult(token, jobId, config.baseUrl);
-    return downloadResult(result.downloadUrl);
-  }, { done: () => `Downloaded the result for ${name}` });
+  const result = await getJobResult(token, jobId, config.baseUrl);
+  const content = await downloadResult(result.downloadUrl);
 
   if (!opts.stdout) {
     const outPath = opts.output ?? defaultResultPath(resolved);
     await writeFile(outPath, content + "\n", "utf-8");
-    process.stderr.write(`${c.ok(symbols().ok)} Saved to ${c.bold(outPath)}\n`);
+    process.stderr.write(`Saved to ${outPath}\n`);
   }
 
   if (opts.then) {
@@ -83,11 +81,8 @@ export async function processPdf(filePath: string, opts: ProcessOptions): Promis
       case "summary":
         await summary(data, `job:${jobId}`, opts);
         break;
-      case "explore":
-        await explore(data, `job:${jobId}`, { ...opts, pdf: opts.pdf ?? resolved });
-        break;
       default:
-        throw new Error(`Unknown --then command: "${opts.then}". Use validate, summary, or explore.`);
+        throw new Error(`Unknown --then command: "${opts.then}". Use validate or summary.`);
     }
     return;
   }

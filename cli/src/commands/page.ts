@@ -1,7 +1,10 @@
 import { output } from "../lib/output.js";
-import { formatTable } from "../lib/table.js";
-import { palette, bboxText } from "../lib/style.js";
+import { parseTable } from "../lib/table.js";
 import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image, CommandOptions } from "../types.js";
+
+export function bboxText(bbox: readonly number[]): string {
+  return `[${bbox.join(", ")}]`;
+}
 
 export function findSheet(data: DrawingSet, selector: string): Sheet | undefined {
   return (data.sheets ?? []).find(
@@ -67,7 +70,6 @@ function oneLine(text: string, max: number): string {
 }
 
 export function printPage(sheet: Sheet, data: DrawingSet, resolve: RefResolver = buildRefResolver(data)): void {
-  const c = palette();
 
   printSheetHeader(sheet);
 
@@ -81,21 +83,21 @@ export function printPage(sheet: Sheet, data: DrawingSet, resolve: RefResolver =
   }
 
   if (tables.length > 0) {
-    console.log(`\n  ${c.heading("Tables")} (${tables.length}):`);
+    console.log(`\n  Tables (${tables.length}):`);
     for (const table of tables) {
       printTable(table);
     }
   }
 
   if (notes.length > 0) {
-    console.log(`\n  ${c.heading("Notes")} (${notes.length}):`);
+    console.log(`\n  Notes (${notes.length}):`);
     for (const note of notes) {
       printNote(note);
     }
   }
 
   if (images.length > 0) {
-    console.log(`\n  ${c.heading("Images")} (${images.length}):`);
+    console.log(`\n  Images (${images.length}):`);
     for (const image of images) {
       printImage(image);
     }
@@ -106,8 +108,7 @@ export function printPage(sheet: Sheet, data: DrawingSet, resolve: RefResolver =
 
 /** "A101  First Floor Plan" in bold, then the 1-based PDF page people see in a PDF viewer. */
 export function sheetHeaderLines(sheet: Sheet): string[] {
-  const c = palette();
-  return ["", `  ${c.bold(`${sheet.sheetNumber}  ${sheet.title}`)}`, `  ${c.dim(`PDF page ${sheet.pageIndex + 1}`)}`];
+  return ["", `  ${`${sheet.sheetNumber}  ${sheet.title}`}`, `  ${`PDF page ${sheet.pageIndex + 1}`}`];
 }
 
 function printSheetHeader(sheet: Sheet): void {
@@ -116,7 +117,7 @@ function printSheetHeader(sheet: Sheet): void {
 
 let details = true;
 
-/** Whether ids and bbox coordinates are printed. On for `page` and the assistant; explore turns it off unless asked. */
+/** Whether ids and bbox coordinates are printed. On for `page`; the assistant's view turns it off unless asked. */
 export function showDetails(): boolean {
   return details;
 }
@@ -139,7 +140,7 @@ export function fieldName(key: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-function plainValue(value: unknown): string {
+export function plainValue(value: unknown): string {
   if (Array.isArray(value) && value.every((v) => typeof v !== "object" || v === null)) return value.join(", ");
   return formatValue(value);
 }
@@ -152,7 +153,7 @@ export function itemName(item: Item): string {
   return text ? `${ITEM_KINDS[item.itemType]} ${text}` : `Unnamed ${ITEM_KINDS[item.itemType].toLowerCase()}`;
 }
 
-/** How to follow `count` links in explore: "type r1 to open it" or "type r1 to r4 to open one". */
+/** How to follow `count` links: "type r1 to open it" or "type r1 to r4 to open one". */
 export function linkNote(count: number): string {
   return count === 1 ? "type r1 to open it" : `type r1 to r${count} to open one`;
 }
@@ -160,19 +161,18 @@ export function linkNote(count: number): string {
 /** " [plan, 1/4\" = 1'-0\"]" in the dim color, or "" when the drawing has neither. */
 export function drawingMeta(d: Drawing): string {
   const meta = [d.drawingType, d.scale].filter(Boolean).join(", ");
-  return meta ? ` ${palette().dim(`[${meta}]`)}` : "";
+  return meta ? ` ${`[${meta}]`}` : "";
 }
 
-/** "→ " in the dim color, for reference lines. */
+/** "→ ", for reference lines. */
 export function arrow(): string {
-  return `${palette().dim("→")} `;
+  return `→ `;
 }
 
 function printDrawing(d: Drawing, resolve: RefResolver): void {
-  const c = palette();
-  console.log(`\n  ${c.heading("Drawing:")} ${d.label ?? d.title}${drawingMeta(d)}`);
+  console.log(`\n  Drawing: ${d.label ?? d.title}${drawingMeta(d)}`);
   if (details) {
-    console.log(`    id:   ${c.dim(d["@id"])}`);
+    console.log(`    id:   ${d["@id"]}`);
     console.log(`    bbox: ${bboxText(d.bbox)}`);
   }
   if (d.references?.length) {
@@ -188,7 +188,7 @@ function printDrawing(d: Drawing, resolve: RefResolver): void {
 
 function printLayer(l: Layer, resolve: RefResolver): void {
   const items = l.items ?? [];
-  console.log(`\n    ${palette().layer("Layer:")} ${l.name} (${items.length} items)`);
+  console.log(`\n    Layer: ${l.name} (${items.length} items)`);
   if (l.bbox && details) console.log(`      bbox: ${bboxText(l.bbox)}`);
 
   for (const item of items) {
@@ -203,11 +203,11 @@ function formatValue(value: unknown): string {
 
 /** "[THING]" in the tag color. */
 export function itemTypeTag(item: Item): string {
-  return palette().tag(`[${item.itemType.toUpperCase()}]`);
+  return `[${item.itemType.toUpperCase()}]`;
 }
 
 /**
- * `refTag(i)` labels the i-th reference, e.g. "[r1] ", so explore can jump to it.
+ * `refTag(i)` labels the i-th reference, e.g. "[r1] ", so the assistant can jump to it.
  * Without details, prints the name, `where` it is, and the extracted fields as a two-column list.
  */
 export function printItem(
@@ -217,27 +217,26 @@ export function printItem(
   log: (line?: string) => void = console.log,
   where?: string
 ): void {
-  const c = palette();
   if (!details) {
-    log(`\n  ${c.bold(itemName(item))}`);
-    log(`  ${c.dim(where ? `${ITEM_KINDS[item.itemType]} on ${where}` : ITEM_KINDS[item.itemType])}`);
+    log(`\n  ${itemName(item)}`);
+    log(`  ${where ? `${ITEM_KINDS[item.itemType]} on ${where}` : ITEM_KINDS[item.itemType]}`);
     const fields = Object.entries(item.data).filter(([k]) => k !== "label");
     if (fields.length) {
       const width = Math.max(...fields.map(([k]) => fieldName(k).length));
       log();
-      for (const [key, value] of fields) log(`  ${c.dim(fieldName(key).padEnd(width))}   ${plainValue(value)}`);
+      for (const [key, value] of fields) log(`  ${fieldName(key).padEnd(width)}   ${plainValue(value)}`);
     }
     const refs = item.references ?? [];
     if (refs.length) {
       const tagged = refTag(0) !== "";
-      log(`\n  ${c.bold("Related")}${tagged ? `  ${c.dim(linkNote(refs.length))}` : ""}`);
+      log(`\n  Related${tagged ? `  ${linkNote(refs.length)}` : ""}`);
       refs.forEach((ref, i) => log(`  ${arrow()}${refTag(i)}${resolve(ref)}`));
     }
     return;
   }
   const label = item.data.label ?? item["@id"];
   log(`\n      ${itemTypeTag(item)} ${formatValue(label)}`);
-  log(`        id:   ${c.dim(item["@id"])}`);
+  log(`        id:   ${item["@id"]}`);
   if (item.bbox) log(`        bbox: ${bboxText(item.bbox)}`);
 
   const dataEntries = Object.entries(item.data).filter(([k]) => k !== "label");
@@ -256,23 +255,21 @@ export function printItem(
 }
 
 export function printTable(t: Table, log: (line?: string) => void = console.log): void {
-  const c = palette();
-  log(`\n    ${c.bold(t.label ?? t.title ?? "Untitled Table")}`);
+  log(`\n    ${t.label ?? t.title ?? "Untitled Table"}`);
   if (details) {
-    log(`      id: ${c.dim(t["@id"])}`);
+    log(`      id: ${t["@id"]}`);
     if (t.bbox) log(`      bbox: ${bboxText(t.bbox)}`);
   }
-  const width = Math.max(30, (process.stdout.columns || 100) - 7);
-  for (const line of formatTable(t.content, width)) {
-    log(`      ${line.replace(/[┌┬┐├┼┤└┴┘─│]+/g, (m) => c.dim(m))}`);
-  }
+  const rows = parseTable(t.content);
+  if (rows.length === 0) log("      (empty table)");
+  for (const row of rows) log(`      ${row.join(" | ")}`);
 }
 
 export function printNote(n: Note, log: (line?: string) => void = console.log): void {
   if (!details) {
-    log(`\n    ${palette().bold("Note")}`);
+    log(`\n    Note`);
   } else {
-    log(`\n    ${palette().heading("Note:")} ${palette().dim(n["@id"])}`);
+    log(`\n    Note: ${n["@id"]}`);
     if (n.bbox) log(`      bbox: ${bboxText(n.bbox)}`);
   }
   for (const line of n.content.split("\n")) {
@@ -289,13 +286,12 @@ const IMAGE_ROLES: Record<Image["role"], string> = {
 };
 
 export function printImage(img: Image, log: (line?: string) => void = console.log): void {
-  const c = palette();
   if (!details) {
-    log(`\n    ${c.bold(img.caption ?? IMAGE_ROLES[img.role])}`);
-    log(`    ${c.dim(`${IMAGE_ROLES[img.role]}. Type "view" to see it on the page.`)}`);
+    log(`\n    ${img.caption ?? IMAGE_ROLES[img.role]}`);
+    log(`    ${IMAGE_ROLES[img.role]}.`);
     return;
   }
-  log(`\n    ${c.tag(`[IMAGE:${img.role}]`)} ${img.caption ?? img["@id"]}`);
-  log(`      id:   ${c.dim(img["@id"])}`);
+  log(`\n    ${`[IMAGE:${img.role}]`} ${img.caption ?? img["@id"]}`);
+  log(`      id:   ${img["@id"]}`);
   log(`      bbox: ${bboxText(img.bbox)}`);
 }

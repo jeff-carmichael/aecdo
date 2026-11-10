@@ -30,7 +30,7 @@ test("examples downloads every file from the release tag", async () => {
     assert.equal(readFileSync(join(dir, file), "utf-8"), `content of ${exampleUrl("v1.2.3", file)}`);
   }
   assert.ok(seen.every((u) => u.includes("/v1.2.3/examples/")));
-  assert.ok(lines.some((l) => l.includes("aecdo explore maple-grove-library.jsonld")));
+  assert.ok(lines.some((l) => l.includes("aecdo gui maple-grove-library.jsonld")));
 });
 
 test("examples falls back to main when the tag doesn't exist", async () => {

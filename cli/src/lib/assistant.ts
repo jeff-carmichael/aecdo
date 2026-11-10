@@ -1,5 +1,6 @@
 import { appendFile, access, readdir, readFile } from "node:fs/promises";
 import { resolve, relative, isAbsolute, extname, basename } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { AgentTool, AgentToolResult, AgentEvent } from "@earendil-works/pi-agent-core";
 import type { MutableModels, Model, Api, TSchema } from "@earendil-works/pi-ai";
 import type { DrawingSet } from "../types.js";
@@ -15,13 +16,13 @@ import {
 } from "./spreadsheet.js";
 import type { AssistantInfo } from "./llm.js";
 import { MARKUP_KINDS, type Markup, type MarkupKind } from "./markup.js";
-import type { BBox } from "./page-view.js";
+import type { BBox } from "./pdf-page.js";
 
-/** What the assistant can see and drive. Implemented by the explore Explorer. */
+/** What the assistant can see and drive. Implemented by Explorer. */
 export interface AssistantView {
   /** The current view as structured data for the model. */
   context(): unknown;
-  /** Runs an explore command (sheet number, entry number, "back", "top", "all") and returns the new context. */
+  /** Runs a navigation command (sheet number, entry number, "back", "top", "all") and returns the new context. */
   navigate(command: string): unknown;
 }
 
@@ -35,10 +36,12 @@ export interface AssistantHost {
   /** A full line of status output (tool activity, errors). */
   print(line: string): void;
   confirm(question: string): Promise<boolean>;
-  /** Opens the current page from the source PDF with the selection outlined, like the user typing "view". */
+  /** Shows the current page of the source PDF with the selection outlined. */
   showPage?(): Promise<string>;
-  /** Pending PDF markups; the user reviews and saves them with "markups save". */
+  /** Pending PDF markups; the user reviews and saves them in the app. */
   markups?: AssistantMarkups;
+  /** Called when a tool starts, so the screen can show what the assistant is doing. */
+  onTool?(name: string, args: unknown): void;
 }
 
 export interface AssistantMarkups {
@@ -50,6 +53,12 @@ export interface AssistantMarkups {
 }
 
 export const DEFAULT_NOTES_FILE = "notes.md";
+export const NOTE_EXTENSIONS = [".md", ".markdown"];
+
+/** The file:// link the assistant hands the user for a file it wrote. */
+export function fileLink(path: string): string {
+  return pathToFileURL(path).href;
+}
 export const INSTRUCTIONS_FILE = "AGENTS.md";
 const MAX_INSTRUCTIONS_CHARS = 20_000;
 const MAX_TOOL_CHARS = 40_000;
@@ -86,7 +95,12 @@ async function exists(path: string): Promise<boolean> {
 
 export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" | "data" | "showPage" | "markups">, info: AssistantInfo): string {
   const sheetCount = host.data.sheets?.length ?? 0;
-  return `You are ${info.label}, working inside "aecdo explore", a terminal browser for construction drawing sets.
+  const where = `the aecdo app, a desktop viewer for construction drawing sets that always shows the current PDF page next to the extracted data`;
+  const showPage = `show_page zooms the PDF pane, which is always visible, to the open drawing, layer, item, table, note, or image, outlined in red. Use it when the user asks to see, show, or find something on the drawing: navigate to it first (open the item for a red box around it), then call show_page. You can't see the page yourself.`;
+  const saving = `Markups stay pending until the user saves them from the Markups panel (press m), which writes them to a copy of the PDF; tell the user that after adding them. Pending markups show on the PDF pane right away.`;
+  const otherCommands = `AI models and API keys are set up in the app's Settings (press "," or click Settings). Other aecdo commands (such as "aecdo update") can't run inside the app. When you suggest one, tell the user to run it in a terminal.`;
+  const style = `Answer in short paragraphs or simple lists. **bold**, \`code\` and "- " lists are shown formatted, and sheet numbers become links; avoid tables and headings.`;
+  return `You are ${info.label}, working inside ${where}.
 
 The open file is ${basename(host.filePath)} (${sheetCount} sheets), extracted from a PDF drawing set by AEC DrawingBot.
 Its data follows the AEC Drawing Ontology: DrawingSet → Sheet → Drawing (plan, section, elevation, detail) → Layer → Item.
@@ -96,17 +110,18 @@ Sheets also hold tables (pipe-delimited rows), notes and images. bbox values are
 Each user message starts with <current_view>, the part of the set the user is looking at right now. Treat it as "this page". It also says how the user got there: "arrivedVia" when they followed a reference to it, "recentlyVisited" (the last few places, oldest first, including references they followed), and "backGoesTo". When the question refers to something earlier ("the tag I came from", "that door"), look there.
 You can move around with the navigate tool, using the same commands the user types: a sheet number or its number (1, 2, …) in the sheet list shown (or a group number or prefix such as "A" when the sheet list shows groups), an entry number from the current list, "r1", "r2", … to follow a reference shown as "→ [r1] …" (to another drawing, schedule, or item), "up" (one level up the tree), "back" (to the previous place, e.g. before a jump), "top", or "all". The user sees every move.
 Use list_sheets and read_sheet to look at other sheets without moving the user.
-${host.showPage ? `show_page opens the current sheet's page from the source PDF in the user's image viewer, with the open drawing, layer, item, table, note, or image outlined in red (same as the user typing "view"). Use it when the user asks to see, show, or find something on the drawing: navigate to it first (open the item for a red box around it), then call show_page. You can't see the image yourself.
+${host.showPage ? `${showPage}
 ` : ""}
-${host.markups ? `add_markup proposes a markup on the source PDF, the kind people draw in Bluebeam or Acrobat: "cloud" around a problem area, "callout" (a text box with a leader arrow pointing at it), or "note" (a sticky-note icon holding longer text). By default it marks the current selection (navigate to the item first, as for show_page); or pass a bbox in the same units as the data, plus the sheet. Write the text as a short review comment a reviewer would leave, e.g. "Door 209B is not in the door schedule (A601)." Markups stay pending until the user types "markups save", which writes them to a copy of the PDF; tell the user that after adding them, and that "view" shows them first. Use list_markups and remove_markup to review or take back pending ones. Only add markups when the user asks for them.
+${host.markups ? `add_markup proposes a markup on the source PDF, the kind people draw in Bluebeam or Acrobat: "cloud" around a problem area, "callout" (a text box with a leader arrow pointing at it), or "note" (a sticky-note icon holding longer text). By default it marks the current selection (navigate to the item first, as for show_page); or pass a bbox in the same units as the data, plus the sheet. Write the text as a short review comment a reviewer would leave, e.g. "Door 209B is not in the door schedule (A601)." ${saving} Use list_markups and remove_markup to review or take back pending ones. Only add markups when the user asks for them.
 ` : ""}
 You can write files in the current folder (${host.cwd}):
 - append_note adds Markdown to ${DEFAULT_NOTES_FILE} (or another .md file). Use it when the user asks you to note, record or remember something.
 - Spreadsheets: ${SPREADSHEET_EXTENSIONS.join(", ")}. Use list_spreadsheets first and work in the user's existing file and layout when there is one; read it before writing so new rows match its columns. Only create a new spreadsheet if none fits or the user asks.
+Each of these tools returns the file's file:// link. Whenever you create or change a file, end your reply with a Markdown link to it so the user can open it, e.g. [door-check.xlsx](file:///…/door-check.xlsx), using the link exactly as the tool returned it.
 
-Other aecdo commands (such as "aecdo configure ai" or "aecdo update") can't run inside explore. When you suggest one, tell the user to quit explore first: press Esc to close the chat, then q (at the typed prompt, type q).
+${otherCommands}
 
-Answer in plain text suited to a terminal: short paragraphs or simple lists, no tables wider than 80 columns, no headings.
+${style}
 Base answers on the drawing data; say so when the data does not contain something rather than guessing. Cite sheet numbers.`;
 }
 
@@ -116,7 +131,7 @@ export interface FolderInstructions {
   truncated: boolean;
 }
 
-/** Reads AGENTS.md (any capitalization) from the folder explore runs in, if there is one. */
+/** Reads AGENTS.md (any capitalization) from the folder aecdo runs in, if there is one. */
 export async function loadFolderInstructions(cwd: string): Promise<FolderInstructions | undefined> {
   let names: string[];
   try {
@@ -178,6 +193,12 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
   }
 
   const sheetPath = (file: string) => resolveInCwd(host.cwd, file, SPREADSHEET_EXTENSIONS);
+  /** Tells the user (with a link they can open) and the model what was written. */
+  const wrote = (path: string, shown: string, result: string) => {
+    const name = relative(host.cwd, path);
+    host.print(`  ✎ ${shown} ${fileLink(path)}`);
+    return text(`${result} ${name}. Link for the user: ${fileLink(path)}`);
+  };
   const value = cellValueSchema(T);
 
   const tools: AgentTool[] = [
@@ -187,7 +208,7 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
             name: "show_page",
             label: "Show page",
             description:
-              "Open the current sheet's PDF page in the user's image viewer with the current selection outlined in red (the drawing, layer, or the last item, table, note, or image opened). Navigate to the target first. Returns what was opened, or why it couldn't be.",
+              "Zoom the PDF pane to the current selection, outlined in red (the drawing, layer, or the last item, table, note, or image opened). Navigate to the target first. Returns what is shown, or why it couldn't be.",
             parameters: T.Object({}),
             executionMode: "sequential",
             execute: async () => text(await host.showPage!()),
@@ -199,12 +220,12 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
       name: "navigate",
       label: "Navigate",
       description:
-        'Move the explore view, exactly like the user typing a command: a sheet number or its number (1, 2, …) in the sheet list shown, a group number or prefix (when the sheet list shows groups), an entry number from the current list, "r1"/"r2"/… (follow a reference tagged "→ [r1]"), "up" (one level up the tree), "back" (to the previous place, e.g. before a jump), "top", or "all" (print the whole sheet). Returns the new current view.',
+        'Move the view, exactly like the user typing a command: a sheet number or its number (1, 2, …) in the sheet list shown, a group number or prefix (when the sheet list shows groups), an entry number from the current list, "r1"/"r2"/… (follow a reference tagged "→ [r1]"), "up" (one level up the tree), "back" (to the previous place, e.g. before a jump), "top", or "all" (print the whole sheet). Returns the new current view.',
       parameters: T.Object({ command: T.String({ description: 'e.g. "A101", "3", "r1", "back", "top"' }) }),
       executionMode: "sequential",
       execute: (_id, params: { command: string }) => {
         const cmd = params.command.trim().toLowerCase();
-        if (["quit", "q", "exit"].includes(cmd)) throw new Error("The assistant cannot quit explore");
+        if (["quit", "q", "exit"].includes(cmd)) throw new Error("The assistant cannot quit the app");
         return text(truncateJson(host.view.navigate(params.command)));
       },
     }),
@@ -265,12 +286,11 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
       }),
       executionMode: "sequential",
       execute: async (_id, params: { text: string; file?: string }) => {
-        const path = resolveInCwd(host.cwd, params.file || DEFAULT_NOTES_FILE, [".md", ".markdown"]);
+        const path = resolveInCwd(host.cwd, params.file || DEFAULT_NOTES_FILE, NOTE_EXTENSIONS);
         const body = params.text.trimEnd() + "\n";
         const prefix = (await exists(path)) ? "\n" : "";
         await appendFile(path, prefix + body, "utf-8");
-        host.print(`  ✎ Added a note to ${relative(host.cwd, path)}`);
-        return text(`Appended ${body.length} characters to ${relative(host.cwd, path)}`);
+        return wrote(path, `Added a note to`, `Appended ${body.length} characters to`);
       },
     }),
     defineTool({
@@ -312,8 +332,7 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
         const path = sheetPath(params.file);
         await approveEdit(path, "write cells");
         await writeCells(path, params.cells, params.sheet);
-        host.print(`  ✎ Updated ${params.cells.length} cell(s) in ${relative(host.cwd, path)}`);
-        return text(`Wrote ${params.cells.length} cell(s)`);
+        return wrote(path, `Updated ${params.cells.length} cell(s) in`, `Wrote ${params.cells.length} cell(s) to`);
       },
     }),
     defineTool({
@@ -330,8 +349,7 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
         const path = sheetPath(params.file);
         await approveEdit(path, "append rows");
         const first = await appendRows(path, params.rows, params.sheet);
-        host.print(`  ✎ Added ${params.rows.length} row(s) to ${relative(host.cwd, path)}`);
-        return text(`Appended ${params.rows.length} row(s) starting at row ${first}`);
+        return wrote(path, `Added ${params.rows.length} row(s) to`, `Appended ${params.rows.length} row(s) starting at row ${first} to`);
       },
     }),
     defineTool({
@@ -345,8 +363,7 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
         if (!isSpreadsheet(path)) throw new Error("Unsupported spreadsheet type");
         await createSpreadsheet(path, params.rows);
         approved.add(path);
-        host.print(`  ✎ Created ${relative(host.cwd, path)}`);
-        return text(`Created ${relative(host.cwd, path)} with ${params.rows.length} row(s)`);
+        return wrote(path, "Created", `Created with ${params.rows.length} row(s):`);
       },
     }),
   ];
@@ -375,7 +392,7 @@ function markupTools(host: AssistantHost, markups: AssistantMarkups, T: typeof i
         const m = await markups.add(params);
         const index = markups.pending.length;
         host.print(`  ✎ Markup ${index} pending: ${markups.describe(m)}`);
-        return text(`Pending markup ${index}: ${markups.describe(m)}. ${index} pending in total. Nothing is written until the user types "markups save" (writes ${markups.outPath()}); "view" shows them on the page first.`);
+        return text(`Pending markup ${index}: ${markups.describe(m)}. ${index} pending in total. Nothing is written until the user saves from the Markups panel (writes ${markups.outPath()}); they show on the PDF pane now.`);
       },
     }),
     defineTool({
@@ -448,6 +465,9 @@ export async function createAssistantSession(
     switch (event.type) {
       case "message_update":
         if (event.assistantMessageEvent.type === "text_delta") write(event.assistantMessageEvent.delta);
+        break;
+      case "tool_execution_start":
+        host.onTool?.(event.toolName, event.args);
         break;
       case "tool_execution_end":
         if (event.isError) {

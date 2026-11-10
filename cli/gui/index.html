@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>aecdo</title>
+<link rel="stylesheet" href="app/app.css">
+<link rel="modulepreload" href="pdfjs/pdf.min.mjs">
+<script type="module" src="app/app.js"></script>
+</head>
+<body>
+<div id="app" class="no-set">
+  <header id="top">
+    <div id="set-title" class="set-title"></div>
+    <nav id="crumbs" aria-label="Where you are"></nav>
+    <div class="top-actions">
+      <button id="markups-btn" class="chip" title="Review and save markups (m)">Markups <span id="markups-count" class="badge" hidden></span></button>
+      <button id="chat-btn" class="chip" title="Ask AI (a), show or hide the chat (c)">Ask AI</button>
+      <button id="settings-btn" class="chip" title="Settings: AI models and API credentials (,)">Settings</button>
+      <button id="help-btn" class="chip" title="Keyboard shortcuts (?)">?</button>
+    </div>
+  </header>
+  <main id="panes">
+    <section id="sheets-pane" class="pane" data-focus="sheets">
+      <div class="find-row">
+        <input id="find" type="search" placeholder="Find a sheet" aria-label="Find a sheet" autocomplete="off" spellcheck="false">
+        <kbd>/</kbd>
+      </div>
+      <div id="sheet-list"></div>
+    </section>
+    <section id="main-pane" class="pane" data-focus="main">
+      <div class="main-head">
+        <div id="main-kicker" class="kicker"></div>
+        <h1 id="main-title"></h1>
+        <div id="main-subtitle" class="subtitle"></div>
+      </div>
+      <div id="main-body"></div>
+      <div id="main-list"></div>
+    </section>
+    <section id="pdf-pane" class="pane" data-focus="pdf">
+      <div id="pdf-stage" tabindex="-1"></div>
+      <div id="pdf-missing" hidden></div>
+      <div id="pdf-bar">
+        <span id="pdf-where"></span>
+        <span class="spacer"></span>
+        <span id="pdf-note"></span>
+        <button class="icon" id="zoom-out" title="Zoom out (−)">−</button>
+        <span id="pdf-zoom">–</span>
+        <button class="icon" id="zoom-in" title="Zoom in (+)">+</button>
+        <button class="icon" id="zoom-fit" title="Fit page (f)">Fit</button>
+        <button class="icon" id="zoom-target" title="Zoom to selection (z)">Sel</button>
+      </div>
+    </section>
+    <aside id="chat-pane" class="pane" data-focus="chat" hidden>
+      <div id="thread-tabs" role="tablist"></div>
+      <div id="chat-log" aria-live="polite"></div>
+      <div class="chat-compose">
+        <textarea id="chat-input" rows="1" placeholder="Ask about this sheet…  (@model to switch)" spellcheck="true"></textarea>
+        <div class="chat-meta">
+          <div id="chat-model"></div>
+          <button id="chat-stop" class="chip" hidden title="Stop (Esc)">Stop</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+  <footer id="status">
+    <span id="hints"></span>
+    <span id="message"></span>
+  </footer>
+</div>
+<div id="toasts"></div>
+<div id="modal-root"></div>
+</body>
+</html>

@@ -1,10 +1,11 @@
+import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createModels, fauxProvider, fauxAssistantMessage, fauxToolCall, fauxText, Type } from "@earendil-works/pi-ai";
-import { Explorer, PageViewer } from "../commands/explore.js";
+import { Explorer } from "../commands/explore.js";
 import { buildTools, createAssistantSession, loadFolderInstructions, resolveInCwd, withFolderInstructions, wrapPrompt, type AssistantHost } from "./assistant.js";
 import { ASSISTANTS } from "./llm.js";
 import type { DrawingSet } from "../types.js";
@@ -83,7 +84,8 @@ test("the assistant can navigate, take notes and fill a spreadsheet", async () =
   assert.equal(readFileSync(join(cwd, "notes.md"), "utf-8"), "- A101 has one drawing\n");
   assert.equal(readFileSync(join(cwd, "takeoff.csv"), "utf-8"), "Sheet,Drawings\nA101,1\n");
   const printed = out.join("");
-  assert.match(printed, /Added a note to notes\.md/);
+  assert.ok(printed.includes(`Added a note to ${pathToFileURL(join(cwd, "notes.md")).href}`), "the user gets a link to the note");
+  assert.ok(printed.includes(`Added 1 row(s) to ${pathToFileURL(join(cwd, "takeoff.csv")).href}`), "the user gets a link to the spreadsheet");
   assert.match(printed, /Done: noted A101/);
 });
 
@@ -110,20 +112,15 @@ test("file tools stay inside the current folder", () => {
   }
 });
 
-test("the assistant can open the page view with the item outlined", async () => {
+test("the assistant can show the page with the item outlined", async () => {
   const { explorer, host, faux, models } = setup();
-  const opened: string[] = [];
   const bboxes: unknown[] = [];
-  const viewer = new PageViewer(data, host.filePath, undefined, {
-    log: () => undefined,
-    exists: () => true,
-    open: (p) => opened.push(p),
-    render: (req) => {
-      bboxes.push(req.bbox);
-      return Promise.resolve({ path: "/tmp/A101.png", pdfPath: "/tmp/A101.pdf", pageCount: 2 });
-    },
-  });
-  host.showPage = async () => (await viewer.show(explorer)).join("\n");
+  host.showPage = () => {
+    const target = explorer.viewTarget();
+    if ("error" in target) return Promise.resolve(target.error);
+    bboxes.push(target.bbox);
+    return Promise.resolve(`Zoomed to ${target.label} outlined in red.`);
+  };
   let toolResult = "";
 
   faux.setResponses([
@@ -147,8 +144,7 @@ test("the assistant can open the page view with the item outlined", async () => 
   const session = await createAssistantSession(host, ASSISTANTS.claude, models, faux.getModel());
   await session.ask("show me the exterior wall");
   assert.deepEqual(bboxes, [[85, 120, 700, 130]]);
-  assert.deepEqual(opened, ["/tmp/A101.png"]);
-  assert.match(toolResult, /with item Exterior Wall in red/);
+  assert.match(toolResult, /item Exterior Wall outlined in red/);
 });
 
 test("show_page is only offered when the host supports it", () => {
@@ -211,7 +207,7 @@ test("the assistant proposes markups that stay pending for the user to save", as
     (context) => {
       const last = context.messages.at(-1) as { content: { text?: string }[] };
       toolResult = last.content.map((c) => c.text ?? "").join("");
-      return fauxAssistantMessage([fauxText("Added a cloud; type markups save to write it.")]);
+      return fauxAssistantMessage([fauxText("Added a cloud; save it from the Markups panel.")]);
     },
   ]);
 
@@ -220,7 +216,7 @@ test("the assistant proposes markups that stay pending for the user to save", as
   assert.equal(explorer.view.kind, "sheet");
   assert.deepEqual(added, [{ kind: "cloud", text: "Wall type missing" }]);
   assert.match(toolResult, /Pending markup 1: cloud A101 on item Exterior Wall/);
-  assert.match(toolResult, /markups save/);
+  assert.match(toolResult, /saves from the Markups panel/);
   assert.match(out.join(""), /Markup 1 pending/);
   assert.ok(buildTools(host, Type).some((t) => t.name === "remove_markup"));
   assert.ok(!buildTools({ ...host, markups: undefined }, Type).some((t) => t.name === "add_markup"));

@@ -85,7 +85,7 @@ export async function examples(dirArg: string | undefined, opts: ExamplesOptions
   log("");
   log("Try:");
   log(`  cd "${dir}"`);
-  log("  aecdo explore maple-grove-library.jsonld");
-  log("  aecdo explore sample-drawing-package-1and2family.jsonld   # type \"view\" to see the PDF page");
+  log("  aecdo gui maple-grove-library.jsonld");
+  log("  aecdo gui sample-drawing-package-1and2family.jsonld   # comes with its PDF");
   return dir;
 }

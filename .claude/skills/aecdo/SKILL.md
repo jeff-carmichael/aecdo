@@ -1,12 +1,12 @@
 ---
 name: aecdo
-description: Validate, summarize, explore, and process AEC drawing data (JSON-LD) using the AECDO CLI. Use when working with Architecture, Engineering, and Construction drawing files, DrawingBot output, JSON-LD conforming to the AEC Drawing Ontology, or processing PDFs via the DrawingBot API.
+description: Validate, summarize, read, and process AEC drawing data (JSON-LD) using the AECDO CLI. Use when working with Architecture, Engineering, and Construction drawing files, DrawingBot output, JSON-LD conforming to the AEC Drawing Ontology, or processing PDFs via the DrawingBot API.
 allowed-tools: Bash(npx aecdo *) Bash(aecdo *) Read Glob
 ---
 
 # AECDO CLI
 
-Command-line tool for working with structured data extracted from Architecture, Engineering, and Construction (AEC) drawings. [AEC DrawingBot](https://aecdrawingbot.com) processes PDF drawings into JSON-LD files conforming to the AECDO schema. This CLI validates, summarizes, and explores those files — and can process PDFs directly via the DrawingBot API.
+Command-line tool for working with structured data extracted from Architecture, Engineering, and Construction (AEC) drawings. [AEC DrawingBot](https://aecdrawingbot.com) processes PDF drawings into JSON-LD files conforming to the AECDO schema. This CLI validates, summarizes, and prints those files as plain text or JSON, opens them in a desktop app for people, and can process PDFs directly via the DrawingBot API.
 
 ## Setup
 
@@ -26,7 +26,7 @@ Inside a clone of the aecdo repo, you can instead run `npm install && npm run bu
 
 ## Commands
 
-Bare `aecdo` opens an interactive menu in a terminal and prints the help otherwise. Agents should always call a subcommand directly.
+Bare `aecdo` opens the app in a terminal and prints the help otherwise. Agents should always call a subcommand directly. Output is plain text with no colors or redrawing, so it reads the same in logs.
 
 ### Configure API credentials (one-time)
 
@@ -34,7 +34,7 @@ Bare `aecdo` opens an interactive menu in a terminal and prints the help otherwi
 aecdo configure
 ```
 
-Prompts for Client ID, Client Secret, and region. Saves to `~/.aecdo/config.json`. Required before using `process`, `upload`, `status`, or `download`.
+Opens the app's Settings, where a person enters the Client ID, Client Secret, and region. Saves to `~/.aecdo/config.json`. Required before using `process`, `upload`, `status`, or `download`. Agents can't do this step: ask the user to run it (or check that `~/.aecdo/config.json` exists).
 
 ### Process a PDF (end-to-end)
 
@@ -45,9 +45,9 @@ aecdo process plans.pdf -o result.jsonld
 aecdo process plans.pdf --stdout
 ```
 
-Uploads the PDF to the DrawingBot API, polls for completion with live progress, then downloads the JSON-LD result and saves it as `<pdf name>.jsonld` next to the PDF (e.g. `plans.pdf` → `plans.jsonld`), overwriting any existing file. The saved path is printed to stderr. Use `-o` to choose a different path, `--then` to also pipe into validate, summary, or explore, or `--stdout` to print the JSON-LD to stdout instead of saving a file.
+Uploads the PDF to the DrawingBot API, polls for completion (a progress line on stderr each time it changes), then downloads the JSON-LD result and saves it as `<pdf name>.jsonld` next to the PDF (e.g. `plans.pdf` → `plans.jsonld`), overwriting any existing file. The saved path is printed to stderr. Use `-o` to choose a different path, `--then` to also pipe into validate or summary, or `--stdout` to print the JSON-LD to stdout instead of saving a file.
 
-With no file in an interactive terminal, `process` and `upload` open an arrow-key picker of the PDFs in the current folder. Agents should always pass the file path: without a TTY a missing file is an error, not a prompt.
+`process` and `upload` need the file path; a missing file is an error.
 
 ### Upload a PDF
 
@@ -72,7 +72,7 @@ Shows current processing status. With `--wait`, polls until completion. Use `--p
 ```bash
 aecdo download <jobId>
 aecdo download <jobId> -o result.jsonld
-aecdo download <jobId> --then explore
+aecdo download <jobId> --then summary
 ```
 
 Downloads the JSON-LD result of a completed job. Results expire after 7 days.
@@ -91,7 +91,7 @@ Replaces the standalone binary with the latest GitHub release after verifying it
 aecdo examples [folder]   # default ./aecdo-examples; --force replaces existing files
 ```
 
-Downloads `maple-grove-library.jsonld` (19-sheet demo, data only), `sample-drawing-package-1and2family.{jsonld,pdf}` (real permit set with its PDF, for `view`/markups), `sample-drawing-set.jsonld`, and a README from the GitHub tag matching the CLI version (falls back to `main`). Existing files are skipped unless `--force`. The install scripts offer this at the end in a terminal; `AECDO_EXAMPLES=1|0` and `AECDO_EXAMPLES_DIR` answer it ahead of time.
+Downloads `maple-grove-library.jsonld` (19-sheet demo, data only), `sample-drawing-package-1and2family.{jsonld,pdf}` (real permit set with its PDF), `sample-drawing-set.jsonld`, and a README from the GitHub tag matching the CLI version (falls back to `main`). Existing files are skipped unless `--force`. The install scripts offer this at the end in a terminal; `AECDO_EXAMPLES=1|0` and `AECDO_EXAMPLES_DIR` answer it ahead of time.
 
 ### Shell tab completion
 
@@ -133,7 +133,7 @@ aecdo sheets examples/sample-drawing-set.jsonld
 aecdo sheets examples/sample-drawing-set.jsonld --format json
 ```
 
-Prints each sheet's number, title, and page index. Use this instead of `explore` when scripting or running as an agent — it completes in one shot and supports JSON.
+Prints each sheet's number, title, and page index. It completes in one shot and supports JSON.
 
 ### Print one sheet
 
@@ -144,19 +144,15 @@ aecdo page examples/sample-drawing-set.jsonld 0 --format json
 
 Prints everything on a sheet — drawings, layers, items with their data and references, tables, notes, and images — selected by sheet number (e.g. `A101`) or page index (e.g. `0`). With `--format json`, emits the raw sheet object. Exits non-zero if no sheet matches.
 
-### Explore a drawing set interactively (humans)
+### The app (people only)
 
 ```bash
-aecdo explore examples/sample-drawing-set.jsonld
+aecdo gui examples/maple-grove-library.jsonld
 ```
 
-In a terminal it opens full screen for people (arrow keys, Enter, ← back to where you were even after a link, `u` up a level, `/` find a sheet, `v` view PDF, `a` types into the AI chat bar at the bottom, whose answers show in a panel under the drawings, `?` keys); `--classic` or `AECDO_EXPLORE=classic` gives the typed prompt described next, which agents and scripts get automatically. Loads the file once, validates it quietly (it only mentions problems), shows the sheet list titled with the set's PDF name and numbered from 1, then drops into a drill-down prompt. Type a sheet number (e.g. `A101`) or its number in the list (e.g. `4`; an exact sheet number wins) to open a sheet; sets with more than 25 sheets first list groups by sheet-number prefix (`G`, `A`, `S`, …, with discipline names and counts), picked by number or prefix, and `up` returns to the groups. An open sheet lists the drawings, tables, notes, and images on that sheet as a numbered menu. Pick a number to dive in — a drawing opens its layers, a layer opens its items, and an item, table, note, or image opens its full details (the prompt shows the path, e.g. `A101 › First Floor Plan › Door Tags › Door tag 105A`). Type `up` (or `..`) to go up a level, `back` (or `b`) to return to the previous place, `top` to return to the sheet list, `r1`, `r2`, … to jump to a reference shown as `→ [r1] …` on a drawing or item (`back` returns to the item, `up` climbs the target's tree), `all` on a sheet to print everything at once, `view` to open the PDF page with the current drawing, layer, or item outlined in red (needs the source PDF next to the `.jsonld`, or `--pdf <file>`; when it's missing, `view` lists the paths it tried and the PDFs in that folder), `ls` to reprint the current list, `details` to show or hide ids, item types, and bbox coordinates (hidden by default; items otherwise show their extracted fields as a plain list), and `quit` to exit. With no file in an interactive terminal, `explore` opens the same arrow-key picker as `process`, listing the `.jsonld` files in the current folder; agents should always pass the path.
+`aecdo gui [file]` (also bare `aecdo` in a terminal, and `aecdo explore [file]`) opens a desktop window for people: the sheet list, what's open, and the PDF page with the selection outlined in red, AI chats (`@claude`, `@chatgpt`, `@gemini`, `@grok`, `@deepseek`, `@kimi`, set up in the app's Settings, `,`), and PDF markups. It waits until the window is closed, so **agents should never run `gui`**, nor bare `aecdo` in a terminal. Without a TTY, bare `aecdo` prints the help, and `explore <file>` (or `explore --format json`) prints the sheet list like `sheets`.
 
-Humans can also type `@claude …`, `@chatgpt …`, `@gemini …`, `@grok …`, `@deepseek …`, or `@kimi …` (each goes through whichever of the maker's API, Amazon Bedrock, a custom endpoint, or OpenRouter is set up in `aecdo configure ai`) at the explore prompt to ask an AI assistant about the current view (it also gets the last few places visited and any reference followed to get here). The assistant can navigate, open the page view with a red box (like `view`), propose PDF markups (clouds, callouts, sticky notes that Bluebeam and Acrobat read) which the user reviews with `markups` and writes with `markups save` (to `<name>-markups.pdf`, or `--in-place`; `markups undo` and `markups remove` take them back), append notes to `notes.md`, and add rows or cells to a spreadsheet (`.xlsx`, `.csv`, `.tsv`) in the current folder. An `AGENTS.md` in the folder where `explore` runs is added to the assistant's instructions. Set it up with `aecdo configure ai` (Sign in with ChatGPT or OpenRouter, or an OpenAI/Anthropic/OpenRouter API key; stored in `~/.aecdo/llm.json`). Both commands are interactive; agents should not run them.
-
-For a richer file to try commands on, `examples/maple-grove-library.jsonld` is a 19-sheet demo set (fictional library, all disciplines) with door, window, finish, equipment, and panel schedules. `examples/sample-drawing-package-1and2family.jsonld` comes with its source PDF (a 7-page house permit set from the City of Vancouver), so `view` and markups work on it.
-
-**Agents / non-interactive use:** `explore` detects when stdin is not a TTY or when `--format json` is passed and falls back to listing sheets, so it won't hang on the prompt. Prefer `sheets` and `page` for scripted workflows.
+For a richer file to try commands on, `examples/maple-grove-library.jsonld` is a 19-sheet demo set (fictional library, all disciplines) with door, window, finish, equipment, and panel schedules. `examples/sample-drawing-package-1and2family.jsonld` comes with its source PDF (a 7-page house permit set from the City of Vancouver).
 
 ### Validate all JSON-LD files in a directory
 
@@ -178,7 +174,7 @@ Every `bbox` is `[xmin, ymin, xmax, ymax]` in PDF points (1/72 inch) from the to
 | `--pretty` | Pretty-print JSON output |
 | `-o, --output <file>` | Write to file instead of stdout |
 | `--schema <path>` | Use a custom schema file for validation |
-| `--pdf <file>` | `explore` only: source PDF for `view` (default: `<name>.pdf` next to the `.jsonld`, or the set's `filename`) |
+| `--pdf <file>` | `gui` only: source PDF for the app (default: `<name>.pdf` next to the `.jsonld`, or the set's `filename`) |
 | `--no-update-check` | Skip the daily background check for a newer release (or set `NO_UPDATE_CHECK=1`). Update notices go to stderr only, so stdout JSON is never affected. |
 
 ## API Options
@@ -187,5 +183,5 @@ Every `bbox` is `[xmin, ymin, xmax, ymax]` in PDF points (1/72 inch) from the to
 |------|-------------|
 | `--poll <seconds>` | Polling interval for status checks (default: 5) |
 | `--wait` | Wait for job completion (used with `status`) |
-| `--then <command>` | Pipe downloaded result into: validate, summary, explore |
+| `--then <command>` | Pipe downloaded result into: validate, summary |
 | `--stdout` | `process` only: print the result to stdout instead of saving `<pdf name>.jsonld` |

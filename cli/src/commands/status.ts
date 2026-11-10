@@ -1,7 +1,7 @@
 import { loadConfig } from "../lib/config.js";
 import { getToken } from "../lib/auth.js";
 import { getJobStatus } from "../lib/api.js";
-import { ProgressView } from "../lib/progress.js";
+import { JobProgress, statusLines } from "../lib/progress.js";
 import { output } from "../lib/output.js";
 import type { ProcessOptions } from "../types.js";
 
@@ -14,7 +14,7 @@ export async function status(jobId: string, opts: ProcessOptions): Promise<void>
   const token = await getToken(config);
   const pollInterval = (opts.poll ?? 5) * 1000;
 
-  const progress = new ProgressView();
+  const progress = new JobProgress();
 
   if (opts.wait) {
     let current = await getJobStatus(token, jobId, config.baseUrl);
@@ -40,6 +40,6 @@ export async function status(jobId: string, opts: ProcessOptions): Promise<void>
   if (opts.format === "json") {
     await output(current, opts);
   } else {
-    progress.snapshot(current);
+    console.log(statusLines(current).join("\n"));
   }
 }

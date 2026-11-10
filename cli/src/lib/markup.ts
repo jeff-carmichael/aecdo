@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import type { PDFArray, PDFDocument, PDFFont, PDFPage, PDFRef, PDFDict, PDFContext } from "pdf-lib";
-import { bboxToUserSpace, displaySize, type BBox, type Box } from "./page-view.js";
+import { bboxToUserSpace, displaySize, type BBox, type Box } from "./pdf-page.js";
 
 type PdfLib = typeof import("pdf-lib");
 

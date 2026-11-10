@@ -1,19 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { tmpdir } from "node:os";
-import { PDFDocument, degrees } from "pdf-lib";
 import {
   bboxToUserSpace,
   displaySize,
-  rasterDpi,
-  renderPageView,
   sourcePdfCandidates,
   sourcePdfCandidatesWithReasons,
   unionBBox,
-} from "./page-view.js";
+} from "./pdf-page.js";
 import type { DrawingSet } from "../types.js";
 
 const page = { x: 0, y: 0, width: 612, height: 792 };
@@ -42,11 +36,6 @@ test("unions item boxes and ignores missing ones", () => {
   assert.deepEqual(unionBBox([[1, 5, 3, 6], undefined, [0, 7, 2, 9]]), [0, 5, 3, 9]);
 });
 
-test("caps the raster size for large sheets", () => {
-  assert.equal(rasterDpi(792), 200);
-  assert.equal(rasterDpi(36 * 72), 111);
-});
-
 // Expected paths go through the same path functions as the code, so "/a/plans.pdf" is "\a\plans.pdf" on Windows.
 test("looks for the PDF next to the JSON-LD, then by the set's filename", () => {
   const data = { filename: "uploads/Plans Set.pdf" } as DrawingSet;
@@ -68,49 +57,3 @@ test("says why each PDF path was tried", () => {
   assert.match(tried.find((c) => c.path === join("/a", "Plans Set.pdf"))!.reason, /set's "filename", next to the \.jsonld/);
   assert.match(tried.find((c) => c.path === resolve("/cwd", "Plans Set.pdf"))!.reason, /in the current folder/);
 });
-
-for (const extract of [true, false]) {
-  test(`renders one page with a red box drawn on it (${extract ? "pdfseparate/mutool when installed" : "pdf-lib only"})`, async () => {
-    const dir = mkdtempSync(join(tmpdir(), "aecdo-view-test-"));
-    try {
-      const src = await PDFDocument.create();
-      src.addPage([792, 612]);
-      src.addPage([612, 792]).setRotation(degrees(90));
-      const input = join(dir, "set.pdf");
-      await writeFile(input, await src.save());
-
-      const result = await renderPageView({ pdfPath: input, pageIndex: 1, bbox: [72, 108, 720, 540], name: "A 201", outDir: dir, extract });
-      if (!extract) assert.equal(result.pageCount, 2);
-      assert.equal(result.outsidePage, undefined);
-      assert.match(result.pdfPath, /A_201-72_108_720_540\.pdf$/);
-
-      const out = await PDFDocument.load(await readFile(result.pdfPath));
-      assert.equal(out.getPageCount(), 1);
-      assert.equal(out.getPage(0).getRotation().angle, 90);
-
-      const far = await renderPageView({ pdfPath: input, pageIndex: 0, bbox: [0, 0, 2000, 100], name: "x", outDir: dir, extract });
-      assert.deepEqual(far.outsidePage, { width: 792, height: 612 });
-
-      await assert.rejects(renderPageView({ pdfPath: input, pageIndex: 5, name: "x", outDir: dir, extract }), /out of range/);
-
-      const marked = await renderPageView({
-        pdfPath: input,
-        pageIndex: 1,
-        name: "marked",
-        outDir: dir,
-        extract,
-        markups: [{ id: "aecdo-x", kind: "cloud", pageIndex: 1, sheetNumber: "A201", bbox: [72, 108, 720, 540], text: "check" }],
-      });
-      const markedDoc = await PDFDocument.load(await readFile(marked.pdfPath));
-      assert.equal(markedDoc.getPage(0).node.Annots()?.size(), 1);
-
-      src.addPage([200, 200]);
-      await writeFile(input, await src.save());
-      const changed = await renderPageView({ pdfPath: input, pageIndex: 2, name: "new", outDir: dir, extract });
-      if (!extract) assert.equal(changed.pageCount, 3);
-      assert.equal((await PDFDocument.load(await readFile(changed.pdfPath))).getPage(0).getWidth(), 200);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-}

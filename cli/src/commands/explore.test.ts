@@ -2,9 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Explorer, PageViewer, groupSheets, parseViewCommand, sheetEntries, sheetPrefix } from "./explore.js";
-import type { PageViewRequest } from "../lib/page-view.js";
-import { ANSI, withPalette } from "../lib/style.js";
+import { Explorer, PdfLocator, groupSheets, sheetEntries, sheetPrefix } from "./explore.js";
 import type { DrawingSet } from "../types.js";
 
 const data = JSON.parse(
@@ -42,13 +40,13 @@ test("drills sheet → drawing → layer → item and back up", () => {
 
   ex.handle("1");
   assert.equal(kindOf(ex), "layer");
-  assert.match(ex.prompt(), new RegExp(`^${sheetWithDrawing.sheetNumber} › .+ › .+> $`));
+  assert.match(ex.location(), new RegExp(`^${sheetWithDrawing.sheetNumber} › .+ › .+$`));
 
   ex.handle("back");
   assert.equal(kindOf(ex), "drawing");
   ex.handle("top");
   assert.equal(kindOf(ex), "sheets");
-  assert.equal(ex.prompt(), "sheet> ");
+  assert.equal(ex.location(), "sheet list");
 });
 
 test("out-of-range selection reports an error and stays put", () => {
@@ -65,14 +63,6 @@ test("back at the top level is a no-op and quit stops the loop", () => {
   assert.equal(ex.handle(".."), true);
   assert.equal(kindOf(ex), "sheets");
   assert.equal(ex.handle("quit"), false);
-});
-
-test("parses view commands with an optional PDF path", () => {
-  assert.deepEqual(parseViewCommand("view"), {});
-  assert.deepEqual(parseViewCommand("/VIEW"), {});
-  assert.deepEqual(parseViewCommand('/view "my plans.pdf"'), { pdf: "my plans.pdf" });
-  assert.equal(parseViewCommand("viewer"), null);
-  assert.equal(parseViewCommand("1"), null);
 });
 
 test("view outlines the current level, or the open item", () => {
@@ -120,40 +110,6 @@ test("a table picked on a sheet stays selected until you move", () => {
   assert.ok(!("error" in after) && after.wholePage);
 });
 
-test("PageViewer renders and opens the page, or explains a missing PDF", async () => {
-  const { ex } = make();
-  ex.handle("A101");
-  ex.handle("1");
-
-  const out: string[] = [];
-  const opened: string[] = [];
-  const requests: PageViewRequest[] = [];
-  const viewer = new PageViewer(data, "/plans/set.jsonld", undefined, {
-    log: (l = "") => out.push(l),
-    exists: (p) => p === join("/plans", "set.pdf"),
-    open: (p) => opened.push(p),
-    render: (req) => {
-      requests.push(req);
-      return Promise.resolve({ path: "/tmp/A101.png", pdfPath: "/tmp/A101.pdf", pageCount: 2 });
-    },
-  });
-  await viewer.show(ex);
-  assert.equal(requests[0].pdfPath, join("/plans", "set.pdf"));
-  assert.equal(requests[0].pageIndex, 0);
-  assert.deepEqual(requests[0].bbox, [72, 108, 720, 540]);
-  assert.deepEqual(opened, ["/tmp/A101.png"]);
-
-  const missing: string[] = [];
-  const none = new PageViewer(data, "/plans/set.jsonld", undefined, {
-    log: (l = "") => missing.push(l),
-    exists: () => false,
-    open: () => assert.fail("should not open"),
-  });
-  await none.show(ex);
-  assert.match(missing.join("\n"), /Can't find the source PDF/);
-  assert.match(missing.join("\n"), /[\\/]plans[\\/]set\.pdf/);
-});
-
 test("r1 follows a drawing's reference and back returns", () => {
   const { ex, lines } = make();
   ex.handle("A101");
@@ -161,9 +117,9 @@ test("r1 follows a drawing's reference and back returns", () => {
   assert.match(lines.join("\n"), /→ \[r1\] Building Section A \(A201, PDF page \d+\)/);
   ex.handle("r1");
   assert.equal(kindOf(ex), "drawing");
-  assert.match(ex.prompt(), /^A201 › Building Section A> $/);
+  assert.match(ex.location(), /^A201 › Building Section A$/);
   ex.handle("back");
-  assert.match(ex.prompt(), /^A101 › Ground Floor Plan> $/);
+  assert.match(ex.location(), /^A101 › Ground Floor Plan$/);
 });
 
 test("r follows an item's only reference, and view targets the jump", () => {
@@ -173,7 +129,7 @@ test("r follows an item's only reference, and view targets the jump", () => {
   ex.handle("3");
   ex.handle("1");
   ex.handle("r");
-  assert.match(ex.prompt(), /^A201 › Building Section A> $/);
+  assert.match(ex.location(), /^A201 › Building Section A$/);
   const target = ex.viewTarget();
   assert.ok(!("error" in target));
   assert.equal(target.sheet.sheetNumber, "A201");
@@ -220,7 +176,7 @@ test("jumping to a schedule opens it on its sheet", () => {
   ex.handle("1");
   ex.handle("r1");
   assert.match(lines.join("\n"), /Jumped to Table Door Schedule \(A601, PDF page \d+\)/);
-  assert.equal(ex.prompt(), "A601 › Door Schedule> ");
+  assert.equal(ex.location(), "A601 › Door Schedule");
   const target = ex.viewTarget();
   assert.ok(!("error" in target));
   assert.equal(target.label, "table Door Schedule");
@@ -244,17 +200,17 @@ test("back after a jump reopens the item, so its other references still work", (
   ex.handle(layerNumber("Door Tags"));
   ex.handle("5");
   assert.equal(kindOf(ex), "item");
-  assert.equal(ex.prompt(), "A101 › First Floor Plan › Door Tags › Door tag 105A> ");
+  assert.equal(ex.location(), "A101 › First Floor Plan › Door Tags › Door tag 105A");
 
   ex.handle("r1");
-  assert.equal(ex.prompt(), "A601 › Door Schedule> ");
+  assert.equal(ex.location(), "A601 › Door Schedule");
   ex.handle("back");
-  assert.equal(ex.prompt(), "A101 › First Floor Plan › Door Tags › Door tag 105A> ");
+  assert.equal(ex.location(), "A101 › First Floor Plan › Door Tags › Door tag 105A");
   ex.handle("r2");
-  assert.match(ex.prompt(), /^A101 › First Floor Plan › Doors › .*105A> $/);
+  assert.match(ex.location(), /^A101 › First Floor Plan › Doors › .*105A$/);
   ex.handle("back");
   ex.handle("back");
-  assert.equal(ex.prompt(), "A101 › First Floor Plan › Door Tags> ");
+  assert.equal(ex.location(), "A101 › First Floor Plan › Door Tags");
 });
 
 test("up walks the tree of where you jumped; back returns to where the jump started", () => {
@@ -262,15 +218,15 @@ test("up walks the tree of where you jumped; back returns to where the jump star
   ex.handle("A101");
   ex.handle("1");
   ex.handle("r1");
-  assert.match(ex.prompt(), /^A201 › Building Section A> $/);
+  assert.match(ex.location(), /^A201 › Building Section A$/);
   ex.handle("up");
-  assert.equal(ex.prompt(), "A201> ");
+  assert.equal(ex.location(), "A201");
   ex.handle("..");
   assert.equal(kindOf(ex), "sheets");
   ex.handle("back");
-  assert.match(ex.prompt(), /^A101 › Ground Floor Plan> $/);
+  assert.match(ex.location(), /^A101 › Ground Floor Plan$/);
   ex.handle("back");
-  assert.equal(ex.prompt(), "A101> ");
+  assert.equal(ex.location(), "A101");
 });
 
 test("without jumps, up and back both go up one level", () => {
@@ -297,22 +253,22 @@ test("another number at an open item or table swaps it, so back still goes up", 
   ex.handle(layerNumber("Door Tags"));
   ex.handle("5");
   ex.handle("6");
-  assert.equal(ex.prompt(), "A101 › First Floor Plan › Door Tags › Door tag 106A> ");
+  assert.equal(ex.location(), "A101 › First Floor Plan › Door Tags › Door tag 106A");
   ex.handle("back");
-  assert.equal(ex.prompt(), "A101 › First Floor Plan › Door Tags> ");
+  assert.equal(ex.location(), "A101 › First Floor Plan › Door Tags");
 
   const { ex: demoEx } = maple();
   demoEx.handle("A601");
   demoEx.handle("3");
-  assert.equal(demoEx.prompt(), "A601 › Door Schedule> ");
+  assert.equal(demoEx.location(), "A601 › Door Schedule");
   demoEx.handle("back");
-  assert.equal(demoEx.prompt(), "A601> ");
+  assert.equal(demoEx.location(), "A601");
   demoEx.handle("4");
-  assert.equal(demoEx.prompt(), "A601 › Hardware Sets> ");
+  assert.equal(demoEx.location(), "A601 › Hardware Sets");
   demoEx.handle("3");
-  assert.equal(demoEx.prompt(), "A601 › Door Schedule> ");
+  assert.equal(demoEx.location(), "A601 › Door Schedule");
   demoEx.handle("back");
-  assert.equal(demoEx.prompt(), "A601> ");
+  assert.equal(demoEx.location(), "A601");
 });
 
 test("the assistant's context lists recent places and the reference that led here", () => {
@@ -356,15 +312,15 @@ test("the sheet list is titled with the set's PDF name, numbered from 1, with di
 test("a number at the sheet list opens that row, and a sheet number still wins", () => {
   const { ex } = maple();
   ex.handle("1");
-  assert.equal(ex.prompt(), "G001> ");
+  assert.equal(ex.location(), "G001");
   ex.handle("top");
   ex.handle("4");
-  assert.equal(ex.prompt(), "A101> ");
+  assert.equal(ex.location(), "A101");
 
   const numbered = { ...data, sheets: [{ ...data.sheets[0], sheetNumber: "2" }, { ...data.sheets[0], sheetNumber: "X1" }] };
   const other = new Explorer(numbered, () => undefined);
   other.handle("2");
-  assert.equal(other.prompt(), "2> ");
+  assert.equal(other.location(), "2");
 });
 
 test("each hint shows once, and the assistant's view doesn't use it up", () => {
@@ -375,18 +331,14 @@ test("each hint shows once, and the assistant's view doesn't use it up", () => {
   assert.equal(lines.filter((l) => l.includes("and press Enter to open it")).length, 1);
 });
 
-test("a missing PDF names the .jsonld, why each path was tried, and other PDFs nearby", async () => {
-  const { demo, ex } = maple();
-  ex.handle("A101");
-  const out: string[] = [];
-  const viewer = new PageViewer(demo, "/work/maple-grove-library.jsonld", undefined, {
-    log: (l = "") => out.push(l),
+test("a missing PDF names the .jsonld, why each path was tried, and other PDFs nearby", () => {
+  const { demo } = maple();
+  const locator = new PdfLocator(demo, "/work/maple-grove-library.jsonld", undefined, {
     exists: () => false,
     listDir: () => ["maple-grove-library.jsonld", "sample-drawing-package-1and2family.jsonld", "sample-drawing-package-1and2family.pdf"],
-    open: () => assert.fail("should not open"),
   });
-  await viewer.show(ex);
-  const text = out.join("\n");
+  assert.equal(locator.locatePdf().path, undefined);
+  const text = locator.missingPdfLines().join("\n");
   assert.match(text, /Can't find the source PDF for maple-grove-library\.jsonld\. Looked for:/);
   assert.match(text, /[\\/]work[\\/]maple-grove-library\.pdf {2}\(same name as maple-grove-library\.jsonld\)/);
   assert.doesNotMatch(text, /\.PDF/);
@@ -394,13 +346,8 @@ test("a missing PDF names the .jsonld, why each path was tried, and other PDFs n
   assert.match(text, /PDFs in that folder: sample-drawing-package-1and2family\.pdf \(goes with sample-drawing-package-1and2family\.jsonld\)\./);
   assert.match(text, /Check that you opened the \.jsonld you meant to\./);
 
-  const other: string[] = [];
-  await new PageViewer(demo, "/work/maple-grove-library.jsonld", undefined, {
-    log: (l = "") => other.push(l),
-    exists: () => false,
-    listDir: () => ["maple-grove-library.jsonld", "library rev 3.pdf"],
-  }).show(ex);
-  assert.match(other.join("\n"), /If one of them goes with maple-grove-library\.jsonld, type "view ".*library rev 3\.pdf""/);
+  const found = new PdfLocator(data, "/plans/set.jsonld", undefined, { exists: (p) => p === join("/plans", "set.pdf") });
+  assert.equal(found.locatePdf().path, join("/plans", "set.pdf"));
 });
 
 function bigSet(): DrawingSet {
@@ -454,7 +401,7 @@ test("more than 25 sheets list groups; pick by number or prefix, back returns", 
 
   ex.handle("3");
   assert.equal(kindOf(ex), "group");
-  assert.equal(ex.prompt(), "A sheets> ");
+  assert.match(ex.location(), /^A - .+ sheets$/);
   assert.match(lines.join("\n"), /A112 +Sheet A112/);
   assert.ok("error" in ex.viewTarget());
 
@@ -468,15 +415,15 @@ test("more than 25 sheets list groups; pick by number or prefix, back returns", 
   ex.handle("M601");
   assert.equal(kindOf(ex), "sheet");
   ex.handle("up");
-  assert.equal(ex.prompt(), "M sheets> ");
+  assert.match(ex.location(), /^M - .+ sheets$/);
   ex.handle("up");
   assert.equal(kindOf(ex), "sheets");
 
   ex.handle("e");
-  assert.equal(ex.prompt(), "E sheets> ");
+  assert.match(ex.location(), /^E - .+ sheets$/);
   ex.handle("top");
   ex.handle("Structural");
-  assert.equal(ex.prompt(), "S sheets> ");
+  assert.match(ex.location(), /^S - .+ sheets$/);
   ex.handle("top");
   ex.handle("other");
   assert.match(lines.at(-2)!, /001 +Sheet 001/);
@@ -491,30 +438,6 @@ test("a sheet number at the group list opens the sheet; bad picks stay put", () 
   ex.handle("99");
   assert.equal(kindOf(ex), "sheets");
   assert.match(lines.at(-1)!, /^No group "99"/);
-});
-
-test("styles names, links, and bbox values, but keeps the assistant's view plain", () => {
-  const { ex, lines } = make();
-  const E = "\x1b[";
-  withPalette(ANSI, () => {
-    ex.handle("A101");
-    ex.handle("1");
-    let shown = lines.join("\n");
-    assert.ok(shown.includes(`${E}1mA101  `));
-    assert.ok(shown.includes(`${E}2m→${E}22m ${E}1m[r1]`));
-    assert.ok(!shown.includes("[72, 108, 720, 540]"), "coordinates stay hidden until asked for");
-
-    ex.handle("details");
-    ex.handle("1");
-    shown = lines.join("\n");
-    assert.ok(shown.includes(`${E}2m[72, 108, 720, 540]${E}22m`));
-    assert.ok(/\[33m\[(THING|TAG)\]/.test(shown));
-
-    const listing = String(ex.context().listing);
-    assert.ok(!listing.includes(E));
-    assert.match(listing, /bbox +\[85, 120, 700, 520\]/);
-    assert.match(listing, /\[THING\] Exterior Wall/);
-  });
 });
 
 test("link instructions name the real range and only appear when there are links", () => {
@@ -556,8 +479,3 @@ test("items read like a form: plain field names, no ids unless details is on", (
   assert.match(out, /data:\n {10}mark: 105A/);
 });
 
-test("output is plain by default when stdout isn't a terminal", () => {
-  const { ex, lines } = make();
-  ex.handle("A101");
-  assert.ok(!lines.join("\n").includes("\x1b["));
-});

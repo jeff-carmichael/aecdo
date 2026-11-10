@@ -13,7 +13,7 @@ import {
   type MarkupKind,
   type SaveRecord,
 } from "../lib/markup.js";
-import { bboxFitsPage, type BBox } from "../lib/page-view.js";
+import { bboxFitsPage, type BBox } from "../lib/pdf-page.js";
 import type { DrawingSet, Sheet } from "../types.js";
 import type { ViewTarget } from "./explore.js";
 
@@ -30,30 +30,15 @@ export interface MarkupRequest {
 export interface MarkupDeps {
   /** The source PDF, or undefined with the paths that were tried. */
   locatePdf(): { path?: string; looked: string[] };
-  /** What "view" would outline right now. */
+  /** What the PDF pane outlines right now. */
   target(): ViewTarget | { error: string };
-  log?: (line?: string) => void;
   confirm?: (question: string) => Promise<boolean>;
   exists?: (path: string) => boolean;
 }
 
-/** Parses "markups", "markups save --in-place", "markups drop 2", … */
-export function parseMarkupsCommand(input: string): { action: string; args: string[] } | null {
-  const words = input.trim().split(/\s+/);
-  if (!/^\/?markups?$/i.test(words[0] ?? "")) return null;
-  return { action: (words[1] ?? "list").toLowerCase(), args: words.slice(2) };
-}
-
-const MARKUPS_HELP = [
-  '  "markups" lists pending markups and the ones saved in the PDF.',
-  '  "markups save" writes pending markups to <name>-markups.pdf (add --in-place for the original PDF).',
-  '  "markups undo" takes back the last save, "markups drop <n>" or "markups clear" discards pending ones.',
-  '  "markups remove" deletes every markup aecdo added from the saved PDF (add --in-place for the original).',
-];
-
 /**
- * Markups the assistant proposes in explore. Nothing touches a PDF until the user types "markups save";
- * saving appends to a copy next to the original unless --in-place is given.
+ * Markups proposed in the app, by the user or the assistant. Nothing touches a PDF until the user
+ * saves; saving appends to a copy next to the original unless asked to save in place.
  */
 export class MarkupSession {
   readonly pending: Markup[] = [];
@@ -65,10 +50,6 @@ export class MarkupSession {
     private deps: MarkupDeps
   ) {}
 
-  private log(line = ""): void {
-    (this.deps.log ?? console.log)(line);
-  }
-
   private exists(path: string): boolean {
     return (this.deps.exists ?? existsSync)(path);
   }
@@ -76,7 +57,7 @@ export class MarkupSession {
   private sourcePdf(): string {
     const pdf = this.deps.locatePdf();
     if (!pdf.path) {
-      throw new Error(`Can't find the source PDF for this drawing set (looked for ${pdf.looked.join(", ")}). Start explore with --pdf <file> or type "view <path>".`);
+      throw new Error(`Can't find the source PDF for this drawing set (looked for ${pdf.looked.join(", ")}). Pick the PDF in the app, or start it with --pdf <file>.`);
     }
     return pdf.path;
   }
@@ -87,7 +68,7 @@ export class MarkupSession {
     return inPlace ? src : markupCopyPath(src);
   }
 
-  /** The PDF that already holds saved markups, for "view". */
+  /** The PDF that already holds saved markups. */
   savedCopy(): string | undefined {
     try {
       const copy = this.outPath();
@@ -213,7 +194,7 @@ export class MarkupSession {
     this.saves.push(record);
     this.pending.length = 0;
     const note = record.rewritten ? " (the PDF's structure needed a full rewrite, so any digital signature in the copy is no longer valid)" : "";
-    return `Saved ${record.count} markup${record.count === 1 ? "" : "s"} to ${out}${note}. "markups undo" takes them back.`;
+    return `Saved ${record.count} markup${record.count === 1 ? "" : "s"} to ${out}${note}. Press m, then u, to undo.`;
   }
 
   async undo(): Promise<string> {
@@ -237,62 +218,6 @@ export class MarkupSession {
     if (!ok) return "Nothing removed.";
     const { removed, record } = await removeSavedMarkups(path);
     if (record) this.saves.push(record);
-    return `Removed ${removed} markup${removed === 1 ? "" : "s"} from ${basename(path)}. "markups undo" puts them back.`;
-  }
-
-  /** Runs a "markups …" command typed in explore. */
-  async run(action: string, args: string[]): Promise<void> {
-    const inPlace = args.includes("--in-place");
-    try {
-      switch (action) {
-        case "list":
-        case "ls":
-          for (const line of await this.listing()) this.log(line);
-          break;
-        case "save":
-          this.log(await this.save(inPlace));
-          break;
-        case "undo":
-          this.log(await this.undo());
-          break;
-        case "remove":
-          this.log(await this.remove(inPlace));
-          break;
-        case "drop": {
-          const m = this.drop(Number(args[0]));
-          this.log(`Dropped ${this.describe(m)}`);
-          break;
-        }
-        case "clear": {
-          const count = this.pending.length;
-          this.pending.length = 0;
-          this.log(`Discarded ${count} pending markup${count === 1 ? "" : "s"}.`);
-          break;
-        }
-        default:
-          for (const line of MARKUPS_HELP) this.log(line);
-      }
-    } catch (err) {
-      this.log((err as Error).message);
-    }
-  }
-
-  /** Before quitting: offers to save what's pending. */
-  async beforeQuit(): Promise<void> {
-    if (this.pending.length === 0 || !this.deps.confirm) return;
-    let out: string;
-    try {
-      out = this.outPath();
-    } catch {
-      return;
-    }
-    const n = this.pending.length;
-    if (await this.deps.confirm(`Save ${n} pending markup${n === 1 ? "" : "s"} to ${basename(out)} before quitting? [y/N] `)) {
-      try {
-        this.log(await this.save());
-      } catch (err) {
-        this.log((err as Error).message);
-      }
-    }
+    return `Removed ${removed} markup${removed === 1 ? "" : "s"} from ${basename(path)}. Press m, then u, to undo.`;
   }
 }

@@ -101,7 +101,7 @@ npm link          # makes the aecdo command available everywhere
 
 ## Tab completion
 
-Set up tab completion once and `aecdo process <Tab>` offers only PDFs (and folders), while `summary`, `explore`, and the other file commands offer only `.jsonld` and `.json` files. Commands, options, and values like `--format json` and `--then summary` complete too.
+Set up tab completion once and `aecdo process <Tab>` offers only PDFs (and folders), while `summary`, `gui`, and the other file commands offer only `.jsonld` and `.json` files. Commands, options, and values like `--format json` and `--then summary` complete too.
 
 **bash** (add to `~/.bashrc`):
 

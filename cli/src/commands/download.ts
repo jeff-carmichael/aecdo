@@ -4,7 +4,6 @@ import { getJobResult, downloadResult, ApiError } from "../lib/api.js";
 import { output } from "../lib/output.js";
 import { validate } from "./validate.js";
 import { summary } from "./summary.js";
-import { explore } from "./explore.js";
 import type { DrawingSet, ProcessOptions } from "../types.js";
 
 export async function download(jobId: string, opts: ProcessOptions): Promise<void> {
@@ -42,11 +41,8 @@ export async function download(jobId: string, opts: ProcessOptions): Promise<voi
       case "summary":
         await summary(data, `job:${jobId}`, opts);
         break;
-      case "explore":
-        await explore(data, `job:${jobId}`, opts);
-        break;
       default:
-        throw new Error(`Unknown --then command: "${opts.then}". Use validate, summary, or explore.`);
+        throw new Error(`Unknown --then command: "${opts.then}". Use validate or summary.`);
     }
     return;
   }

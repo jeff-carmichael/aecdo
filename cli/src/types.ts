@@ -81,10 +81,8 @@ export interface CommandOptions {
   pretty?: boolean;
   output?: string;
   schema?: string;
-  /** explore: the source PDF, for "view" */
+  /** gui: the source PDF */
   pdf?: string;
-  /** explore: use the line-by-line prompt instead of the full-screen view */
-  classic?: boolean;
 }
 
 export type ApiRegion = "us-west-2";

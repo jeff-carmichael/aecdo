@@ -7,8 +7,9 @@ const COMMANDS: [name: string, description: string][] = [
   ["summary", "Print a concise summary of a drawing set"],
   ["sheets", "List all sheets"],
   ["page", "Print one sheet by sheet number or page index"],
-  ["explore", "Browse a drawing set interactively"],
-  ["configure", "Set up API credentials and region (configure ai: AI assistant)"],
+  ["explore", "Open the app (lists sheets without a terminal)"],
+  ["gui", "Open the app: the PDF beside the data, with AI chats"],
+  ["configure", "Open the app's Settings: AI models and API credentials"],
   ["process", "Upload a PDF, wait, and save the result"],
   ["upload", "Upload a PDF and return the job ID"],
   ["status", "Check the status of a processing job"],
@@ -19,7 +20,7 @@ const COMMANDS: [name: string, description: string][] = [
 ];
 
 const PDF_COMMANDS = ["process", "upload"];
-const JSONLD_COMMANDS = ["validate", "summary", "sheets", "page", "explore"];
+const JSONLD_COMMANDS = ["validate", "summary", "sheets", "page", "explore", "gui"];
 const JOB_COMMANDS = ["status", "download"];
 
 const OPTIONS = [
@@ -35,6 +36,7 @@ const OPTIONS = [
   "--stdout",
   "--pdf",
   "--force",
+  "--browser",
   "--no-update-check",
 ];
 
@@ -73,7 +75,7 @@ _aecdo() {
 
   case "$prev" in
     --format) COMPREPLY=($(compgen -W "json text" -- "$cur")); return ;;
-    --then) COMPREPLY=($(compgen -W "validate summary explore" -- "$cur")); return ;;
+    --then) COMPREPLY=($(compgen -W "validate summary" -- "$cur")); return ;;
     -o|--output|--schema|--pdf) compopt -o filenames 2>/dev/null; COMPREPLY=($(compgen -f -- "$cur")); return ;;
     --poll) return ;;
   esac
@@ -88,7 +90,6 @@ _aecdo() {
     ${JSONLD_COMMANDS.join("|")}) _aecdo_files "$cur" jsonld ;;
     completion) COMPREPLY=($(compgen -W "${SHELLS.join(" ")}" -- "$cur")) ;;
     examples) compopt -o filenames 2>/dev/null; COMPREPLY=($(compgen -d -- "$cur")) ;;
-    configure) [[ $COMP_CWORD -eq 2 ]] && COMPREPLY=($(compgen -W "ai" -- "$cur")) ;;
   esac
 }
 
@@ -119,10 +120,11 @@ ${commands}
     '--schema[Use a custom schema file]:schema file:_files'
     '--poll[Polling interval in seconds]:seconds:'
     '--wait[Wait for job completion]'
-    '--then[Pipe the result into a command]:command:(validate summary explore)'
+    '--then[Pipe the result into a command]:command:(validate summary)'
     '--stdout[Print the result instead of saving it]'
-    '--pdf[Source PDF for view in explore]:pdf file:_files -g "*.(pdf|PDF)"'
+    '--pdf[Source PDF for the app]:pdf file:_files -g "*.(pdf|PDF)"'
     '--force[Replace example files that are already there]'
+    '--browser[gui: open in the default browser instead of a window]'
     '--no-update-check[Skip the daily update check]'
   )
 
@@ -151,9 +153,6 @@ ${commands}
           ;;
         completion)
           _arguments '1:shell:(${SHELLS.join(" ")})'
-          ;;
-        configure)
-          _arguments '1:what:((ai\\:"AI assistant sign-in and API keys"))'
           ;;
       esac
       ;;
@@ -187,7 +186,6 @@ function fishScript(): string {
     `complete -c aecdo -n '__fish_seen_subcommand_from ${PDF_COMMANDS.join(" ")}' -a '(__aecdo_complete_files pdf)'`,
     `complete -c aecdo -n '__fish_seen_subcommand_from ${JSONLD_COMMANDS.join(" ")}' -a '(__aecdo_complete_files "jsonld|json")'`,
     `complete -c aecdo -n '__fish_seen_subcommand_from completion' -a '${SHELLS.join(" ")}'`,
-    "complete -c aecdo -n '__fish_seen_subcommand_from configure' -a ai -d 'AI assistant sign-in and API keys'",
     "complete -c aecdo -s h -l help -d 'Show help'",
     "complete -c aecdo -s v -l version -d 'Show version number'",
     "complete -c aecdo -l format -x -a 'json text' -d 'Output format'",
@@ -196,10 +194,11 @@ function fishScript(): string {
     "complete -c aecdo -l schema -r -F -d 'Use a custom schema file'",
     "complete -c aecdo -l poll -x -d 'Polling interval in seconds'",
     "complete -c aecdo -l wait -d 'Wait for job completion'",
-    "complete -c aecdo -l then -x -a 'validate summary explore' -d 'Pipe the result into a command'",
+    "complete -c aecdo -l then -x -a 'validate summary' -d 'Pipe the result into a command'",
     "complete -c aecdo -l stdout -d 'Print the result instead of saving it'",
-    "complete -c aecdo -l pdf -r -F -d 'Source PDF for view in explore'",
+    "complete -c aecdo -l pdf -r -F -d 'Source PDF for the app'",
     "complete -c aecdo -l force -d 'Replace example files that are already there'",
+    "complete -c aecdo -l browser -d 'gui: open in the default browser instead of a window'",
     "complete -c aecdo -l no-update-check -d 'Skip the daily update check'",
   ];
   return lines.join("\n") + "\n";

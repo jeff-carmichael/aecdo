@@ -3,21 +3,12 @@ import { stat } from "node:fs/promises";
 import { loadConfig } from "../lib/config.js";
 import { getToken } from "../lib/auth.js";
 import { createUpload, uploadFile } from "../lib/api.js";
-import { task } from "../lib/tui.js";
 import type { ProcessOptions, UploadResponse } from "../types.js";
 
-/** Uploads a PDF with a spinner on stderr, leaving "✓ Uploaded plans.pdf" when done. */
-export function uploadPdf(token: string, path: string, baseUrl: string): Promise<UploadResponse> {
-  const name = basename(path);
-  return task(
-    `Uploading ${name}`,
-    async () => {
-      const job = await createUpload(token, name, baseUrl);
-      await uploadFile(job.uploadUrl, path);
-      return job;
-    },
-    { done: () => `Uploaded ${name}` }
-  );
+export async function uploadPdf(token: string, path: string, baseUrl: string): Promise<UploadResponse> {
+  const job = await createUpload(token, basename(path), baseUrl);
+  await uploadFile(job.uploadUrl, path);
+  return job;
 }
 
 export async function upload(filePath: string, opts: ProcessOptions): Promise<void> {
