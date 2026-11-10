@@ -9,7 +9,7 @@ const COMMANDS: [name: string, description: string][] = [
   ["page", "Print one sheet by sheet number or page index"],
   ["explore", "Open the app (lists sheets without a terminal)"],
   ["gui", "Open the app: the PDF beside the data, with AI chats"],
-  ["configure", "Set up API credentials and region (configure ai: AI assistant)"],
+  ["configure", "Open the app's Settings: AI models and API credentials"],
   ["process", "Upload a PDF, wait, and save the result"],
   ["upload", "Upload a PDF and return the job ID"],
   ["status", "Check the status of a processing job"],
@@ -90,7 +90,6 @@ _aecdo() {
     ${JSONLD_COMMANDS.join("|")}) _aecdo_files "$cur" jsonld ;;
     completion) COMPREPLY=($(compgen -W "${SHELLS.join(" ")}" -- "$cur")) ;;
     examples) compopt -o filenames 2>/dev/null; COMPREPLY=($(compgen -d -- "$cur")) ;;
-    configure) [[ $COMP_CWORD -eq 2 ]] && COMPREPLY=($(compgen -W "ai" -- "$cur")) ;;
   esac
 }
 
@@ -155,9 +154,6 @@ ${commands}
         completion)
           _arguments '1:shell:(${SHELLS.join(" ")})'
           ;;
-        configure)
-          _arguments '1:what:((ai\\:"AI assistant sign-in and API keys"))'
-          ;;
       esac
       ;;
   esac
@@ -190,7 +186,6 @@ function fishScript(): string {
     `complete -c aecdo -n '__fish_seen_subcommand_from ${PDF_COMMANDS.join(" ")}' -a '(__aecdo_complete_files pdf)'`,
     `complete -c aecdo -n '__fish_seen_subcommand_from ${JSONLD_COMMANDS.join(" ")}' -a '(__aecdo_complete_files "jsonld|json")'`,
     `complete -c aecdo -n '__fish_seen_subcommand_from completion' -a '${SHELLS.join(" ")}'`,
-    "complete -c aecdo -n '__fish_seen_subcommand_from configure' -a ai -d 'AI assistant sign-in and API keys'",
     "complete -c aecdo -s h -l help -d 'Show help'",
     "complete -c aecdo -s v -l version -d 'Show version number'",
     "complete -c aecdo -l format -x -a 'json text' -d 'Output format'",

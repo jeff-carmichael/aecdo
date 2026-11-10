@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { assetPath, contentType } from "./assets.js";
 import { MARKUP_KINDS, type MarkupKind } from "../lib/markup.js";
-import { ASSISTANTS, type AssistantName } from "../lib/llm.js";
+import { ASSISTANTS, ROUTE_ORDER, type AssistantName, type CustomApi, type RouteId } from "../lib/llm.js";
 import type { GuiApp } from "./app.js";
 import type { GuiSession } from "./session.js";
 import type { BBox } from "../lib/pdf-page.js";
@@ -117,10 +117,22 @@ function assistantName(value: unknown): AssistantName | undefined {
   throw new HttpError(400, `Unknown model ${JSON.stringify(value)}`);
 }
 
+function routeId(value: unknown): RouteId {
+  if (typeof value === "string" && (ROUTE_ORDER as string[]).includes(value)) return value as RouteId;
+  throw new HttpError(400, `Unknown route ${JSON.stringify(value)}`);
+}
+
 function routes(app: GuiApp): Record<string, Handler> {
   return {
     "GET /api/boot": async () => (app.session ? { set: await app.session.boot() } : { home: await app.home() }),
     "GET /api/home": () => app.home(),
+    "POST /api/open-file": async (b) => {
+      try {
+        return { path: await app.openFile(str(b, "url")) };
+      } catch (err) {
+        throw new HttpError(400, (err as Error).message);
+      }
+    },
     "POST /api/open": async (b) => {
       const path = str(b, "path");
       try {
@@ -186,6 +198,51 @@ function routes(app: GuiApp): Record<string, Handler> {
     },
     "POST /api/chat/close": (b) => {
       session(app).closeThread(str(b, "thread"));
+      return { ok: true };
+    },
+    "GET /api/settings": () => app.settings.info(),
+    "POST /api/settings": async (b) => {
+      const action = str(b, "action");
+      const opt = (key: string) => (typeof b[key] === "string" ? (b[key]) : "");
+      const route = () => routeId(b.route);
+      try {
+        const message = await app.changeSettings((s) => {
+          switch (action) {
+            case "api":
+              return s.saveApi(opt("clientId"), opt("clientSecret"), opt("region") || "us-west-2");
+            case "key":
+              return s.saveKey(route(), opt("key"));
+            case "sign-in":
+              return s.signIn(route());
+            case "bedrock":
+              return s.setupBedrock(opt("region"));
+            case "custom": {
+              const models = b.models && typeof b.models === "object" ? (b.models as Record<string, unknown>) : {};
+              const picked: Partial<Record<AssistantName, string>> = {};
+              for (const [k, v] of Object.entries(models)) if (k in ASSISTANTS && typeof v === "string") picked[k as AssistantName] = v;
+              return s.saveCustom({ name: opt("name"), baseUrl: opt("baseUrl"), api: opt("api") as CustomApi, token: opt("token"), models: picked });
+            }
+            case "choose":
+              return s.choose(assistantName(b.name) ?? "claude", route(), opt("model"));
+            case "sign-out":
+              return s.signOut(route());
+            default:
+              throw new HttpError(400, `Unknown settings action "${action}"`);
+          }
+        });
+        return { message, settings: await app.settings.info() };
+      } catch (err) {
+        if (err instanceof HttpError) throw err;
+        throw new HttpError(400, (err as Error).message);
+      }
+    },
+    "GET /api/settings/models": (_b, q) => {
+      const name = assistantName(q.get("name"));
+      if (!name) throw new HttpError(400, "Which model family?");
+      return app.settings.modelChoices(name, routeId(q.get("route")));
+    },
+    "POST /api/prompt": (b) => {
+      app.answerPrompt(str(b, "id"), typeof b.value === "string" ? b.value : null);
       return { ok: true };
     },
     "POST /api/confirm": (b) => {

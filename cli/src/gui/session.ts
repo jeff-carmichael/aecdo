@@ -123,7 +123,11 @@ export type GuiEvent =
   | { type: "chat"; thread: string; op: "entry"; entry: ChatEntry }
   | { type: "chat"; thread: string; op: "delta"; text: string }
   | { type: "chat"; thread: string; op: "thread"; info: Omit<ThreadInfo, "entries"> }
-  | { type: "confirm"; id: string; question: string; thread?: string };
+  | { type: "confirm"; id: string; question: string; thread?: string }
+  | { type: "prompt"; id: string; kind: "text" | "secret" | "select"; message: string; placeholder?: string; options?: { id: string; label: string; description?: string }[] }
+  | { type: "prompt-cancel"; id: string }
+  | { type: "auth"; text: string; url?: string; code?: string }
+  | { type: "settings" };
 
 export interface GuiSessionOptions {
   pdf?: string;
@@ -134,7 +138,7 @@ export interface GuiSessionOptions {
 }
 
 /** What a chat thread needs from the assistant (AssistantBridge in the app). */
-export type ChatBridge = Pick<AssistantBridge, "run" | "setUp" | "describe" | "active">;
+export type ChatBridge = Pick<AssistantBridge, "run" | "setUp" | "describe" | "active"> & Partial<Pick<AssistantBridge, "reload">>;
 
 export interface BridgeHooks {
   onNavigate: () => void;
@@ -635,6 +639,12 @@ export class GuiSession {
       t.busy = false;
       emitThread();
     }
+  }
+
+  /** After the AI settings change: new questions and chats use what's set up now. */
+  aiSettingsChanged(): void {
+    this.defaultModel = undefined;
+    for (const t of this.threads.values()) t.bridge.reload?.();
   }
 
   /** Stops every answer in progress, e.g. before closing. */

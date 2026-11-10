@@ -29,23 +29,20 @@ Each model has a name you can use in the chat: `@claude`, `@chatgpt`, `@gemini`,
 | **Custom endpoint** | the ones you list | A base URL and token for an OpenAI- or Anthropic-compatible API, such as a company gateway, LiteLLM, Azure, vLLM, or Ollama | Up to whoever runs it |
 | **OpenRouter** | all six | *Sign in with OpenRouter*, or an [OpenRouter API key](https://openrouter.ai/settings/keys) | Billed per use from your OpenRouter credits |
 
-In a terminal, run:
+In the app, press <kbd>,</kbd> (or click **Settings** at the top) to open **Settings**. Running `aecdo configure` in a terminal opens the app straight to it. Under **AI models**, each way to connect has its buttons. Most people want one of the first two: **Sign in with ChatGPT** if you pay for ChatGPT Plus or Pro, or an **API key** for Anthropic to use Claude. All the choices:
 
-```bash
-aecdo configure ai
-```
-
-It lists what you can do; type the number of your choice and press <kbd>Enter</kbd>. Most people want one of the first options: **Sign in with ChatGPT** if you pay for ChatGPT Plus or Pro, or **Enter an Anthropic API key** for Claude. All the choices:
-
-- **Sign in with ChatGPT (uses your ChatGPT plan)** opens your browser to sign in. You can cap how much `aecdo` may use in ChatGPT's settings.
-- **Enter an OpenAI API key**, **Enter an Anthropic API key**, or **Enter an OpenRouter API key** asks you to paste the key (it isn't shown as you type).
-- **Set up Amazon Bedrock** asks how to sign in to AWS (a Bedrock API key, an AWS profile name, or the credentials you already use with the AWS CLI, including SSO), then the AWS region. Your AWS account needs access to the models you use; turn them on in the Bedrock console.
-- **Set up a custom endpoint** asks for a name (like `Company gateway`), the base URL, whether it speaks the OpenAI (Chat Completions) or Anthropic (Messages) API, and a token, which is sent as `Authorization: Bearer <token>`. Then pick which `@names` it serves and the model id it uses for each, e.g. `@claude` → the model name your endpoint uses for Claude.
+- **Sign in with ChatGPT** (uses your ChatGPT plan) opens your browser to sign in. You can cap how much `aecdo` may use in ChatGPT's settings.
+- **API key** (OpenAI, Anthropic, or OpenRouter) asks you to paste the key. It isn't shown as you type.
+- **Amazon Bedrock → Set up** asks for the AWS region, then how to sign in to AWS: a Bedrock API key, an AWS profile name, or the credentials you already use with the AWS CLI (including SSO). Your AWS account needs access to the models you use; turn them on in the Bedrock console.
+- **Custom endpoint → Set up** asks for a name (like `Company gateway`), the base URL, whether it speaks the OpenAI (Chat Completions) or Anthropic (Messages) API, a token (sent as `Authorization: Bearer <token>`), and the model id it uses for each `@name` it serves, e.g. `@claude` → the model name your endpoint uses for Claude. Leave the others blank.
 - **Sign in with OpenRouter** opens your browser; OpenRouter then creates an API key for `aecdo`, which you can see and revoke in your OpenRouter account.
-- **Choose the model or route for an @mention** picks which way an `@name` goes when more than one is set up, and which model it uses there. The defaults are Claude Sonnet 5.5 and GPT-5.5, and the latest Gemini Pro, Grok, DeepSeek, and Kimi models. Bedrock and OpenRouter list only that family's models; type part of a name to narrow the list. The assistant needs a model that supports tool calls to navigate and read sheets.
-- **Sign out / remove a key** forgets a sign-in, key, Bedrock setup, or custom endpoint.
+- **Remove** forgets a sign-in, key, Bedrock setup, or custom endpoint.
 
-The menu shows which way each `@name` will use. When more than one is set up and you haven't picked, it goes straight to the maker first (Anthropic or OpenAI), then Amazon Bedrock, then your custom endpoint, then OpenRouter. The first answer in a session also says which way it went, e.g. `Claude via Amazon Bedrock (global.anthropic.claude-sonnet-5-5)`.
+When a sign-in needs to ask something (which AWS sign-in to use, or a code to paste), the app asks in a small dialog, and links to finish signing in show at the top of Settings.
+
+**Which model each @name uses** lists every `@name`. Once one is set up, pick which way it goes (when more than one is set up) and which model it uses there. The defaults are Claude Sonnet 5.5 and GPT-5.5, and the latest Gemini Pro, Grok, DeepSeek, and Kimi models. Bedrock and OpenRouter list only that family's models. The assistant needs a model that supports tool calls to navigate and read sheets. Changes apply to the open chats right away.
+
+Settings shows which way each `@name` will use. When more than one is set up and you haven't picked, it goes straight to the maker first (Anthropic or OpenAI), then Amazon Bedrock, then your custom endpoint, then OpenRouter. The first answer in a session also says which way it went, e.g. `Claude via Amazon Bedrock (global.anthropic.claude-sonnet-5-5)`.
 
 > **Why no "Sign in with Claude"?** Anthropic doesn't allow third-party tools to use Claude Pro or Max subscriptions, so `@claude` needs an API key, Bedrock, OpenRouter, or your own endpoint. If you have a Claude subscription, you can use [Claude Code](agents.md) with `aecdo` instead.
 
@@ -60,11 +57,11 @@ In the app, press <kbd>a</kbd>. The chat opens on the right: type your question 
 - **Which model answers** is shown in the chat. It's the first one you set up. To switch the chat you're in, type just the name, like `@gemini`, or pick from the list under the input. Starting a question with a name, like `@chatgpt which rooms have carpet?`, switches too. <kbd>Tab</kbd> completes a name.
 - **Ask about what's on screen.** The assistant knows what you have open (a sheet, a drawing, a layer, an item, a table), so "this floor", "these doors", or "this layer" mean what you're looking at. It also knows the last few places you visited and the link you followed to get here, so after jumping from a door tag to the door schedule you can ask "is the door I came from in this schedule?".
 - **Several chats.** <kbd>t</kbd> (or <kbd>Ctrl</kbd>+<kbd>T</kbd>) starts another chat, and the tabs switch between them. Each chat is its own conversation with its own model, and they can work at the same time. Chats last until you close the app.
-- **When it moves around** (for example, "show me door 105A"), the app follows, and the chat says where it went. When it writes a note or a spreadsheet, the chat says which file.
+- **When it moves around** (for example, "show me door 105A"), the app follows, and the chat says where it went. When it writes a note or a spreadsheet, the chat links to the file: click the link to open it in Excel, your text editor, or whatever opens that kind of file on your computer.
 - **When it asks first** (for example, before changing a spreadsheet), the app shows the question with Yes and No buttons.
 - Sheet numbers in answers are links. <kbd>Esc</kbd> stops an answer partway through, or leaves the chat so the arrow keys move around the set again.
 
-**"Claude isn't set up yet"?** That model isn't connected. Run `aecdo configure ai` in a terminal, then ask again (you may need to reopen the app).
+**"Claude isn't set up yet"?** That model isn't connected. Press <kbd>,</kbd> to open Settings and set it up, then ask again.
 
 ## What it can do
 

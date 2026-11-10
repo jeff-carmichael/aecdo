@@ -1,8 +1,14 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { basename, join, resolve } from "node:path";
 import { getConfigDir } from "../lib/config.js";
 import { listJsonld } from "../lib/files.js";
 import { isValid } from "../commands/validate.js";
+import { openWithDefaultApp } from "../lib/open.js";
+import { GuiSettings } from "./settings.js";
+import { NOTE_EXTENSIONS, resolveInCwd } from "../lib/assistant.js";
+import { SPREADSHEET_EXTENSIONS } from "../lib/spreadsheet.js";
+import type { AuthInteraction, AuthPrompt } from "@earendil-works/pi-ai";
 import { GuiSession, type BootInfo, type GuiEvent, type GuiSessionOptions } from "./session.js";
 import type { DrawingSet } from "../types.js";
 
@@ -14,6 +20,11 @@ export interface GuiAppOptions {
   /** Where recently opened sets are remembered (default ~/.aecdo/gui.json). */
   settingsPath?: string;
   bridge?: GuiSessionOptions["bridge"];
+  /** Where settings are saved; tests point these at a temporary folder. */
+  llmPath?: string;
+  configDir?: string;
+  /** Opens sign-in pages and files the assistant wrote; tests replace it. */
+  openUrl?: (url: string) => void;
 }
 
 export interface HomeInfo {
@@ -46,6 +57,8 @@ export class GuiApp {
   everConnected = false;
   private clients = new Set<(event: GuiEvent) => void>();
   private confirms = new Map<string, (ok: boolean) => void>();
+  private prompts = new Map<string, { resolve: (value: string) => void; reject: (err: Error) => void }>();
+  readonly settings: GuiSettings;
   private confirmSeq = 0;
   private usedPdfOption = false;
   private quitWith!: (reason: string) => void;
@@ -53,6 +66,73 @@ export class GuiApp {
 
   constructor(private opts: GuiAppOptions) {
     this.quitting = new Promise((res) => (this.quitWith = res));
+    this.settings = new GuiSettings(this.interaction(), { llmPath: opts.llmPath, configDir: opts.configDir });
+  }
+
+  /** How sign-ins ask their questions and show links: as dialogs in the app. */
+  private interaction(): AuthInteraction {
+    return {
+      prompt: (p) => this.prompt(p),
+      notify: (event) => {
+        switch (event.type) {
+          case "auth_url":
+            (this.opts.openUrl ?? openWithDefaultApp)(event.url);
+            this.emit({ type: "auth", text: event.instructions ?? "Finish signing in in your browser. If it didn't open, use this link:", url: event.url });
+            break;
+          case "device_code":
+            this.emit({ type: "auth", text: `Enter code ${event.userCode} at the link below.`, url: event.verificationUri, code: event.userCode });
+            break;
+          case "info":
+          case "progress":
+            this.emit({ type: "toast", text: event.message });
+            break;
+        }
+      },
+    };
+  }
+
+  /** Asks for text, a secret, or a choice in the app; rejects when cancelled. */
+  prompt(p: AuthPrompt): Promise<string> {
+    if (this.clients.size === 0) return Promise.reject(new Error("Cancelled"));
+    const id = `p${++this.confirmSeq}`;
+    const kind = p.type === "select" ? "select" : p.type === "secret" ? "secret" : "text";
+    return new Promise((resolve, reject) => {
+      this.prompts.set(id, { resolve, reject });
+      p.signal?.addEventListener(
+        "abort",
+        () => {
+          if (!this.prompts.delete(id)) return;
+          this.emit({ type: "prompt-cancel", id });
+          reject(new Error("aborted"));
+        },
+        { once: true }
+      );
+      this.emit({
+        type: "prompt",
+        id,
+        kind,
+        message: p.message,
+        ...("placeholder" in p && p.placeholder ? { placeholder: p.placeholder } : {}),
+        ...(p.type === "select" ? { options: p.options.map((o) => ({ id: o.id, label: o.label, ...(o.description ? { description: o.description } : {}) })) } : {}),
+      });
+    });
+  }
+
+  /** The page's answer to a prompt; null means cancelled. */
+  answerPrompt(id: string, value: string | null): void {
+    const pending = this.prompts.get(id);
+    this.prompts.delete(id);
+    if (!pending) return;
+    if (value === null) pending.reject(new Error("Cancelled"));
+    else pending.resolve(value);
+  }
+
+  /** Runs a settings change and lets the open chats and the page know. */
+  async changeSettings(fn: (s: GuiSettings) => Promise<string>): Promise<string> {
+    const message = await fn(this.settings);
+    this.session?.aiSettingsChanged();
+    this.emit({ type: "settings" });
+    return message;
   }
 
   get clientCount(): number {
@@ -83,6 +163,23 @@ export class GuiApp {
     const res = this.confirms.get(id);
     this.confirms.delete(id);
     res?.(ok);
+  }
+
+  /**
+   * Opens a file:// link from a chat in its default app (Excel, a text editor, …). Only the kinds
+   * of file the assistant writes, and only in the current folder, since the link text comes from the AI.
+   */
+  async openFile(url: string): Promise<string> {
+    let path: string;
+    try {
+      path = fileURLToPath(url);
+    } catch {
+      throw new Error("That isn't a file link.");
+    }
+    const full = resolveInCwd(this.opts.cwd, path, [...SPREADSHEET_EXTENSIONS, ...NOTE_EXTENSIONS]);
+    if (!(await stat(full).catch(() => undefined))?.isFile()) throw new Error(`${basename(full)} isn't there.`);
+    (this.opts.openUrl ?? openWithDefaultApp)(full);
+    return full;
   }
 
   async open(path: string): Promise<BootInfo> {
@@ -155,6 +252,7 @@ export class GuiApp {
   quit(reason: string): void {
     this.session?.stopAll();
     for (const id of [...this.confirms.keys()]) this.answer(id, false);
+    for (const id of [...this.prompts.keys()]) this.answerPrompt(id, null);
     this.quitWith(reason);
   }
 }

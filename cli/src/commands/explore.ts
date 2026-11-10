@@ -1053,7 +1053,7 @@ export function nodeSupportsAssistant(version = process.versions.node, isBun = "
 export function notSetUpMessage(info: AssistantInfo): string {
   const ways = routesFor(info.name).map((r) => SETUP_WAYS[r]);
   const list = ways.length > 1 ? `${ways.slice(0, -1).join(", ")}, or ${ways[ways.length - 1]}` : ways[0];
-  return `${info.label} isn't set up yet. Run "aecdo configure ai" to add ${list}.`;
+  return `${info.label} isn't set up yet. Open Settings (press ",") to add ${list}.`;
 }
 
 const SETUP_WAYS = {
@@ -1106,6 +1106,16 @@ export class AssistantBridge {
 
   constructor(private opts: AssistantBridgeOptions) {
     this.models = opts.models;
+  }
+
+  /**
+   * Forgets what's set up after the settings change. Conversations already started keep their model;
+   * the next @mention of another family uses the new settings.
+   */
+  reload(): void {
+    if (this.opts.models) return;
+    this.models = undefined;
+    this.setUpNames = undefined;
   }
 
   /** The model families that have a way to reach them set up, in the usual order. */

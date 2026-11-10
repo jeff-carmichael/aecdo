@@ -7,8 +7,6 @@ import { validate } from "../src/commands/validate.js";
 import { summary } from "../src/commands/summary.js";
 import { sheets } from "../src/commands/sheets.js";
 import { page } from "../src/commands/page.js";
-import { configure } from "../src/commands/configure.js";
-import { configureAi } from "../src/commands/configure-ai.js";
 import { upload } from "../src/commands/upload.js";
 import { status } from "../src/commands/status.js";
 import { download } from "../src/commands/download.js";
@@ -48,11 +46,9 @@ For people:
                       default browser. With no file, pick one in the app
   explore [file]      Same as gui. Without a terminal, or with --format json,
                       it lists the sheets instead
-  configure           Set up DrawingBot API credentials and region
-  configure ai        Set up the AI in the app: Sign in with ChatGPT or
-                      OpenRouter, add an OpenAI, Anthropic, or OpenRouter API
-                      key, Amazon Bedrock, or a custom endpoint (base URL +
-                      token). Each @model uses whichever is set up
+  configure           Open the app's Settings: the AI models (Sign in with
+                      ChatGPT or OpenRouter, API keys, Amazon Bedrock, a custom
+                      endpoint) and the DrawingBot API credentials
   update              Update aecdo to the latest release
   examples [folder]   Download the example drawing sets (Maple Grove demo,
                       Vancouver house permit set with its PDF) into a folder
@@ -94,7 +90,6 @@ Examples:
   aecdo download <jobId> -o result.jsonld
   aecdo gui drawings.jsonld
   aecdo configure
-  aecdo configure ai
   aecdo examples ~/aecdo-examples
   eval "$(aecdo completion bash)"      # add to ~/.bashrc (zsh: ~/.zshrc)
 `;
@@ -181,8 +176,11 @@ async function main(): Promise<void> {
   const rest = args.slice(1);
 
   if (command === "configure") {
-    if (rest[0] === "ai") await configureAi();
-    else await configure();
+    if (!canPrompt()) {
+      console.error('Error: settings are in the app. Run "aecdo configure" in a terminal on a computer with a screen.');
+      process.exit(1);
+    }
+    await gui(undefined, { settings: true, browser: rest.includes("--browser") });
     return;
   }
 

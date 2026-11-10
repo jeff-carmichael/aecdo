@@ -33,7 +33,7 @@ export async function loadConfig(): Promise<ApiConfig> {
     raw = await readFile(configPath, "utf-8");
   } catch {
     throw new Error(
-      `No configuration found. Run "aecdo configure" to set up your API credentials.`
+      `No DrawingBot API credentials yet. Run "aecdo configure" to add them in the app's Settings.`
     );
   }
 
@@ -59,7 +59,7 @@ export async function loadConfig(): Promise<ApiConfig> {
 
   if (!clientId || !clientSecret) {
     throw new Error(
-      `Invalid configuration in ${configPath}. Run "aecdo configure" to reconfigure.`
+      `Invalid configuration in ${configPath}. Run "aecdo configure" to enter them again.`
     );
   }
 
@@ -77,9 +77,9 @@ export async function loadConfig(): Promise<ApiConfig> {
 export async function saveConfig(
   clientId: string,
   clientSecret: string,
-  region: ApiRegion
+  region: ApiRegion,
+  dir = getConfigDir()
 ): Promise<void> {
-  const dir = getConfigDir();
   await mkdir(dir, { recursive: true, mode: 0o700 });
 
   const configPath = join(dir, "config.json");

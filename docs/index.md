@@ -88,13 +88,7 @@ The bottom of the window always shows the keys that work. [Use the app](app.md) 
 **See it on the page.** Keep the original PDF in the same folder with the same name (`plans.pdf` beside `plans.jsonld`), and the app shows the page next to the data with what you pick outlined in red. The demo has no PDF; the [Vancouver sample house](demo.md#real-drawings-vancouver-sample-house) in the same folder does.
 </li>
 <li markdown="1">
-**Optional: add an AI assistant.** In a terminal, run:
-
-```bash
-aecdo configure ai
-```
-
-Pick a way to connect (sign in with ChatGPT, or paste an API key) by typing its number and pressing <kbd>Enter</kbd>. Then, in the app, press <kbd>a</kbd>, type a question such as `which doors on this floor are fire rated?`, and press <kbd>Enter</kbd>. See [AI assistant](assistant.md).
+**Optional: add an AI assistant.** In the app, press <kbd>,</kbd> to open **Settings** and pick a way to connect: **Sign in with ChatGPT**, or paste an API key. Then press <kbd>Esc</kbd>, press <kbd>a</kbd>, type a question such as `which doors on this floor are fire rated?`, and press <kbd>Enter</kbd>. See [AI assistant](assistant.md).
 </li>
 </ol>
 

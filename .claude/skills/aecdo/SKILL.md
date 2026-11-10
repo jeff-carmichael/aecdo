@@ -34,7 +34,7 @@ Bare `aecdo` opens the app in a terminal and prints the help otherwise. Agents s
 aecdo configure
 ```
 
-Prompts for Client ID, Client Secret, and region. Saves to `~/.aecdo/config.json`. Required before using `process`, `upload`, `status`, or `download`.
+Opens the app's Settings, where a person enters the Client ID, Client Secret, and region. Saves to `~/.aecdo/config.json`. Required before using `process`, `upload`, `status`, or `download`. Agents can't do this step: ask the user to run it (or check that `~/.aecdo/config.json` exists).
 
 ### Process a PDF (end-to-end)
 
@@ -150,7 +150,7 @@ Prints everything on a sheet — drawings, layers, items with their data and ref
 aecdo gui examples/maple-grove-library.jsonld
 ```
 
-`aecdo gui [file]` (also bare `aecdo` in a terminal, and `aecdo explore [file]`) opens a desktop window for people: the sheet list, what's open, and the PDF page with the selection outlined in red, AI chats (`@claude`, `@chatgpt`, `@gemini`, `@grok`, `@deepseek`, `@kimi`, set up with `aecdo configure ai`), and PDF markups. It waits until the window is closed, so **agents should never run `gui`**, nor bare `aecdo` in a terminal. Without a TTY, bare `aecdo` prints the help, and `explore <file>` (or `explore --format json`) prints the sheet list like `sheets`.
+`aecdo gui [file]` (also bare `aecdo` in a terminal, and `aecdo explore [file]`) opens a desktop window for people: the sheet list, what's open, and the PDF page with the selection outlined in red, AI chats (`@claude`, `@chatgpt`, `@gemini`, `@grok`, `@deepseek`, `@kimi`, set up in the app's Settings, `,`), and PDF markups. It waits until the window is closed, so **agents should never run `gui`**, nor bare `aecdo` in a terminal. Without a TTY, bare `aecdo` prints the help, and `explore <file>` (or `explore --format json`) prints the sheet list like `sheets`.
 
 For a richer file to try commands on, `examples/maple-grove-library.jsonld` is a 19-sheet demo set (fictional library, all disciplines) with door, window, finish, equipment, and panel schedules. `examples/sample-drawing-package-1and2family.jsonld` comes with its source PDF (a 7-page house permit set from the City of Vancouver).
 

@@ -1,3 +1,4 @@
+import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -83,7 +84,8 @@ test("the assistant can navigate, take notes and fill a spreadsheet", async () =
   assert.equal(readFileSync(join(cwd, "notes.md"), "utf-8"), "- A101 has one drawing\n");
   assert.equal(readFileSync(join(cwd, "takeoff.csv"), "utf-8"), "Sheet,Drawings\nA101,1\n");
   const printed = out.join("");
-  assert.match(printed, /Added a note to notes\.md/);
+  assert.ok(printed.includes(`Added a note to ${pathToFileURL(join(cwd, "notes.md")).href}`), "the user gets a link to the note");
+  assert.ok(printed.includes(`Added 1 row(s) to ${pathToFileURL(join(cwd, "takeoff.csv")).href}`), "the user gets a link to the spreadsheet");
   assert.match(printed, /Done: noted A101/);
 });
 

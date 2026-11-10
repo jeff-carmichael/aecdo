@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { copyFileSync, mkdtempSync, statSync } from "node:fs";
+import { copyFileSync, mkdtempSync, statSync, writeFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,10 +12,10 @@ import { assetPath } from "./assets.js";
 
 const examples = new URL("../../../examples/", import.meta.url);
 
-async function start(withSet = true) {
+async function start(withSet = true, opened: string[] = []) {
   const dir = mkdtempSync(join(tmpdir(), "aecdo-gui-server-"));
   for (const f of ["sample-drawing-package-1and2family.jsonld", "sample-drawing-package-1and2family.pdf"]) copyFileSync(new URL(f, examples), join(dir, f));
-  const app = new GuiApp({ cwd: dir, settingsPath: join(dir, "gui.json") });
+  const app = new GuiApp({ cwd: dir, settingsPath: join(dir, "gui.json"), llmPath: join(dir, "llm.json"), configDir: dir, openUrl: (u) => opened.push(u) });
   if (withSet) await app.open("sample-drawing-package-1and2family.jsonld");
   const server = await startGuiServer(app, { token: "secret" });
   return { app, server, dir, url: server.url };
@@ -114,6 +115,64 @@ test("events reach the page, and questions wait for its answer", async () => {
     await json(`${url}api/confirm`, { id: ev.id, ok: true });
     assert.equal(await answer, true);
     await reader.cancel();
+  } finally {
+    await server.close();
+  }
+});
+
+test("Settings saves keys and asks sign-in questions through the page", async () => {
+  const { app, server, url } = await start(false);
+  try {
+    const info = await json<{ ai: { routes: { id: string; configured: boolean }[] }; api: { configured: boolean } }>(`${url}api/settings`);
+    assert.equal(info.data.api.configured, false);
+    const saved = await json<{ message: string; settings: typeof info.data }>(`${url}api/settings`, { action: "key", route: "openai", key: "sk-test" });
+    assert.match(saved.data.message, /Saved the OpenAI/);
+    assert.equal(saved.data.settings.ai.routes.find((r) => r.id === "openai")?.configured, true);
+    assert.equal((await json(`${url}api/settings`, { action: "key", route: "nowhere", key: "x" })).status, 400);
+    assert.equal((await json(`${url}api/settings`, { action: "dance" })).status, 400);
+    const models = await json<string[]>(`${url}api/settings/models?name=chatgpt&route=openai`);
+    assert.ok(models.data.length > 0);
+
+    const res = await fetch(`${url}api/events`);
+    const reader = res.body!.getReader();
+    let buffered = "";
+    const next = async (): Promise<{ type: string; id: string; kind: string; options?: { id: string }[] }> => {
+      for (;;) {
+        while (!buffered.includes("\n\n")) buffered += new TextDecoder().decode((await reader.read()).value);
+        const [chunk, ...rest] = buffered.split("\n\n");
+        buffered = rest.join("\n\n");
+        if (chunk.startsWith("data:")) return JSON.parse(chunk.slice(5)) as never;
+      }
+    };
+    const typed = app.prompt({ type: "secret", message: "Paste the token" });
+    const ev = await next();
+    assert.deepEqual([ev.type, ev.kind], ["prompt", "secret"]);
+    await json(`${url}api/prompt`, { id: ev.id, value: "tok" });
+    assert.equal(await typed, "tok");
+
+    const picked = assert.rejects(app.prompt({ type: "select", message: "How?", options: [{ id: "a", label: "A" }] }), /Cancelled/);
+    const sel = await next();
+    assert.deepEqual(sel.options?.map((o) => o.id), ["a"]);
+    await json(`${url}api/prompt`, { id: sel.id, value: null });
+    await picked;
+    await reader.cancel();
+  } finally {
+    await server.close();
+  }
+});
+
+test("file links from a chat open spreadsheets and notes in the folder, and nothing else", async () => {
+  const opened: string[] = [];
+  const { server, url, dir } = await start(false, opened);
+  try {
+    writeFileSync(join(dir, "door check.csv"), "Door\n");
+    const ok = await json<{ path: string }>(`${url}api/open-file`, { url: pathToFileURL(join(dir, "door check.csv")).href });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(opened, [join(dir, "door check.csv")]);
+    for (const bad of [pathToFileURL(join(dir, "missing.csv")).href, pathToFileURL(join(dir, "sample-drawing-package-1and2family.pdf")).href, pathToFileURL("/etc/passwd.csv").href, "https://example.com/a.csv"]) {
+      assert.equal((await json(`${url}api/open-file`, { url: bad })).status, 400, bad);
+    }
+    assert.equal(opened.length, 1);
   } finally {
     await server.close();
   }

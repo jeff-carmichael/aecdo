@@ -29,7 +29,7 @@ The DrawingBot API isn't available yet; these apply once it is.
 : `process` and `upload` need the PDF's name: `aecdo process plans.pdf`, or a path like `aecdo process ~/Downloads/plans.pdf`.
 
 **`No configuration found`, or sign-in errors from the API**
-: Run `aecdo configure` and re-enter your Client ID and Client Secret from [DrawingBot API](https://aecdrawingbot.com/api).
+: Run `aecdo configure` (or press <kbd>,</kbd> in the app) and re-enter your Client ID and Client Secret from [DrawingBot API](https://aecdrawingbot.com/api).
 
 **`Result expired (7-day retention)`**
 : Finished results can be downloaded for 7 days. Process the PDF again.
@@ -51,7 +51,7 @@ The DrawingBot API isn't available yet; these apply once it is.
 ## AI assistant
 
 **`Claude isn't set up yet` (or ChatGPT, Gemini, …)**
-: That model isn't connected. Run `aecdo configure ai` in a terminal, then reopen the app. If you set up an API key with an environment variable, make sure it's set in the terminal you're using.
+: That model isn't connected. Press <kbd>,</kbd> in the app to open Settings and set it up. If you set up an API key with an environment variable, make sure it's set in the terminal you're using.
 
 **`the AI assistant needs Node.js 22.19 or newer`**
 : You're running a source build on an older Node.js. Upgrade Node.js, or [install the standalone program](install.md).

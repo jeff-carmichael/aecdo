@@ -1,5 +1,6 @@
 import { appendFile, access, readdir, readFile } from "node:fs/promises";
 import { resolve, relative, isAbsolute, extname, basename } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { AgentTool, AgentToolResult, AgentEvent } from "@earendil-works/pi-agent-core";
 import type { MutableModels, Model, Api, TSchema } from "@earendil-works/pi-ai";
 import type { DrawingSet } from "../types.js";
@@ -52,6 +53,12 @@ export interface AssistantMarkups {
 }
 
 export const DEFAULT_NOTES_FILE = "notes.md";
+export const NOTE_EXTENSIONS = [".md", ".markdown"];
+
+/** The file:// link the assistant hands the user for a file it wrote. */
+export function fileLink(path: string): string {
+  return pathToFileURL(path).href;
+}
 export const INSTRUCTIONS_FILE = "AGENTS.md";
 const MAX_INSTRUCTIONS_CHARS = 20_000;
 const MAX_TOOL_CHARS = 40_000;
@@ -91,7 +98,7 @@ export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" |
   const where = `the aecdo app, a desktop viewer for construction drawing sets that always shows the current PDF page next to the extracted data`;
   const showPage = `show_page zooms the PDF pane, which is always visible, to the open drawing, layer, item, table, note, or image, outlined in red. Use it when the user asks to see, show, or find something on the drawing: navigate to it first (open the item for a red box around it), then call show_page. You can't see the page yourself.`;
   const saving = `Markups stay pending until the user saves them from the Markups panel (press m), which writes them to a copy of the PDF; tell the user that after adding them. Pending markups show on the PDF pane right away.`;
-  const otherCommands = `Other aecdo commands (such as "aecdo configure ai" or "aecdo update") can't run inside the app. When you suggest one, tell the user to run it in a terminal.`;
+  const otherCommands = `AI models and API keys are set up in the app's Settings (press "," or click Settings). Other aecdo commands (such as "aecdo update") can't run inside the app. When you suggest one, tell the user to run it in a terminal.`;
   const style = `Answer in short paragraphs or simple lists. **bold**, \`code\` and "- " lists are shown formatted, and sheet numbers become links; avoid tables and headings.`;
   return `You are ${info.label}, working inside ${where}.
 
@@ -110,6 +117,7 @@ ${host.markups ? `add_markup proposes a markup on the source PDF, the kind peopl
 You can write files in the current folder (${host.cwd}):
 - append_note adds Markdown to ${DEFAULT_NOTES_FILE} (or another .md file). Use it when the user asks you to note, record or remember something.
 - Spreadsheets: ${SPREADSHEET_EXTENSIONS.join(", ")}. Use list_spreadsheets first and work in the user's existing file and layout when there is one; read it before writing so new rows match its columns. Only create a new spreadsheet if none fits or the user asks.
+Each of these tools returns the file's file:// link. Whenever you create or change a file, end your reply with a Markdown link to it so the user can open it, e.g. [door-check.xlsx](file:///…/door-check.xlsx), using the link exactly as the tool returned it.
 
 ${otherCommands}
 
@@ -185,6 +193,12 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
   }
 
   const sheetPath = (file: string) => resolveInCwd(host.cwd, file, SPREADSHEET_EXTENSIONS);
+  /** Tells the user (with a link they can open) and the model what was written. */
+  const wrote = (path: string, shown: string, result: string) => {
+    const name = relative(host.cwd, path);
+    host.print(`  ✎ ${shown} ${fileLink(path)}`);
+    return text(`${result} ${name}. Link for the user: ${fileLink(path)}`);
+  };
   const value = cellValueSchema(T);
 
   const tools: AgentTool[] = [
@@ -272,12 +286,11 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
       }),
       executionMode: "sequential",
       execute: async (_id, params: { text: string; file?: string }) => {
-        const path = resolveInCwd(host.cwd, params.file || DEFAULT_NOTES_FILE, [".md", ".markdown"]);
+        const path = resolveInCwd(host.cwd, params.file || DEFAULT_NOTES_FILE, NOTE_EXTENSIONS);
         const body = params.text.trimEnd() + "\n";
         const prefix = (await exists(path)) ? "\n" : "";
         await appendFile(path, prefix + body, "utf-8");
-        host.print(`  ✎ Added a note to ${relative(host.cwd, path)}`);
-        return text(`Appended ${body.length} characters to ${relative(host.cwd, path)}`);
+        return wrote(path, `Added a note to`, `Appended ${body.length} characters to`);
       },
     }),
     defineTool({
@@ -319,8 +332,7 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
         const path = sheetPath(params.file);
         await approveEdit(path, "write cells");
         await writeCells(path, params.cells, params.sheet);
-        host.print(`  ✎ Updated ${params.cells.length} cell(s) in ${relative(host.cwd, path)}`);
-        return text(`Wrote ${params.cells.length} cell(s)`);
+        return wrote(path, `Updated ${params.cells.length} cell(s) in`, `Wrote ${params.cells.length} cell(s) to`);
       },
     }),
     defineTool({
@@ -337,8 +349,7 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
         const path = sheetPath(params.file);
         await approveEdit(path, "append rows");
         const first = await appendRows(path, params.rows, params.sheet);
-        host.print(`  ✎ Added ${params.rows.length} row(s) to ${relative(host.cwd, path)}`);
-        return text(`Appended ${params.rows.length} row(s) starting at row ${first}`);
+        return wrote(path, `Added ${params.rows.length} row(s) to`, `Appended ${params.rows.length} row(s) starting at row ${first} to`);
       },
     }),
     defineTool({
@@ -352,8 +363,7 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
         if (!isSpreadsheet(path)) throw new Error("Unsupported spreadsheet type");
         await createSpreadsheet(path, params.rows);
         approved.add(path);
-        host.print(`  ✎ Created ${relative(host.cwd, path)}`);
-        return text(`Created ${relative(host.cwd, path)} with ${params.rows.length} row(s)`);
+        return wrote(path, "Created", `Created with ${params.rows.length} row(s):`);
       },
     }),
   ];

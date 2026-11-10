@@ -16,7 +16,7 @@ You'll need a DrawingBot API account. Get your **Client ID** and **Client Secret
 aecdo configure
 ```
 
-It asks for the Client ID, the Client Secret, and a region (press Enter for the default, `us-west-2`). They're saved to `~/.aecdo/config.json`, readable only by you. Run `aecdo configure` again any time to change them; it shows the current Client ID (masked) and region first.
+The app opens at **Settings** (in the app, press <kbd>,</kbd> any time to get there). Under **DrawingBot API**, enter the Client ID and Client Secret, pick a region (the default is `us-west-2`), and press **Save**. They're saved to `~/.aecdo/config.json`, readable only by you. To change them later, open Settings again: it shows the current Client ID (masked) and region, and a field you leave blank keeps what's saved.
 
 You only need this for `process`, `upload`, `status`, and `download`. Everything else in `aecdo` works on files you already have, with no account.
 

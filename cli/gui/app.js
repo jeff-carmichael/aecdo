@@ -97,6 +97,12 @@ const chat = new ChatPanel($("chat-pane"), {
   api,
   onSheetLink: (sheet) => void openSheet(sheet),
   onLeave: () => setFocus(state?.sheet ? "main" : "sheets"),
+  openSettings: () => void settingsModal(),
+  openFile: (url) =>
+    void api("api/open-file", { url }).then(
+      (r) => toast(`Opening ${String(r.path).split(/[\\/]/).pop()}…`),
+      (err) => toast(/** @type {Error} */ (err).message, "warn")
+    ),
 });
 
 /** @param {number} pageIndex */
@@ -115,6 +121,7 @@ async function boot() {
   const r = await api("api/boot");
   if (r.set) await start(r.set);
   else showHome(r.home);
+  if (location.hash === "#settings") await settingsModal();
 }
 
 /** @param {any} boot */
@@ -635,11 +642,12 @@ ${saved.length ? `<h3>Saved</h3><pre class="saved">${esc(saved.join("\n"))}</pre
 
 // ── Modals ───────────────────────────────────────────────
 
-/** @type {{ kind: string, close: () => void, keys?: (e: KeyboardEvent) => boolean, update?: (info: any) => void } | undefined} */
+/** @type {{ kind: string, close: () => void, dismiss: () => void, keys?: (e: KeyboardEvent) => boolean, update?: (info: any) => void } | undefined} */
 let modal;
 
 /**
- * @param {{ kind: string, title: string, body: HTMLElement, keys?: (e: KeyboardEvent) => boolean, update?: (info: any) => void, onClose?: () => void, wide?: boolean }} o
+ * @param {{ kind: string, title: string, body: HTMLElement, keys?: (e: KeyboardEvent) => boolean, update?: (info: any) => void, onClose?: () => void, dismiss?: () => void, wide?: boolean }} o
+ *   `dismiss` is what Esc and a click outside do (default: close).
  */
 function openModal(o) {
   closeModal();
@@ -656,10 +664,11 @@ function openModal(o) {
   back.append(box);
   root.append(back);
   back.addEventListener("pointerdown", (e) => {
-    if (e.target === back) closeModal();
+    if (e.target === back) modal?.dismiss();
   });
   modal = {
     kind: o.kind,
+    dismiss: o.dismiss ?? closeModal,
     keys: o.keys,
     update: o.update,
     close: () => {
@@ -735,6 +744,275 @@ function helpModal() {
   openModal({ kind: "help", title: "Keyboard shortcuts", body, wide: true, keys: (e) => (e.key === "?" ? (closeModal(), true) : false) });
 }
 
+// ── Settings ─────────────────────────────────────────────
+
+const ROUTE_ACTIONS = {
+  openai: { signIn: "Sign in with ChatGPT", key: "API key" },
+  anthropic: { key: "API key" },
+  openrouter: { signIn: "Sign in with OpenRouter", key: "API key" },
+  "amazon-bedrock": { form: "bedrock" },
+  custom: { form: "custom" },
+};
+
+/** @type {{ text: string, url?: string, code?: string } | undefined} */
+let authNote;
+
+/**
+ * The app's Settings: ways to reach the AI models, which model each @name uses, and the
+ * DrawingBot API credentials.
+ * @param {any} [info]
+ */
+async function settingsModal(info) {
+  if (!info) {
+    try {
+      info = await api("api/settings");
+    } catch (err) {
+      return toast(`Couldn't load Settings: ${/** @type {Error} */ (err).message}`, "warn");
+    }
+  }
+  const body = document.createElement("div");
+  body.className = "settings";
+  /** @type {string | undefined} which route's form is open */
+  let editing;
+  let busy = false;
+
+  const routeRow = (/** @type {any} */ r) => {
+    const a = /** @type {any} */ (ROUTE_ACTIONS)[r.id] ?? {};
+    const buttons = [
+      a.signIn ? `<button data-sign-in="${r.id}">${esc(a.signIn)}</button>` : "",
+      a.key ? `<button data-edit="${r.id}">${r.configured ? "New " : ""}${esc(a.key)}</button>` : "",
+      a.form ? `<button data-edit="${r.id}">${r.configured ? "Change" : "Set up"}</button>` : "",
+      r.configured ? `<button data-sign-out="${r.id}" title="Remove the saved sign-in">Remove</button>` : "",
+    ].join("");
+    return `<li><span class="route-name">${esc(r.label)}</span><span class="${r.configured ? "ok" : "dim"}">${r.configured ? "✓ set up" : "not set up"}</span><span class="row-actions">${buttons}</span>${editing === r.id ? routeForm(r.id) : ""}</li>`;
+  };
+
+  const routeForm = (/** @type {string} */ id) => {
+    if (id === "amazon-bedrock") {
+      return `<form class="settings-form" data-form="bedrock"><p class="dim">Uses your AWS sign-in: a profile, access keys, or a Bedrock API key. The next questions ask which.</p>
+<label>AWS region <input name="region" placeholder="us-east-1" autocomplete="off"></label>
+<div class="actions"><button type="button" data-cancel>Cancel</button><button class="primary">Continue</button></div></form>`;
+    }
+    if (id === "custom") {
+      const c = info.ai.custom ?? { api: "openai-completions", models: {} };
+      const models = info.ai.assistants
+        .map((/** @type {any} */ m) => `<label>@${esc(m.name)} model id <input name="model-${m.name}" value="${esc(c.models?.[m.name] ?? "")}" placeholder="leave blank if it has none" autocomplete="off" spellcheck="false"></label>`)
+        .join("");
+      return `<form class="settings-form" data-form="custom"><p class="dim">An OpenAI- or Anthropic-compatible endpoint, such as a company gateway.</p>
+<label>Name <input name="name" value="${esc(c.name ?? "")}" placeholder="Custom endpoint" autocomplete="off"></label>
+<label>Base URL <input name="baseUrl" value="${esc(c.baseUrl ?? "")}" placeholder="https://…/v1" autocomplete="off" spellcheck="false" required></label>
+<label>API <select name="api"><option value="openai-completions"${c.api === "openai-completions" ? " selected" : ""}>OpenAI chat completions</option><option value="anthropic-messages"${c.api === "anthropic-messages" ? " selected" : ""}>Anthropic messages</option></select></label>
+<label>Token <input name="token" type="password" placeholder="${info.ai.custom ? "leave blank to keep the saved one" : "bearer token or API key"}" autocomplete="off"></label>
+${models}
+<div class="actions"><button type="button" data-cancel>Cancel</button><button class="primary">Save</button></div></form>`;
+    }
+    return `<form class="settings-form" data-form="key" data-route="${id}"><label>API key <input name="key" type="password" autocomplete="off" required></label>
+<div class="actions"><button type="button" data-cancel>Cancel</button><button class="primary">Save</button></div></form>`;
+  };
+
+  const assistantRow = (/** @type {any} */ m) => {
+    if (!m.available.length) {
+      const how = m.possible.map((/** @type {string} */ r) => info.ai.routes.find((/** @type {any} */ x) => x.id === r)?.label ?? r).join(", ");
+      return `<tr><td>@${esc(m.name)}</td><td colspan="2" class="dim">needs one of: ${esc(how)}</td></tr>`;
+    }
+    const routes = m.available.map((/** @type {string} */ r) => `<option value="${r}"${r === m.route ? " selected" : ""}>${esc(info.ai.routes.find((/** @type {any} */ x) => x.id === r)?.label ?? r)}</option>`).join("");
+    return `<tr data-name="${m.name}"><td>@${esc(m.name)}</td><td><select data-route aria-label="How @${esc(m.name)} is reached">${routes}</select></td><td><select data-model aria-label="@${esc(m.name)} model"><option>${esc(m.model ?? "")}</option></select></td></tr>`;
+  };
+
+  const draw = () => {
+    const ai = info.ai;
+    const auth = authNote
+      ? `<div class="auth-note">${esc(authNote.text)}${authNote.code ? ` <code>${esc(authNote.code)}</code>` : ""}${authNote.url ? `<br><a href="${esc(authNote.url)}" target="_blank" rel="noreferrer">${esc(authNote.url)}</a>` : ""}</div>`
+      : "";
+    const aiPart = ai.supported
+      ? `<p class="dim">Sign in or add a key for at least one of these. Saved in <code>${esc(ai.path)}</code>.</p>
+<ul class="routes">${ai.routes.map(routeRow).join("")}</ul>
+<h3>Which model each @name uses</h3>
+<table class="assistants">${ai.assistants.map(assistantRow).join("")}</table>`
+      : `<p class="warn">The AI chat needs Node.js 22.19 or newer. Use the standalone aecdo, or update Node.js.</p>`;
+    body.innerHTML = `${auth}<h3>AI models</h3>${aiPart}
+<h3>DrawingBot API</h3>
+<p class="dim">For <code>aecdo process</code>, which turns a PDF into a drawing set. ${info.api.configured ? "Set up." : "Not set up."} Saved in <code>${esc(info.api.path)}</code>.</p>
+<form class="settings-form" data-form="api">
+<label>Client ID <input name="clientId" placeholder="${esc(info.api.clientId ?? "")}" autocomplete="off" spellcheck="false"${info.api.configured ? "" : " required"}></label>
+<label>Client Secret <input name="clientSecret" type="password" placeholder="${info.api.configured ? "leave blank to keep the saved one" : ""}" autocomplete="off"${info.api.configured ? "" : " required"}></label>
+<label>Region <select name="region">${info.api.regions.map((/** @type {string} */ r) => `<option${r === info.api.region ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
+<div class="actions"><button class="primary">Save</button></div></form>
+<div class="actions"><button data-close>Done <kbd>Esc</kbd></button></div>`;
+    body.querySelectorAll("button").forEach((b) => (b.disabled = busy && !b.hasAttribute("data-close")));
+    void loadModelChoices();
+  };
+
+  const loadModelChoices = async () => {
+    for (const row of body.querySelectorAll("tr[data-name]")) {
+      const name = /** @type {HTMLElement} */ (row).dataset.name;
+      const route = /** @type {HTMLSelectElement} */ (row.querySelector("[data-route]")).value;
+      const select = /** @type {HTMLSelectElement} */ (row.querySelector("[data-model]"));
+      const current = select.value;
+      try {
+        /** @type {string[]} */
+        const choices = await api(`api/settings/models?name=${encodeURIComponent(name ?? "")}&route=${encodeURIComponent(route)}`);
+        if (!select.isConnected) return;
+        const list = choices.includes(current) || !current ? choices : [current, ...choices];
+        select.innerHTML = list.map((c) => `<option${c === current ? " selected" : ""}>${esc(c)}</option>`).join("");
+      } catch {
+        // keep the current model
+      }
+    }
+  };
+
+  /** @param {Record<string, unknown>} change */
+  const save = async (change) => {
+    busy = true;
+    draw();
+    try {
+      const r = await api("api/settings", change);
+      info = r.settings;
+      editing = undefined;
+      authNote = undefined;
+      toast(r.message);
+    } catch (err) {
+      const text = /** @type {Error} */ (err).message;
+      if (!/^(Cancelled|aborted)$/i.test(text)) toast(text, "warn");
+    }
+    busy = false;
+    if (body.isConnected) draw();
+    else if (!modal) void settingsModal(info);
+  };
+
+  body.addEventListener("click", (e) => {
+    const t = /** @type {HTMLElement} */ (e.target).closest("button");
+    if (!t || t.disabled) return;
+    if (t.dataset.close !== undefined) return closeSettings();
+    if (t.dataset.cancel !== undefined) {
+      editing = undefined;
+      return draw();
+    }
+    if (t.dataset.edit) {
+      editing = editing === t.dataset.edit ? undefined : t.dataset.edit;
+      draw();
+      return /** @type {HTMLElement | null} */ (body.querySelector(".routes .settings-form input"))?.focus();
+    }
+    if (t.dataset.signIn) return void save({ action: "sign-in", route: t.dataset.signIn });
+    if (t.dataset.signOut) return void save({ action: "sign-out", route: t.dataset.signOut });
+  });
+  body.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const form = /** @type {HTMLFormElement} */ (e.target);
+    const v = Object.fromEntries(new FormData(form).entries());
+    switch (form.dataset.form) {
+      case "api":
+        return void save({ action: "api", clientId: v.clientId, clientSecret: v.clientSecret, region: v.region });
+      case "key":
+        return void save({ action: "key", route: form.dataset.route, key: v.key });
+      case "bedrock":
+        return void save({ action: "bedrock", region: v.region });
+      case "custom": {
+        /** @type {Record<string, unknown>} */
+        const models = {};
+        for (const [k, value] of Object.entries(v)) if (k.startsWith("model-")) models[k.slice(6)] = value;
+        return void save({ action: "custom", name: v.name, baseUrl: v.baseUrl, api: v.api, token: v.token, models });
+      }
+    }
+  });
+  body.addEventListener("change", (e) => {
+    const t = /** @type {HTMLSelectElement} */ (e.target);
+    const row = t.closest("tr[data-name]");
+    if (!row) return;
+    const name = /** @type {HTMLElement} */ (row).dataset.name;
+    const route = /** @type {HTMLSelectElement} */ (row.querySelector("[data-route]")).value;
+    void save({ action: "choose", name, route, ...(t.dataset.model !== undefined ? { model: t.value } : {}) });
+  });
+
+  draw();
+  openModal({
+    kind: "settings",
+    title: "Settings",
+    body,
+    wide: true,
+    dismiss: closeSettings,
+    update: async (/** @type {any} */ next) => {
+      if (busy) return;
+      if (next) info = next;
+      else {
+        try {
+          info = await api("api/settings");
+        } catch {
+          return;
+        }
+      }
+      if (body.isConnected) draw();
+    },
+    keys: () => false,
+  });
+  if (location.hash === "#settings") history.replaceState(null, "", location.pathname + location.search);
+}
+
+function closeSettings() {
+  closeModal();
+  authNote = undefined;
+  if (set) void chat.loadModels();
+  else void api("api/home").then(showHome);
+}
+
+/**
+ * A question from a sign-in: text, a secret, or a choice. Settings comes back once it's answered.
+ * @param {{ id: string, kind: "text" | "secret" | "select", message: string, placeholder?: string, options?: { id: string, label: string, description?: string }[] }} p
+ */
+function promptModal(p) {
+  const back = modal?.kind === "settings" || modal?.kind === "prompt" ? "settings" : undefined;
+  const body = document.createElement("div");
+  body.className = "prompt";
+  body.dataset.id = p.id;
+  let selected = 0;
+  let answered = false;
+  const answer = (/** @type {string | null} */ value) => {
+    if (answered) return;
+    answered = true;
+    void api("api/prompt", { id: p.id, value }).catch(() => undefined);
+    closeModal();
+    if (back) void settingsModal();
+  };
+  const draw = () => {
+    body.innerHTML =
+      p.kind === "select"
+        ? `<ul class="choices">${(p.options ?? []).map((o, i) => `<li class="${i === selected ? "selected" : ""}" data-i="${i}">${esc(o.label)}${o.description ? `<div class="dim">${esc(o.description)}</div>` : ""}</li>`).join("")}</ul>
+<div class="actions"><button data-cancel>Cancel <kbd>Esc</kbd></button></div>`
+        : `<form><input type="${p.kind === "secret" ? "password" : "text"}" placeholder="${esc(p.placeholder ?? "")}" autocomplete="off" spellcheck="false">
+<div class="actions"><button type="button" data-cancel>Cancel <kbd>Esc</kbd></button><button class="primary">OK <kbd>Enter</kbd></button></div></form>`;
+  };
+  draw();
+  body.addEventListener("click", (e) => {
+    const t = /** @type {HTMLElement} */ (e.target);
+    if (t.closest("[data-cancel]")) return answer(null);
+    const li = /** @type {HTMLElement | null} */ (t.closest("li[data-i]"));
+    if (li) answer(p.options?.[Number(li.dataset.i)]?.id ?? null);
+  });
+  body.addEventListener("submit", (e) => {
+    e.preventDefault();
+    answer(/** @type {HTMLInputElement} */ (body.querySelector("input")).value);
+  });
+  openModal({
+    kind: "prompt",
+    title: p.message,
+    body,
+    dismiss: () => answer(null),
+    keys: (e) => {
+      if (p.kind !== "select") return false;
+      const n = p.options?.length ?? 0;
+      if (e.key === "ArrowDown" || e.key === "j") selected = Math.min(n - 1, selected + 1);
+      else if (e.key === "ArrowUp" || e.key === "k") selected = Math.max(0, selected - 1);
+      else if (e.key === "Enter") {
+        answer(p.options?.[selected]?.id ?? null);
+        return true;
+      } else return false;
+      draw();
+      return true;
+    },
+  });
+  /** @type {HTMLElement | null} */ (body.querySelector("input"))?.focus();
+}
+
 /** @param {any} home */
 function showHome(home) {
   const body = document.createElement("div");
@@ -751,7 +1029,9 @@ function showHome(home) {
       })
       .join("");
     body.innerHTML = `${items.length ? `${recent}<ul class="files">${list}</ul>` : `<p>There are no .jsonld drawing sets in ${esc(home.cwd)}. Run <code>aecdo examples</code> to download the example sets, or type a path below.</p>`}
-<form class="open-path"><input placeholder="Path to a .jsonld file" autocomplete="off" spellcheck="false"><button class="primary">Open</button></form>`;
+<form class="open-path"><input placeholder="Path to a .jsonld file" autocomplete="off" spellcheck="false"><button class="primary">Open</button></form>
+<div class="actions"><button data-settings>Settings <kbd>,</kbd></button></div>`;
+    body.querySelector("[data-settings]")?.addEventListener("click", () => void settingsModal());
     body.querySelectorAll("li[data-i]").forEach((li) => li.addEventListener("click", () => void openSet(items[Number(/** @type {HTMLElement} */ (li).dataset.i)])));
     body.querySelector("form")?.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -764,12 +1044,13 @@ function showHome(home) {
     title: "Open a drawing set",
     body,
     wide: true,
+    dismiss: () => set && closeModal(),
     keys: (e) => {
       if (typing(e)) return false;
+      if (e.key === ",") return void settingsModal(), true;
       if (e.key === "ArrowDown" || e.key === "j") selected = Math.min(items.length - 1, selected + 1);
       else if (e.key === "ArrowUp" || e.key === "k") selected = Math.max(0, selected - 1);
       else if (e.key === "Enter" && items[selected]) void openSet(items[selected]);
-      else if (e.key === "Escape" && !set) return true;
       else if (e.key === "/" || e.key === "p") {
         e.preventDefault();
         /** @type {HTMLInputElement} */ (body.querySelector("input")).focus();
@@ -889,6 +1170,24 @@ function listen() {
       case "chat":
         chat.onEvent(ev);
         break;
+      case "prompt":
+        promptModal(ev);
+        break;
+      case "prompt-cancel":
+        if (modal?.kind === "prompt" && /** @type {HTMLElement | null} */ (document.querySelector(".prompt"))?.dataset.id === ev.id) {
+          closeModal();
+          void settingsModal();
+        }
+        break;
+      case "auth":
+        authNote = { text: ev.text, url: ev.url, code: ev.code };
+        if (modal?.kind === "settings") void modal.update?.(undefined);
+        else toast(ev.code ? `${ev.text} ${ev.url ?? ""}` : ev.text);
+        break;
+      case "settings":
+        if (modal?.kind === "settings") void modal.update?.(undefined);
+        if (set) void chat.loadModels();
+        break;
       case "confirm":
         void ask(ev.question, ev.thread).then((ok) => api("api/confirm", { id: ev.id, ok }));
         break;
@@ -909,14 +1208,16 @@ function onKey(e) {
   if (modal) {
     if (e.key === "Escape") {
       e.preventDefault();
-      if (modal.kind === "home" && !set) return;
-      closeModal();
-      return;
+      return modal.dismiss();
     }
     if (modal.keys?.(e)) e.preventDefault();
     return;
   }
   if (!set) return;
+  if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+    e.preventDefault();
+    return void settingsModal();
+  }
   if ((e.ctrlKey || e.metaKey) && (e.key === "q" || e.key === "Q")) {
     e.preventDefault();
     return void quit();
@@ -1050,6 +1351,9 @@ function onKey(e) {
     case "?":
       handled();
       return helpModal();
+    case ",":
+      handled();
+      return void settingsModal();
     case "q":
       handled();
       return void quit();
@@ -1072,6 +1376,7 @@ document.addEventListener("keydown", onKey);
 // ── Buttons ──────────────────────────────────────────────
 
 $("help-btn").addEventListener("click", helpModal);
+$("settings-btn").addEventListener("click", () => void settingsModal());
 $("chat-btn").addEventListener("click", toggleChat);
 $("markups-btn").addEventListener("click", markupsPanel);
 $("zoom-in").addEventListener("click", () => pdf.zoomBy(1.25));

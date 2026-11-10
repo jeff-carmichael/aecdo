@@ -54,7 +54,7 @@ Things to know:
 - **Always pass a file name.** A missing file is an error.
 - **Output is plain text** with no colors, spinners, or boxes, so it reads the same in a log as in a terminal. Progress for `process` and `status --wait` goes to stderr, one line each time it changes.
 - **`gui` and `explore` are for people.** `gui` opens a window and waits until it's closed, so agents shouldn't run it. `explore` without a terminal, or with `--format json`, just prints the sheet list.
-- **`configure` and `configure ai` are interactive**, so a person needs to run them once.
+- **`configure` opens the app's Settings**, so a person needs to set up API credentials and AI models once. Without a terminal it exits with an error.
 - **Update notices** only go to stderr in a terminal, so they never get mixed into JSON on stdout.
 
 ## AGENTS.md

@@ -810,6 +810,10 @@ button.icon {
   content: "⚙ ";
 }
 
+.file-link {
+  color: var(--accent);
+}
+
 .sheet-link {
   color: var(--accent);
   font-family: var(--mono);
@@ -1103,4 +1107,125 @@ button.primary kbd {
   height: 100vh;
   color: var(--dim);
   font-size: 15px;
+}
+
+/* ── Settings ──────────────────────────────────────── */
+
+.settings .routes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.settings .routes > li {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 90px auto;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings .routes > li > .settings-form {
+  grid-column: 1 / -1;
+}
+
+.settings .row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.settings button,
+.prompt button {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 7px;
+  padding: 4px 10px;
+}
+
+.settings button.primary,
+.prompt button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.settings button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.settings .ok {
+  color: var(--accent);
+}
+
+.settings-form {
+  display: grid;
+  gap: 8px;
+  margin: 6px 0 4px;
+}
+
+.settings-form label {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-form p {
+  margin: 0;
+}
+
+.settings-form .actions {
+  margin-top: 4px;
+}
+
+.settings input,
+.settings select,
+.prompt input {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  min-width: 0;
+}
+
+.prompt input {
+  width: 100%;
+}
+
+.settings .assistants td {
+  padding: 4px 12px 4px 0;
+}
+
+.settings .assistants select {
+  width: 100%;
+}
+
+.auth-note {
+  background: var(--select);
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+
+.prompt .choices {
+  display: block;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.prompt .choices li {
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.prompt .choices li.selected {
+  background: var(--select);
 }

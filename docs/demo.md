@@ -70,7 +70,7 @@ Checking every door this way takes a while on a real project, which is where the
 
 ## 5. Let the assistant do the checking
 
-Set up an assistant first: run `aecdo configure ai` in a terminal (see [AI assistant](assistant.md#set-it-up)). Then, in the app, press <kbd>a</kbd>, type this, and press <kbd>Enter</kbd>:
+Set up an assistant first: press <kbd>,</kbd> in the app to open Settings (see [AI assistant](assistant.md#set-it-up)). Then, in the app, press <kbd>a</kbd>, type this, and press <kbd>Enter</kbd>:
 
 ```
 check every door tag on A101 and A102 against the door schedule and hardware sets on A601. List anything that doesn't match.

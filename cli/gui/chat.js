@@ -12,17 +12,39 @@ function escapeHtml(s) {
 }
 
 /**
- * Light Markdown (paragraphs, "- " lists, **bold**, `code`) with sheet numbers turned into links.
+ * Turns file:// links in escaped HTML into links the app opens: Markdown [name](file:///…), a
+ * Markdown link inside backticks, or a bare file:///… URL (shown by its file name).
+ * @param {string} html
+ */
+export function linkFiles(html) {
+  const link = (/** @type {string} */ url, /** @type {string} */ label) => `<a href="#" class="file-link" data-url="${url}" title="Open ${url}">${label}</a>`;
+  return html
+    .replace(/`?\[([^\]\n]+)\]\((file:\/\/[^)\s]+)\)`?/g, (_m, label, url) => link(url, label))
+    .replace(/(<a [^>]*>.*?<\/a>)|`?(file:\/\/[^\s<>`)]+)`?/g, (m, a, url) => {
+      if (a || !url) return m;
+      const clean = url.replace(/[.,;:]+$/, "");
+      let name = clean.split("/").pop() || clean;
+      try {
+        name = decodeURIComponent(name);
+      } catch {
+        // keep it encoded
+      }
+      return link(clean, escapeHtml(name)) + url.slice(clean.length);
+    });
+}
+
+/**
+ * Light Markdown (paragraphs, "- " lists, **bold**, `code`) with sheet numbers and file:// links turned into links.
  * @param {string} text
  * @param {Set<string>} sheets upper-cased sheet numbers
  */
 export function renderMarkdown(text, sheets) {
   const inline = (/** @type {string} */ line) => {
-    let html = escapeHtml(line);
-    html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+    let html = linkFiles(escapeHtml(line));
+    html = html.replace(/(<a [^>]*>.*?<\/a>)|`([^`]+)`/g, (m, a, code) => (a ? m : `<code>${code}</code>`));
     html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-    // Sheet numbers like A101 or S-201 become links; skip text inside tags and code.
-    html = html.replace(/(<code>.*?<\/code>)|(<[^>]+>)|([A-Za-z]{0,3}[-.]?\d[\w.-]*)/g, (m, code, tag, word) => {
+    // Sheet numbers like A101 or S-201 become links; skip text inside tags, links and code.
+    html = html.replace(/(<code>.*?<\/code>|<a [^>]*>.*?<\/a>)|(<[^>]+>)|([A-Za-z]{0,3}[-.]?\d[\w.-]*)/g, (m, code, tag, word) => {
       if (code || tag || !word) return m;
       const clean = word.replace(/[.,;:]+$/, "");
       if (!sheets.has(clean.toUpperCase())) return m;
@@ -78,6 +100,8 @@ export class ChatPanel {
    *   api: (path: string, body?: unknown) => Promise<any>,
    *   onSheetLink: (sheet: string) => void,
    *   onLeave: () => void,
+   *   openSettings: () => void,
+   *   openFile: (url: string) => void,
    * }} deps
    */
   constructor(root, deps) {
@@ -115,10 +139,18 @@ export class ChatPanel {
       if (tab) this.switchTo(tab.dataset.thread ?? "");
     });
     this.log.addEventListener("click", (e) => {
+      const file = /** @type {HTMLElement | null} */ (/** @type {HTMLElement} */ (e.target).closest("a.file-link"));
+      if (file) {
+        e.preventDefault();
+        return this.deps.openFile(file.dataset.url ?? "");
+      }
       const a = /** @type {HTMLElement} */ (e.target).closest("a.sheet-link");
       if (!a) return;
       e.preventDefault();
       this.deps.onSheetLink(/** @type {HTMLElement} */ (a).dataset.sheet ?? "");
+    });
+    this.modelLine.addEventListener("click", (e) => {
+      if (/** @type {HTMLElement} */ (e.target).closest("[data-settings]")) this.deps.openSettings();
     });
     this.modelLine.addEventListener("change", (e) => {
       const sel = /** @type {HTMLSelectElement} */ (e.target);
@@ -332,7 +364,7 @@ export class ChatPanel {
     if (!this.models.length) {
       this.modelLine.innerHTML = '<span class="dim">Checking which AI models are set up…</span>';
     } else if (!setUp.length) {
-      this.modelLine.innerHTML = '<span class="warn">No AI model is set up yet. Run <code>aecdo configure ai</code> in a terminal, then open a new chat.</span>';
+      this.modelLine.innerHTML = '<span class="warn">No AI model is set up yet.</span> <button class="chip" data-settings>Set one up in Settings <kbd>,</kbd></button>';
     } else {
       const detail = current && current.detail !== "not set up" ? `<span class="dim">${escapeHtml(current.detail)}</span>` : '<span class="warn">not set up</span>';
       this.modelLine.innerHTML = `<select aria-label="Model">${opts}${current && !setUp.includes(current) ? `<option selected value="">${escapeHtml(current.label)}</option>` : ""}</select> ${detail} <span class="dim">· type @name to switch</span>`;
@@ -382,6 +414,7 @@ export class ChatPanel {
     const div = document.createElement("div");
     div.className = `msg ${e.role}`;
     if (e.role === "assistant") div.innerHTML = renderMarkdown(e.text, this.sheets);
+    else if (e.role === "status") div.innerHTML = linkFiles(escapeHtml(e.text));
     else div.textContent = e.role === "tool" ? `${e.text}…` : e.text;
     this.log.append(div);
     if (scroll) this.scrollDown();

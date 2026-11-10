@@ -15,8 +15,9 @@ No schema changes; the CLI still validates against `ontology/v0.3.0`.
   - Removed: the full-screen and typed-prompt `explore` (with `--classic`), its sheet map, `view`, `markups` commands, and `@claude` chat (all of these are in the app now), the `aecdo` menu, the arrow-key file pickers (`process` and `upload` need the PDF's name), spinners, progress bars, colors, and boxed tables.
   - `process` and `status --wait` print a line on stderr each time the progress changes.
   - `page` prints tables as pipe-separated rows, as they are stored.
-  - `configure ai` asks you to pick by number instead of with the arrow keys.
   - `--then explore` is gone from `process` and `download`; open the saved file with `aecdo gui`.
+- Settings moved into the app (press `,`, or the Settings button). It sets up the AI models (Sign in with ChatGPT or OpenRouter, API keys, Amazon Bedrock, a custom endpoint, and which way and model each `@name` uses) and the DrawingBot API credentials. Sign-in questions show as dialogs in the app, and changes apply to the open chats right away. `aecdo configure` now opens the app at Settings, and `aecdo configure ai` is gone. When no model is set up, the chat links to Settings.
+- When the AI creates or changes a spreadsheet or Markdown notes file, the chat shows a `file://` link to it. Clicking it opens the file in its default app (Excel, a text editor, …). Only spreadsheets and notes in the app's folder open this way.
 
 ## [0.5.2] - 2026-11-10
 

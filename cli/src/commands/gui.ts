@@ -12,6 +12,8 @@ export interface GuiOptions {
   schema?: string;
   /** Open in the default browser instead of the app window. */
   browser?: boolean;
+  /** Open on the Settings screen. */
+  settings?: boolean;
 }
 
 /** How long the browser version waits for a reloaded page to come back before quitting. */
@@ -80,9 +82,10 @@ export async function gui(file: string | undefined, opts: GuiOptions = {}): Prom
   const opening = file ? app.open(file).then(() => undefined) : Promise.resolve();
   const kill: { current?: () => void } = {};
 
+  const url = opts.settings ? `${server.url}#settings` : server.url;
   const openInBrowser = () => {
-    openWithDefaultApp(server.url);
-    console.error(`aecdo is open in your browser: ${server.url}`);
+    openWithDefaultApp(url);
+    console.error(`aecdo is open in your browser: ${url}`);
     console.error("Close the tab or press Ctrl+C to quit.");
   };
 
@@ -97,7 +100,7 @@ export async function gui(file: string | undefined, opts: GuiOptions = {}): Prom
     if (!opts.browser) console.error("The app window comes with the standalone aecdo binary, so this opens in your browser instead.");
     openInBrowser();
   } else {
-    void runWindow(embedded.windowCommand!(server.url), app, kill).then((r) => {
+    void runWindow(embedded.windowCommand!(url), app, kill).then((r) => {
       if (r.result === "closed") return app.quit("window closed");
       const lines = r.error.split("\n").map((l) => l.trim()).filter(Boolean);
       console.error(`Couldn't open the app window: ${lines.find((l) => /error/i.test(l)) ?? lines.at(-1) ?? "it closed right away"}`);

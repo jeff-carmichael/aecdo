@@ -54,6 +54,7 @@ Pick a sheet, open a drawing, open a layer, open an item: the app works the way 
 | <kbd>m</kbd> | Review and save markups |
 | <kbd>d</kbd> | Show ids and coordinates |
 | <kbd>o</kbd> | Open another drawing set |
+| <kbd>,</kbd> | Settings: AI models and DrawingBot API credentials |
 | <kbd>q</kbd> | Quit |
 
 The mouse works too: click rows, click a box on the PDF to open it, scroll or pinch to zoom, drag to pan, double-click to zoom in.
@@ -104,7 +105,7 @@ If the box lands in the wrong place, the file's coordinates may not be in PDF po
 
 ## AI chats
 
-<kbd>a</kbd> opens the chat on the right. Ask about what you're looking at in plain words; the assistant sees the place you have open, can move around the set (the app follows), zoom the PDF to things, propose markups, write notes, and fill in a spreadsheet in the current folder. Set it up once with `aecdo configure ai`. See [AI assistant](assistant.md).
+<kbd>a</kbd> opens the chat on the right. Ask about what you're looking at in plain words; the assistant sees the place you have open, can move around the set (the app follows), zoom the PDF to things, propose markups, write notes, and fill in a spreadsheet in the current folder. Set it up once in Settings (<kbd>,</kbd>). When it writes a note or a spreadsheet, the chat links to the file so you can open it. See [AI assistant](assistant.md).
 
 Each chat is its own conversation, so you can check doors in one and ask about the structure in another. <kbd>t</kbd> (or <kbd>Ctrl</kbd>+<kbd>T</kbd>) starts a chat, the tabs at the top switch between them, and each one can use a different model. Chats last until you close the app.
 
