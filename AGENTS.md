@@ -6,6 +6,8 @@ Read by Codex, Cursor, and other agents directly, and by Claude Code via `CLAUDE
 
 AECDO (AEC Drawing Ontology) — an open schema + CLI for structured data extracted from Architecture, Engineering, and Construction drawings. AEC DrawingBot produces JSON-LD files conforming to this schema.
 
+You should work to keep the codebase clean at all times. Merge repeated code and make fixes as you see them
+
 ## Key paths
 
 - `ontology/v0.3.0/aecdo.schema.json` — the JSON Schema (source of truth)
