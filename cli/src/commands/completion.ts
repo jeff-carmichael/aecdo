@@ -7,7 +7,7 @@ const COMMANDS: [name: string, description: string][] = [
   ["summary", "Print a concise summary of a drawing set"],
   ["sheets", "List all sheets"],
   ["page", "Print one sheet by sheet number or page index"],
-  ["explore", "Browse a drawing set interactively"],
+  ["explore", "Open the app (lists sheets without a terminal)"],
   ["gui", "Open the app: the PDF beside the data, with AI chats"],
   ["configure", "Set up API credentials and region (configure ai: AI assistant)"],
   ["process", "Upload a PDF, wait, and save the result"],
@@ -75,7 +75,7 @@ _aecdo() {
 
   case "$prev" in
     --format) COMPREPLY=($(compgen -W "json text" -- "$cur")); return ;;
-    --then) COMPREPLY=($(compgen -W "validate summary explore" -- "$cur")); return ;;
+    --then) COMPREPLY=($(compgen -W "validate summary" -- "$cur")); return ;;
     -o|--output|--schema|--pdf) compopt -o filenames 2>/dev/null; COMPREPLY=($(compgen -f -- "$cur")); return ;;
     --poll) return ;;
   esac
@@ -121,9 +121,9 @@ ${commands}
     '--schema[Use a custom schema file]:schema file:_files'
     '--poll[Polling interval in seconds]:seconds:'
     '--wait[Wait for job completion]'
-    '--then[Pipe the result into a command]:command:(validate summary explore)'
+    '--then[Pipe the result into a command]:command:(validate summary)'
     '--stdout[Print the result instead of saving it]'
-    '--pdf[Source PDF for explore and gui]:pdf file:_files -g "*.(pdf|PDF)"'
+    '--pdf[Source PDF for the app]:pdf file:_files -g "*.(pdf|PDF)"'
     '--force[Replace example files that are already there]'
     '--browser[gui: open in the default browser instead of a window]'
     '--no-update-check[Skip the daily update check]'
@@ -199,9 +199,9 @@ function fishScript(): string {
     "complete -c aecdo -l schema -r -F -d 'Use a custom schema file'",
     "complete -c aecdo -l poll -x -d 'Polling interval in seconds'",
     "complete -c aecdo -l wait -d 'Wait for job completion'",
-    "complete -c aecdo -l then -x -a 'validate summary explore' -d 'Pipe the result into a command'",
+    "complete -c aecdo -l then -x -a 'validate summary' -d 'Pipe the result into a command'",
     "complete -c aecdo -l stdout -d 'Print the result instead of saving it'",
-    "complete -c aecdo -l pdf -r -F -d 'Source PDF for explore and gui'",
+    "complete -c aecdo -l pdf -r -F -d 'Source PDF for the app'",
     "complete -c aecdo -l force -d 'Replace example files that are already there'",
     "complete -c aecdo -l browser -d 'gui: open in the default browser instead of a window'",
     "complete -c aecdo -l no-update-check -d 'Skip the daily update check'",

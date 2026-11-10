@@ -1,13 +1,11 @@
 import { basename, dirname } from "node:path";
 import { existsSync } from "node:fs";
-import { Explorer, PageViewer, AssistantBridge, parseMention, notSetUpMessage, sheetEntries, buildRefIndex, groupSheets, SHEET_GROUP_THRESHOLD, type ScreenModel, type ViewTarget, type AssistantOutput } from "../commands/explore.js";
-import { findSheetRows } from "../commands/explore-app.js";
+import { Explorer, PdfLocator, AssistantBridge, findSheetRows, parseMention, notSetUpMessage, sheetEntries, buildRefIndex, groupSheets, SHEET_GROUP_THRESHOLD, type ScreenModel, type ViewTarget, type AssistantOutput } from "../commands/explore.js";
 import { MarkupSession, type MarkupRequest } from "../commands/markups.js";
 import { fieldName, plainValue } from "../commands/page.js";
-import { stripAnsi } from "../lib/tui.js";
 import { parseTable } from "../lib/table.js";
-import { findSourcePdf, sourcePdfCandidates, unionBBox, type BBox } from "../lib/page-view.js";
-import { listPdfs } from "../lib/picker.js";
+import { findSourcePdf, sourcePdfCandidates, unionBBox, type BBox } from "../lib/pdf-page.js";
+import { listPdfs } from "../lib/files.js";
 import { ASSISTANTS, type AssistantName } from "../lib/llm.js";
 import { MARKUP_KINDS, type Markup, type MarkupKind } from "../lib/markup.js";
 import type { DrawingSet, Sheet } from "../types.js";
@@ -212,7 +210,7 @@ function toolNote(name: string, args: unknown): string {
 export class GuiSession {
   readonly explorer: Explorer;
   readonly markups: GuiMarkups;
-  private viewer: PageViewer;
+  private locator: PdfLocator;
   private log: string[] = [];
   private pdfPath?: string;
   private pdfVersion = 1;
@@ -228,13 +226,12 @@ export class GuiSession {
     private opts: GuiSessionOptions
   ) {
     this.explorer = new Explorer(data, (line = "") => this.log.push(line), { fileName: basename(filePath) });
-    this.viewer = new PageViewer(data, filePath, opts.pdf);
+    this.locator = new PdfLocator(data, filePath, opts.pdf);
     this.pdfPath = findSourcePdf(sourcePdfCandidates(filePath, data, opts.pdf));
     this.markups = new GuiMarkups(data, {
       locatePdf: () => ({ path: this.pdfPath, looked: sourcePdfCandidates(filePath, data, opts.pdf) }),
       target: () => this.explorer.viewTarget(),
       confirm: (q) => opts.confirm(q),
-      log: () => undefined,
     });
     this.markups.onChange = () => opts.emit({ type: "markups" });
   }
@@ -278,8 +275,7 @@ export class GuiSession {
         // an unreadable folder just means nothing to pick from
       }
     }
-    // The PDF pane offers the folder's PDFs as buttons, so drop explore's typed-command advice.
-    const missing = this.viewer.missingPdfLines().filter((l) => !/^(Type "view|If one of them goes with)/.test(l));
+    const missing = this.locator.missingPdfLines();
     return { available: false, version: this.pdfVersion, missing, choices };
   }
 
@@ -297,7 +293,7 @@ export class GuiSession {
     this.opts.emit({ type: "pdf" });
   }
 
-  /** Runs explore commands ("3", "up", "back", "r1", "A101", …) in order. */
+  /** Runs navigation commands ("3", "up", "back", "r1", "A101", …) in order. */
   command(commands: string[]): GuiState {
     return this.move(() => {
       for (const c of commands) this.explorer.handle(c);
@@ -341,7 +337,7 @@ export class GuiSession {
   preview(sheetNumber: string): GuiState | undefined {
     const sheet = this.sheets.find((s) => s.sheetNumber === sheetNumber);
     if (!sheet) return undefined;
-    const model = this.explorer.screenModel(100, sheet);
+    const model = this.explorer.screenModel(sheet);
     return {
       ...this.fromModel(model),
       location: sheet.sheetNumber,
@@ -359,7 +355,7 @@ export class GuiSession {
   state(): GuiState {
     const e = this.explorer;
     const v = e.view;
-    const model = e.screenModel(100);
+    const model = e.screenModel();
     const target = e.viewTarget();
     const state: GuiState = {
       ...this.fromModel(model),
@@ -505,8 +501,7 @@ export class GuiSession {
     }
     this.opts.emit({ type: "markups" });
     if (action !== "drop" && action !== "clear") this.pdfChanged();
-    // The typed command in explore is the Markups panel's u key here.
-    return result.replace(/"markups undo" (takes|puts) them back\./, "Press m, then u, to undo.");
+    return result;
   }
 
   async addMarkup(req: MarkupRequest): Promise<string> {
@@ -527,7 +522,7 @@ export class GuiSession {
         this.opts.emit({ type: "chat", thread: t.id, op: "delta", text });
       },
       print: (line = "") => {
-        const text = stripAnsi(line).trim();
+        const text = line.trim();
         if (!text) return;
         const entry: ChatEntry = { role: "status", text };
         thread().entries.push(entry);
@@ -554,15 +549,14 @@ export class GuiSession {
       explorer: this.explorer,
       out,
       markups: this.markups,
-      surface: "app",
       ...hooks,
     });
   }
 
   private showPage(): string {
     const t = this.explorer.viewTarget();
-    if ("error" in t) return t.error.replace(/, then type "view"/, "");
-    if (!this.pdfPath) return this.viewer.missingPdfLines().join("\n");
+    if ("error" in t) return t.error;
+    if (!this.pdfPath) return this.locator.missingPdfLines().join("\n");
     this.opts.emit({ type: "focus" });
     const what = t.bbox ? `, zoomed to ${t.label} outlined in red` : "";
     return `Showing sheet ${t.sheet.sheetNumber} (PDF page ${t.sheet.pageIndex + 1})${what}, in the PDF pane.`;

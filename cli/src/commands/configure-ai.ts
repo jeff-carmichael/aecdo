@@ -1,6 +1,6 @@
 import { createInterface } from "node:readline";
 import { openWithDefaultApp } from "../lib/open.js";
-import { pick, canPrompt } from "../lib/picker.js";
+import { choose, canPrompt } from "../lib/prompt.js";
 import {
   ASSISTANTS,
   APP_NAME,
@@ -91,7 +91,7 @@ const interaction: AuthInteraction = {
   async prompt(p: AuthPrompt): Promise<string> {
     if (p.type === "secret") return askSecret(`${p.message} `);
     if (p.type === "select") {
-      const picked = await pick(p.options.map((o) => o.label), { title: p.message });
+      const picked = await choose(p.options.map((o) => o.label), p.message);
       const option = p.options.find((o) => o.label === picked);
       if (!option) throw new Error("Cancelled");
       return option.id;
@@ -122,7 +122,7 @@ async function describe(models: MutableModels): Promise<void> {
     if (await isRouteConfigured(models, route)) ready.push(routeLabel(route, custom));
   }
   console.log(`\nSet up: ${ready.length ? ready.join(", ") : "nothing yet"}`);
-  console.log("AI assistants in aecdo explore (each @mention uses whichever way is set up):");
+  console.log("AI assistants in the app (each @mention uses whichever way is set up):");
   for (const a of Object.values(ASSISTANTS)) {
     const r = await pickRoute(models, a.name);
     const how = r ? `${routeLabel(r.route, custom)}: ${r.modelId}` : "not set up";
@@ -133,7 +133,7 @@ async function describe(models: MutableModels): Promise<void> {
 
 async function chooseAssistant(title: string, names = Object.keys(ASSISTANTS) as AssistantName[]): Promise<AssistantInfo | null> {
   const options = names.map((n) => ASSISTANTS[n]);
-  const picked = await pick(options.map((a) => `@${a.name} (${a.label})`), { title });
+  const picked = await choose(options.map((a) => `@${a.name} (${a.label})`), title);
   return options.find((a) => `@${a.name} (${a.label})` === picked) ?? null;
 }
 
@@ -146,7 +146,7 @@ async function chooseModel(models: MutableModels, info: AssistantInfo, route: Ro
   }
   const catalog = models.getModels(route).map((m) => m.id);
   const ids = modelChoices(route, catalog, current, info);
-  const picked = await pick(ids, { title: `@${info.name} model on ${ROUTE_LABELS[route]} (type to filter):` });
+  const picked = await choose(ids, `@${info.name} model on ${ROUTE_LABELS[route]} (type part of a name to narrow the list):`);
   if (picked) await setModelId(info.name, route, picked);
 }
 
@@ -216,7 +216,7 @@ async function setupCustom(store: FileCredentialStore): Promise<MutableModels> {
     console.log("A base URL starting with https:// is needed; nothing changed.");
     return createLlmModels(store);
   }
-  const style = await pick(Object.keys(API_STYLES), { title: "Which API does it speak?" });
+  const style = await choose(Object.keys(API_STYLES), "Which API does it speak?");
   if (!style) return createLlmModels(store);
   const token = (await askSecret("Token (sent as Authorization: Bearer; leave blank for none or to keep the current one): ")).trim();
   await setCustomEndpoint({ ...current, name: name && name !== "Custom endpoint" ? name : undefined, baseUrl, api: API_STYLES[style] });
@@ -249,7 +249,7 @@ async function chooseRouteAndModel(models: MutableModels): Promise<void> {
   if (available.length > 1) {
     const custom = await getCustomEndpoint();
     const labels = available.map((r) => routeLabel(r, custom));
-    const picked = await pick(labels, { title: `Route for @${info.name}:` });
+    const picked = await choose(labels, `Route for @${info.name}:`);
     if (!picked) return;
     route = available[labels.indexOf(picked)];
     await setPreferredRoute(info.name, route);
@@ -262,7 +262,7 @@ async function logout(models: MutableModels, store: FileCredentialStore): Promis
   const routes: RouteId[] = [];
   for (const r of Object.keys(ROUTE_LABELS) as RouteId[]) if (await isRouteConfigured(models, r)) routes.push(r);
   const labels = routes.map((r) => routeLabel(r, custom));
-  const picked = await pick(labels, { title: "Remove credentials for:" });
+  const picked = await choose(labels, "Remove credentials for:");
   const route = routes[labels.indexOf(picked ?? "")];
   if (!route) return models;
   if (route === "custom") await setCustomEndpoint(undefined);
@@ -286,7 +286,7 @@ export async function configureAi(): Promise<void> {
 
   for (;;) {
     await describe(models);
-    const action = await pick(Object.values(ACTIONS), { title: "What would you like to do?" });
+    const action = await choose(Object.values(ACTIONS), "What would you like to do?");
     try {
       switch (action) {
         case ACTIONS.chatgptLogin: {

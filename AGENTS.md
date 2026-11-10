@@ -18,32 +18,29 @@ You should work to keep the codebase clean at all times. Merge repeated code and
 - `cli/src/lib/config.ts` — API credential storage and region-to-endpoint mapping
 - `cli/src/lib/auth.ts` — OAuth token management with caching
 - `cli/src/lib/api.ts` — HTTP client for the DrawingBot API
-- `cli/src/lib/picker.ts` — arrow-key list picker (raw-mode stdin, draws on stderr) used when `process`/`upload` (PDFs) or `explore` (`.jsonld`) get no file in a TTY
-- `cli/src/commands/menu.ts` — menu shown by bare `aecdo` in a TTY; `argsFor()` turns a choice into the argv that `main()` then runs as usual (non-TTY prints `HELP`)
 - `cli/src/commands/examples.ts` — `aecdo examples [folder]`: downloads the files listed in `EXAMPLE_FILES` from the matching release tag, falling back to `main`; `install.sh`/`install.ps1` offer it at the end of an interactive install
 - `cli/src/commands/completion.ts` — bash/zsh/fish completion scripts for `aecdo completion`
 - `cli/src/lib/llm.ts` — AI assistant setup on pi-ai: each `@mention` is a model family (claude, chatgpt, gemini, grok, deepseek, kimi) reached by a route (anthropic, openai, amazon-bedrock, custom endpoint, openrouter) picked from what's set up; default models per route, credential store at `~/.aecdo/llm.json`; pi is imported lazily (needs Node 22.19+)
-- `cli/src/lib/assistant.ts` — the `@claude`/`@chatgpt` agent in `explore` (pi-agent-core): system prompt, current-view context, and tools (navigate, read sheets, `show_page`, notes, spreadsheets) limited to the current folder; appends an `AGENTS.md` from the cwd (if any) to the system prompt
+- `cli/src/lib/assistant.ts` — the `@claude`/`@chatgpt` agent in the app's chats (pi-agent-core): system prompt, current-view context, and tools (navigate, read sheets, `show_page`, notes, spreadsheets) limited to the current folder; appends an `AGENTS.md` from the cwd (if any) to the system prompt
 - `cli/src/commands/configure-ai.ts` — `aecdo configure ai` (Sign in with ChatGPT/OpenRouter, API keys, Amazon Bedrock, custom endpoint, route and model per @mention)
 - `cli/src/lib/markup.ts` — PDF markups (cloud = Polygon with cloud border, callout = FreeText, note = Text) with our own appearance streams, saved as an incremental update so the original bytes stay intact; tagged `/NM aecdo-…` for list/remove; undo truncates only if the file is unchanged
-- `cli/src/commands/markups.ts` — `MarkupSession` behind the `markups` command in `explore` and the assistant's `add_markup`/`list_markups`/`remove_markup` tools; markups stay pending until the user types `markups save`, which writes `<name>-markups.pdf` (or `--in-place`)
-- `cli/src/lib/page-view.ts` — `view` in `explore`: finds the source PDF, copies the page with pdf-lib, draws the red bbox (top-left PDF points, rotation-aware), rasterizes with `pdftoppm`/`mutool` when installed
+- `cli/src/commands/markups.ts` — `MarkupSession` behind the app's Markups panel and the assistant's `add_markup`/`list_markups`/`remove_markup` tools; markups stay pending until the user saves, which writes `<name>-markups.pdf` (or the original in place)
+- `cli/src/lib/pdf-page.ts` — where to look for a set's source PDF, and bbox geometry (top-left PDF points to PDF user space, rotation-aware) used by markups
 - `cli/src/lib/spreadsheet.ts`, `cli/src/lib/zip.ts` — dependency-free `.xlsx`/`.csv`/`.tsv` read and write; xlsx edits patch the sheet XML so formatting survives
-- `cli/src/lib/screen.ts` — full-window terminal screen (alternate buffer, raw keys, resize, rewrites only changed rows, always restores the terminal); `cli/src/commands/explore-app.ts` — `ExploreApp`, the full-screen `explore` (sheet pane + main pane + AI chat panel and bar + footer; the assistant's output goes to `chatWrite`/`chatPrint`/`chatConfirm`) driving `Explorer.handle()` and reading `Explorer.screenModel()`/`sheetPane()`; tested with a fake screen. `explore --classic` / `AECDO_EXPLORE=classic` keeps the typed prompt
 - `cli/src/commands/gui.ts` — `aecdo gui`: starts the local server and opens the window (the standalone binary re-runs itself as `__gui-window <url>`, see `cli/bin/gui-window.ts`, since webview-bun's `run()` blocks), else the default browser; quits with the window or 20 s after the last browser tab closes
 - `cli/src/gui/` — the app's backend: `GuiApp` (open set, home screen, recent files in `~/.aecdo/gui.json`, confirm questions), `GuiSession` (one set: wraps `Explorer` into JSON states with row bboxes, PDF lookup, markups, and AI chat threads, each its own `AssistantBridge` with `surface: "app"`), `server.ts` (127.0.0.1, random token path prefix, Host check, SSE events, PDF byte ranges), `assets.ts` (frontend and PDF.js file paths, embedded in the binary)
 - `cli/gui/` — the app's frontend, plain ES modules with JSDoc types (checked by `tsc -p cli/gui/tsconfig.json` in `npm run lint`), no framework: `app.js` (layout, keys, modals), `pdf-view.js` (PDF.js page with instant CSS zoom/pan, sharp re-render of the visible area, box overlay), `list.js` (virtual list), `chat.js`, `keys.js`. PDF.js is `pdfjs-dist`'s legacy build; `cli/bin/gui-assets.js` lists the files Bun embeds
-- `cli/src/lib/minimap.ts` — the small layout map inset in the bottom-right corner of full-screen `explore`'s right column: draws `Explorer.sheetMap()`'s boxes on a character grid, guessing the page size from common sheet sizes since the data doesn't store it
-- `cli/src/lib/tui.ts` — shared terminal UI kit with no dependencies: glyphs with ASCII fallback, width-aware `fit`/`padEnd`, spinner, progress bar, key hints, `box`, `LiveRegion` (redraw-in-place block, cut to the terminal size) and `task()` (spinner around a promise). Used by the picker, menu, `progress.ts` (`ProgressView` for `process`/`status`) and the `explore` banner; colors come from `style.ts` (`paletteFor(stream)`)
-- `cli/src/lib/table.ts` — boxed, padded table rendering for `explore`/`page`; wraps long cells to the terminal width
+- `cli/src/lib/table.ts` — splits pipe-delimited table content into cells
+- `cli/src/lib/progress.ts` — plain progress lines on stderr for `process` and `status --wait`
+- `cli/src/lib/prompt.ts` — `canPrompt()` and `choose()`, a numbered list read with readline, for `configure ai`; `cli/src/lib/files.ts` lists `.jsonld`/`.pdf` files for the app's home screen
 - `cli/src/lib/update-check.ts` — daily background check for newer GitHub releases (detached worker + cache at `~/.aecdo/update-check.json`, notice on stderr)
 - `package.json` — at repo root, npm-publishable as "aecdo"
 - `docs/` — user guide (Jekyll, served by GitHub Pages from `main`/`docs` at https://jeff-carmichael.github.io/aecdo/); one Markdown page per topic, sidebar order in `docs/_config.yml`; README is short and links here
 - `examples/sample-drawing-set.jsonld` — validates against the schema (small; used by unit tests)
-- `examples/maple-grove-library.jsonld` — detailed 19-sheet demo set (fictional library) for demos of `explore` and the assistant; `cli/src/lib/schema.test.ts` validates every `.jsonld` file in `examples/`
-- `examples/sample-drawing-package-1and2family.{pdf,jsonld}` — City of Vancouver sample house permit set (7 pages) with a hand-built JSON-LD, for trying `view` and markups on a real PDF; source in `examples/README.md`. The PDF is left out of the npm package
+- `examples/maple-grove-library.jsonld` — detailed 19-sheet demo set (fictional library) for demos of the app and the assistant; `cli/src/lib/schema.test.ts` validates every `.jsonld` file in `examples/`
+- `examples/sample-drawing-package-1and2family.{pdf,jsonld}` — City of Vancouver sample house permit set (7 pages) with a hand-built JSON-LD, for trying the PDF pane and markups on a real PDF; source in `examples/README.md`. The PDF is left out of the npm package
 - `.claude/skills/aecdo/SKILL.md` — installable Claude Code skill
-- `scripts/bench-large-set.mjs` — `npm run bench -- 1000` times parse/validate/explore on a synthetic large set (copies of the Maple Grove demo); run after `npm run build`
+- `scripts/bench-large-set.mjs` — `npm run bench -- 1000` times parse/validate/navigation on a synthetic large set (copies of the Maple Grove demo); run after `npm run build`
 - `scripts/postinstall.mjs` — copies the skill to `~/.claude/skills/` on a global npm install
 - `cli/bin/standalone.ts`, `cli/bin/embed-assets.ts` — Bun entry for standalone binaries (embeds schema + version)
 - `install.sh` — end-user installer for the standalone binary (`curl … | sh`)
@@ -72,12 +69,12 @@ npx aecdo validate examples/sample-drawing-set.jsonld
 npx aecdo summary examples/sample-drawing-set.jsonld
 npx aecdo sheets examples/sample-drawing-set.jsonld --format json
 npx aecdo page examples/sample-drawing-set.jsonld A101
-npx aecdo explore examples/sample-drawing-set.jsonld   # interactive drill-down (humans)
+npx aecdo gui examples/maple-grove-library.jsonld      # the app (humans)
 ```
 
-Agent-friendly, non-interactive commands: `validate`, `summary`, `sheets`, `page` — all support `--format json`. `configure` is human-interactive by design. `explore` detects non-TTY stdin or `--format json` and falls back to listing sheets so it won't hang in scripts.
+The CLI is for scripts and agents: plain output (no colors, spinners, pickers, or screens), and nothing waits for input except `configure`/`configure ai`. `validate`, `summary`, `sheets`, `page` all support `--format json`. People use the app: bare `aecdo` in a TTY opens it (non-TTY prints `HELP`), and `explore` is an alias for `gui` that falls back to listing sheets without a TTY or with `--format json`.
 
-`explore` is a drill-down navigator (`Explorer` class in `cli/src/commands/explore.ts`): sheet list → sheet contents (numbered drawings, tables, notes, images) → drawing layers → layer items → item detail. `back`/`..` goes up, `top` resets, `r1`/`r2`/… follow the references tagged `→ [r1]` on the current drawing or item (`Explorer.jump()`, pushed on the stack so `back` returns), `all` prints the full sheet via `printPage`. `view`/`/view` (handled in the input loop by `PageViewer`, not `Explorer.handle`) opens the PDF page with `Explorer.viewTarget()` outlined in red; the assistant reaches it through its `show_page` tool. The `Explorer` takes an injectable logger so navigation is unit-tested without a TTY. Lines starting with `@claude`/`@chatgpt` go to the AI assistant (`cli/src/lib/assistant.ts`), which reads `Explorer.context()` and drives `Explorer.navigate()`; its tests use pi-ai's scripted `fauxProvider`, so no network or keys are needed.
+`Explorer` (`cli/src/commands/explore.ts`) is the navigation model behind the app and the assistant: sheet list → sheet contents (numbered drawings, tables, notes, images) → drawing layers → layer items → item detail. `up`/`..` goes up, `back` returns, `top` resets, `r1`/`r2`/… follow the references tagged `→ [r1]` (`Explorer.jump()`, pushed on the stack so `back` returns), `all` prints the full sheet via `printPage`. `screenModel()`/`sheetPane()` give the app its data; `viewTarget()` is what the PDF pane outlines; the text it logs is what the assistant reads through `context()`/`navigate()`. It takes an injectable logger so navigation is unit-tested without a TTY. The assistant's tests use pi-ai's scripted `fauxProvider`, so no network or keys are needed.
 
 ### API commands (requires DrawingBot API credentials)
 
@@ -108,7 +105,7 @@ API credentials are stored at `~/.aecdo/config.json` (0o600 permissions). Tokens
 - TypeScript with strict mode, compiled via `tsc`
 - ES modules (`import`/`export`), no CommonJS
 - No comments unless explaining a non-obvious "why"
-- Minimal dependencies (ajv for validation, native fetch for API calls, pi-ai/pi-agent-core for the AI assistant, pdf-lib for `view`, pdfjs-dist for the app; webview-bun is a devDependency, bundled only into the standalone binary)
+- Minimal dependencies (ajv for validation, native fetch for API calls, pi-ai/pi-agent-core for the AI assistant, pdf-lib for markups, pdfjs-dist for the app; webview-bun is a devDependency, bundled only into the standalone binary)
 - Lint with `npm run lint` (ESLint flat config in `eslint.config.js`, `typescript-eslint` type-checked rules, plus a type check of `cli/gui/`); CI enforces it
 - Use Node.js built-in test runner (`node --test`); tests live next to source as `cli/src/**/*.test.ts` and run via `npm test`
 

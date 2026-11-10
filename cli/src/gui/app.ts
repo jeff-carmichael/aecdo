@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { getConfigDir } from "../lib/config.js";
-import { listJsonld } from "../lib/picker.js";
+import { listJsonld } from "../lib/files.js";
 import { isValid } from "../commands/validate.js";
 import { GuiSession, type BootInfo, type GuiEvent, type GuiSessionOptions } from "./session.js";
 import type { DrawingSet } from "../types.js";

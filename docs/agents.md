@@ -4,7 +4,7 @@ title: Claude Code and agents
 
 # Use aecdo with Claude Code and other AI agents
 
-Besides the [assistant inside `explore`](assistant.md), you can let a coding agent such as [Claude Code](https://claude.com/claude-code) run `aecdo` for you. That's useful for bigger jobs: checking a whole set, comparing two revisions, or building reports from several files. It's also a way to use a Claude Pro or Max subscription with your drawing data, since Claude Code signs in with those plans.
+Besides the [assistant in the app](assistant.md), you can let a coding agent such as [Claude Code](https://claude.com/claude-code) run `aecdo` for you. That's useful for bigger jobs: checking a whole set, comparing two revisions, or building reports from several files. It's also a way to use a Claude Pro or Max subscription with your drawing data, since Claude Code signs in with those plans.
 
 ## Install the Claude Code skill
 
@@ -51,8 +51,9 @@ Agents should stick to the commands that print and exit, with `--format json`:
 
 Things to know:
 
-- **Always pass a file name.** Without a terminal there's no file picker for `process`, `upload`, or `explore`; a missing file is an error.
-- **`explore` is for people.** Without a terminal, or with `--format json`, it just prints the sheet list instead of waiting for input.
+- **Always pass a file name.** A missing file is an error.
+- **Output is plain text** with no colors, spinners, or boxes, so it reads the same in a log as in a terminal. Progress for `process` and `status --wait` goes to stderr, one line each time it changes.
+- **`gui` and `explore` are for people.** `gui` opens a window and waits until it's closed, so agents shouldn't run it. `explore` without a terminal, or with `--format json`, just prints the sheet list.
 - **`configure` and `configure ai` are interactive**, so a person needs to run them once.
 - **Update notices** only go to stderr in a terminal, so they never get mixed into JSON on stdout.
 
@@ -60,7 +61,7 @@ Things to know:
 
 `AGENTS.md` is a common convention for giving AI tools standing instructions for a folder. The same file works for both:
 
-- the `@claude`/`@chatgpt` [assistant in `explore`](assistant.md#project-instructions-agentsmd), which reads `AGENTS.md` from the folder you run `explore` in;
+- the [assistant in the app](assistant.md#project-instructions-agentsmd), which reads `AGENTS.md` from the folder you start the app from;
 - Claude Code and other coding agents, when you start them in that folder. (Claude Code reads `CLAUDE.md`; a one-line `CLAUDE.md` containing `@AGENTS.md` makes it read `AGENTS.md` too.)
 
 So you can write your project's checking rules once, in one place.

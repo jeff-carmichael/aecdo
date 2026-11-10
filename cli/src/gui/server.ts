@@ -8,7 +8,7 @@ import { MARKUP_KINDS, type MarkupKind } from "../lib/markup.js";
 import { ASSISTANTS, type AssistantName } from "../lib/llm.js";
 import type { GuiApp } from "./app.js";
 import type { GuiSession } from "./session.js";
-import type { BBox } from "../lib/page-view.js";
+import type { BBox } from "../lib/pdf-page.js";
 
 export interface GuiServer {
   /** The app's address, including the secret path that every request must start with. */

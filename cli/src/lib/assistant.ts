@@ -15,22 +15,18 @@ import {
 } from "./spreadsheet.js";
 import type { AssistantInfo } from "./llm.js";
 import { MARKUP_KINDS, type Markup, type MarkupKind } from "./markup.js";
-import type { BBox } from "./page-view.js";
+import type { BBox } from "./pdf-page.js";
 
-/** What the assistant can see and drive. Implemented by the explore Explorer. */
+/** What the assistant can see and drive. Implemented by Explorer. */
 export interface AssistantView {
   /** The current view as structured data for the model. */
   context(): unknown;
-  /** Runs an explore command (sheet number, entry number, "back", "top", "all") and returns the new context. */
+  /** Runs a navigation command (sheet number, entry number, "back", "top", "all") and returns the new context. */
   navigate(command: string): unknown;
 }
 
-/** Where the assistant runs: "terminal" for explore, "app" for the aecdo app window with its PDF pane. */
-export type AssistantSurface = "terminal" | "app";
-
 export interface AssistantHost {
   data: DrawingSet;
-  surface?: AssistantSurface;
   filePath: string;
   cwd: string;
   view: AssistantView;
@@ -39,9 +35,9 @@ export interface AssistantHost {
   /** A full line of status output (tool activity, errors). */
   print(line: string): void;
   confirm(question: string): Promise<boolean>;
-  /** Opens the current page from the source PDF with the selection outlined, like the user typing "view". */
+  /** Shows the current page of the source PDF with the selection outlined. */
   showPage?(): Promise<string>;
-  /** Pending PDF markups; the user reviews and saves them with "markups save". */
+  /** Pending PDF markups; the user reviews and saves them in the app. */
   markups?: AssistantMarkups;
   /** Called when a tool starts, so the screen can show what the assistant is doing. */
   onTool?(name: string, args: unknown): void;
@@ -90,24 +86,13 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" | "data" | "showPage" | "markups" | "surface">, info: AssistantInfo): string {
+export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" | "data" | "showPage" | "markups">, info: AssistantInfo): string {
   const sheetCount = host.data.sheets?.length ?? 0;
-  const app = host.surface === "app";
-  const where = app
-    ? `the aecdo app, a desktop viewer for construction drawing sets that always shows the current PDF page next to the extracted data`
-    : `"aecdo explore", a terminal browser for construction drawing sets`;
-  const showPage = app
-    ? `show_page zooms the PDF pane, which is always visible, to the open drawing, layer, item, table, note, or image, outlined in red. Use it when the user asks to see, show, or find something on the drawing: navigate to it first (open the item for a red box around it), then call show_page. You can't see the page yourself.`
-    : `show_page opens the current sheet's page from the source PDF in the user's image viewer, with the open drawing, layer, item, table, note, or image outlined in red (same as the user typing "view"). Use it when the user asks to see, show, or find something on the drawing: navigate to it first (open the item for a red box around it), then call show_page. You can't see the image yourself.`;
-  const saving = app
-    ? `Markups stay pending until the user saves them from the Markups panel (press m), which writes them to a copy of the PDF; tell the user that after adding them. Pending markups show on the PDF pane right away.`
-    : `Markups stay pending until the user types "markups save", which writes them to a copy of the PDF; tell the user that after adding them, and that "view" shows them first.`;
-  const otherCommands = app
-    ? `Other aecdo commands (such as "aecdo configure ai" or "aecdo update") can't run inside the app. When you suggest one, tell the user to run it in a terminal.`
-    : `Other aecdo commands (such as "aecdo configure ai" or "aecdo update") can't run inside explore. When you suggest one, tell the user to quit explore first: press Esc to close the chat, then q (at the typed prompt, type q).`;
-  const style = app
-    ? `Answer in short paragraphs or simple lists. **bold**, \`code\` and "- " lists are shown formatted, and sheet numbers become links; avoid tables and headings.`
-    : `Answer in plain text suited to a terminal: short paragraphs or simple lists, no tables wider than 80 columns, no headings.`;
+  const where = `the aecdo app, a desktop viewer for construction drawing sets that always shows the current PDF page next to the extracted data`;
+  const showPage = `show_page zooms the PDF pane, which is always visible, to the open drawing, layer, item, table, note, or image, outlined in red. Use it when the user asks to see, show, or find something on the drawing: navigate to it first (open the item for a red box around it), then call show_page. You can't see the page yourself.`;
+  const saving = `Markups stay pending until the user saves them from the Markups panel (press m), which writes them to a copy of the PDF; tell the user that after adding them. Pending markups show on the PDF pane right away.`;
+  const otherCommands = `Other aecdo commands (such as "aecdo configure ai" or "aecdo update") can't run inside the app. When you suggest one, tell the user to run it in a terminal.`;
+  const style = `Answer in short paragraphs or simple lists. **bold**, \`code\` and "- " lists are shown formatted, and sheet numbers become links; avoid tables and headings.`;
   return `You are ${info.label}, working inside ${where}.
 
 The open file is ${basename(host.filePath)} (${sheetCount} sheets), extracted from a PDF drawing set by AEC DrawingBot.
@@ -138,7 +123,7 @@ export interface FolderInstructions {
   truncated: boolean;
 }
 
-/** Reads AGENTS.md (any capitalization) from the folder explore runs in, if there is one. */
+/** Reads AGENTS.md (any capitalization) from the folder aecdo runs in, if there is one. */
 export async function loadFolderInstructions(cwd: string): Promise<FolderInstructions | undefined> {
   let names: string[];
   try {
@@ -209,9 +194,7 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
             name: "show_page",
             label: "Show page",
             description:
-              host.surface === "app"
-                ? "Zoom the PDF pane to the current selection, outlined in red (the drawing, layer, or the last item, table, note, or image opened). Navigate to the target first. Returns what is shown, or why it couldn't be."
-                : "Open the current sheet's PDF page in the user's image viewer with the current selection outlined in red (the drawing, layer, or the last item, table, note, or image opened). Navigate to the target first. Returns what was opened, or why it couldn't be.",
+              "Zoom the PDF pane to the current selection, outlined in red (the drawing, layer, or the last item, table, note, or image opened). Navigate to the target first. Returns what is shown, or why it couldn't be.",
             parameters: T.Object({}),
             executionMode: "sequential",
             execute: async () => text(await host.showPage!()),
@@ -223,12 +206,12 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
       name: "navigate",
       label: "Navigate",
       description:
-        'Move the explore view, exactly like the user typing a command: a sheet number or its number (1, 2, …) in the sheet list shown, a group number or prefix (when the sheet list shows groups), an entry number from the current list, "r1"/"r2"/… (follow a reference tagged "→ [r1]"), "up" (one level up the tree), "back" (to the previous place, e.g. before a jump), "top", or "all" (print the whole sheet). Returns the new current view.',
+        'Move the view, exactly like the user typing a command: a sheet number or its number (1, 2, …) in the sheet list shown, a group number or prefix (when the sheet list shows groups), an entry number from the current list, "r1"/"r2"/… (follow a reference tagged "→ [r1]"), "up" (one level up the tree), "back" (to the previous place, e.g. before a jump), "top", or "all" (print the whole sheet). Returns the new current view.',
       parameters: T.Object({ command: T.String({ description: 'e.g. "A101", "3", "r1", "back", "top"' }) }),
       executionMode: "sequential",
       execute: (_id, params: { command: string }) => {
         const cmd = params.command.trim().toLowerCase();
-        if (["quit", "q", "exit"].includes(cmd)) throw new Error("The assistant cannot quit explore");
+        if (["quit", "q", "exit"].includes(cmd)) throw new Error("The assistant cannot quit the app");
         return text(truncateJson(host.view.navigate(params.command)));
       },
     }),
@@ -399,7 +382,7 @@ function markupTools(host: AssistantHost, markups: AssistantMarkups, T: typeof i
         const m = await markups.add(params);
         const index = markups.pending.length;
         host.print(`  ✎ Markup ${index} pending: ${markups.describe(m)}`);
-        return text(`Pending markup ${index}: ${markups.describe(m)}. ${index} pending in total. Nothing is written until the user types "markups save" (writes ${markups.outPath()}); "view" shows them on the page first.`);
+        return text(`Pending markup ${index}: ${markups.describe(m)}. ${index} pending in total. Nothing is written until the user saves from the Markups panel (writes ${markups.outPath()}); they show on the PDF pane now.`);
       },
     }),
     defineTool({

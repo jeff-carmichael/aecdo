@@ -6,8 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
-- New `aecdo gui` (preview): the drawing set in a desktop window, with the sheet list, what you've opened, and the PDF page side by side. The PDF is always open and the selection is outlined in red as you move; zoom and pan are instant, and big PDFs load only the pages you look at. It uses the same keys as `explore` (press `?` for the list), keeps several AI chats going at once (`a` asks, `t` starts another chat, each with its own model), and adds markups from the selection (`M`) or a Shift-drag on the page, reviewed and saved with `m`. With no file it lists the sets in the folder and recent ones. The window comes with the standalone binary (Linux needs WebKitGTK 6; Windows 10 needs WebView2); an npm install, `--browser`, or a missing library opens it in the default browser instead. `explore` is unchanged. `aecdo` with no arguments offers it as "Open the app".
+- New app for people: `aecdo gui` opens the drawing set in a desktop window, with the sheet list, what you've opened, and the PDF page side by side. The PDF is always open and the selection is outlined in red as you move; zoom and pan are instant, and big PDFs load only the pages you look at. It's keyboard-driven (press `?` for the keys), keeps several AI chats going at once (`a` asks, `t` starts another chat, each with its own model), and adds markups from the selection (`M`) or a Shift-drag on the page, reviewed and saved with `m`. With no file it lists the sets in the folder and recent ones. The window comes with the standalone binary (Linux needs WebKitGTK 6; Windows 10 needs WebView2); an npm install, `--browser`, or a missing library opens it in the default browser instead.
+- The app replaces the terminal screens. Bare `aecdo` in a terminal opens the app (instead of a menu), and `aecdo explore` is now another name for `aecdo gui`; without a terminal, or with `--format json`, `explore` still prints the sheet list.
+- The rest of the CLI is plain, for scripts and agents:
+  - Removed: the full-screen and typed-prompt `explore` (with `--classic`), its sheet map, `view`, `markups` commands, and `@claude` chat (all of these are in the app now), the `aecdo` menu, the arrow-key file pickers (`process` and `upload` need the PDF's name), spinners, progress bars, colors, and boxed tables.
+  - `process` and `status --wait` print a line on stderr each time the progress changes.
+  - `page` prints tables as pipe-separated rows, as they are stored.
+  - `configure ai` asks you to pick by number instead of with the arrow keys.
+  - `--then explore` is gone from `process` and `download`; open the saved file with `aecdo gui`.
 
 ## [0.5.2] - 2026-11-10
 

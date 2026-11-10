@@ -100,7 +100,7 @@ Whenever you add, remove, rename, or restructure a type or field, walk this chec
 - `cli/src/lib/schema.ts` — bump `DEFAULT_SCHEMA_PATH` when creating a new version directory
 - `cli/src/commands/summary.ts` — count and report the new type/field if it's summary-worthy
 - `cli/src/commands/page.ts` — render the new type/field in the per-sheet view (add a `printX` helper if it's a new type)
-- `cli/src/commands/explore.ts` — add new sheet-level types to `sheetEntries`/`describeEntry` so they appear in the drill-down menu; new Drawing/Layer children need a new navigation level
+- `cli/src/commands/explore.ts` — add new sheet-level types to `sheetEntries`/`describeEntry` so they appear in the app; new Drawing/Layer children need a new navigation level
 
 **Examples & fixtures:**
 - `examples/sample-drawing-set.jsonld` — bump the `@context` URL and include at least one instance of any new type/field
@@ -188,7 +188,7 @@ If a command reads a file at runtime, embed it in `cli/bin/embed-assets.ts` too,
 
 The getting-started guide in `docs/` is a small [Jekyll](https://jekyllrb.com/) site that GitHub Pages builds straight from the `main` branch's `docs/` folder, so there's no build step or workflow to maintain. Each page is a Markdown file; the sidebar order lives in `nav` in `docs/_config.yml`, and the layout and styles are in `docs/_layouts/default.html` and `docs/assets/style.css`.
 
-- Link between pages with relative `.md` links (`[Explore](explore.md#see-it-on-the-page-view)`); Pages turns them into `.html` links.
+- Link between pages with relative `.md` links (`[The app](app.md#the-pdf)`); Pages turns them into `.html` links.
 - When a command or option changes, update the page that describes it. The README stays short and links to the guide.
 - Avoid `{{` and `{%` in page text: Jekyll reads them as template tags.
 - To preview locally (optional; needs Ruby): `gem install jekyll jekyll-relative-links kramdown-parser-gfm webrick`, then `cd docs && jekyll serve` and open http://localhost:4000/aecdo/.

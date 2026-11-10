@@ -26,7 +26,7 @@ test("boot lists every sheet and says when the PDF is missing", async () => {
   assert.equal(boot.groups, undefined, "19 sheets are listed flat");
   assert.equal(boot.pdf.available, false);
   assert.ok(boot.pdf.missing?.some((l) => l.includes("Can't find the source PDF")));
-  assert.ok(!boot.pdf.missing?.some((l) => l.startsWith('Type "view')), "explore's typed-command advice is left out");
+  assert.ok(!boot.pdf.missing?.some((l) => /view/.test(l)), "no typed-command advice");
   assert.equal(boot.state.kind, "sheets");
 });
 
@@ -79,7 +79,7 @@ test("following a link says how to come back, and openId opens anything by its @
   assert.match(s.openId("urn:uuid:nope").message ?? "", /Nothing with id/);
 });
 
-test("preview shows a sheet without moving, and find matches like explore's /", () => {
+test("preview shows a sheet without moving, and find matches sheet numbers and title words", () => {
   const { s } = session();
   const p = s.preview("A601");
   assert.equal(p?.kind, "preview");
@@ -145,7 +145,7 @@ function fakeBridge(out: AssistantOutput, hooks: BridgeHooks): ChatBridge {
       hooks.onNavigate();
       out.write(`(${m.assistant?.name}) `);
       out.write(`you asked: ${m.text}`);
-      out.print("\x1b[2m  done\x1b[0m");
+      out.print("  done");
       const shown = await hooks.showPage();
       out.print(shown);
       if (!(await out.confirm("Allow the assistant to edit notes.md? [y/N] "))) out.print("declined");
@@ -168,7 +168,7 @@ test("chat threads are separate conversations that start with the first model se
     ["user", "tool", "assistant", "status", "status"]
   );
   assert.equal(ta.entries[2].text, "(chatgpt) you asked: what is on this sheet?");
-  assert.equal(ta.entries[3].text, "done", "terminal colors are stripped");
+  assert.equal(ta.entries[3].text, "done");
   assert.match(ta.entries[4].text, /Open a sheet first/);
   assert.equal(tb.entries.length, 0, "the other chat is untouched");
   assert.ok(events.some((e) => e.type === "state"), "the assistant's moves update the app");

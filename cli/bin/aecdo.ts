@@ -5,7 +5,6 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { validate } from "../src/commands/validate.js";
 import { summary } from "../src/commands/summary.js";
-import { explore } from "../src/commands/explore.js";
 import { sheets } from "../src/commands/sheets.js";
 import { page } from "../src/commands/page.js";
 import { configure } from "../src/commands/configure.js";
@@ -18,8 +17,7 @@ import { update, cleanupOldBinary } from "../src/commands/update.js";
 import { completion } from "../src/commands/completion.js";
 import { examples } from "../src/commands/examples.js";
 import { gui } from "../src/commands/gui.js";
-import { runMenu } from "../src/commands/menu.js";
-import { pick, listPdfs, listJsonld, canPrompt } from "../src/lib/picker.js";
+import { canPrompt } from "../src/lib/prompt.js";
 import { embedded } from "../src/lib/embedded.js";
 import { startUpdateNotifier, runUpdateCheckWorker, WORKER_ENV, NO_UPDATE_CHECK_FLAG } from "../src/lib/update-check.js";
 import type { DrawingSet, CommandOptions, ProcessOptions } from "../src/types.js";
@@ -28,60 +26,33 @@ const HELP = `
 aecdo - AEC Drawing Ontology CLI
 
 Usage:
-  aecdo                       Open a menu of things to do (in a terminal)
+  aecdo                       Open the app (in a terminal); otherwise print this help
   aecdo <command> [options] <file>
 
-Commands:
+Commands for scripts and agents (plain output, never wait for input):
   validate <file>     Validate a JSON-LD file against the AECDO schema
   summary <file>      Print a concise summary of a drawing set
-  sheets <file>       List all sheets (non-interactive; agent-friendly)
+  sheets <file>       List all sheets
   page <file> <id>    Print one sheet by sheet number or page index
-  explore [file]      Browse interactively (humans): sheet → drawings/tables/notes/
-                      images → layers → items. In a terminal it opens full
-                      screen: arrow keys move, Enter opens, ← goes back, u goes up,
-                      v views the PDF, a asks the AI, ? lists the keys.
-                      --classic (or AECDO_EXPLORE=classic) uses the typed
-                      prompt described here instead. Sets with more than 25 sheets
-                      list groups by prefix (G, A, S, …) first. With no file
-                      in a terminal, pick a .jsonld file from the current
-                      folder. Type "r1", "r2", … to jump to a reference
-                      shown as "→ [r1] …"
-                      ("back" returns; "up" or ".." goes up a level). Type "@claude …", "@chatgpt …",
-                      "@gemini …", "@grok …", "@deepseek …", or "@kimi …"
-                      (Tab completes the name) to ask an AI assistant about the current view; it can
-                      navigate, open the page view, propose PDF markups,
-                      take notes in notes.md,
-                      and fill in a spreadsheet (.xlsx/.csv/.tsv) in the
-                      current folder. An AGENTS.md in the folder adds
-                      your own instructions for the assistant.
-                      Type "view" to open the PDF page with the current
-                      drawing, layer, or item outlined in red (--pdf <file>
-                      if the PDF isn't next to the .jsonld). Ask the
-                      assistant to cloud, call out, or note something and
-                      it proposes PDF markups; "markups" lists them,
-                      "markups save" writes them to <name>-markups.pdf
-                      (--in-place for the original), "markups undo" takes
-                      the last save back.
-                      Non-TTY / --format json falls back to listing sheets.
-  gui [file]          Open the app (preview): the sheet list, what you've opened,
-                      and the PDF page side by side, with the selection
-                      outlined in red. Same keys as explore (? lists them), the
-                      AI in as many chats as you like (a asks, t starts
-                      another), and markups (M marks up the selection, m
-                      reviews and saves). A window with the standalone binary;
-                      otherwise, or with --browser, your default browser.
-                      With no file, pick one in the app
+  process <pdf>       Upload a PDF, wait for processing, and save the result
+                      as <pdf name>.jsonld next to the PDF
+  upload <pdf>        Upload a PDF and print the job ID
+  status <jobId>      Check the status of a processing job
+  download <jobId>    Download the result of a completed job
+
+For people:
+  gui [file]          Open the app: the sheet list, what you've opened, and
+                      the PDF page side by side, with the selection outlined
+                      in red, AI chats, and PDF markups. A window with the
+                      standalone binary; otherwise, or with --browser, your
+                      default browser. With no file, pick one in the app
+  explore [file]      Same as gui. Without a terminal, or with --format json,
+                      it lists the sheets instead
   configure           Set up DrawingBot API credentials and region
-  configure ai        Set up the explore assistant: Sign in with ChatGPT or
+  configure ai        Set up the AI in the app: Sign in with ChatGPT or
                       OpenRouter, add an OpenAI, Anthropic, or OpenRouter API
                       key, Amazon Bedrock, or a custom endpoint (base URL +
                       token). Each @model uses whichever is set up
-  process [pdf]       Upload a PDF, wait for processing, and save the result
-                      as <pdf name>.jsonld next to the PDF. With no file in a
-                      terminal, pick a PDF from the current folder.
-  upload [pdf]        Upload a PDF and return the job ID (picker as above)
-  status <jobId>      Check the status of a processing job
-  download <jobId>    Download the result of a completed job
   update              Update aecdo to the latest release
   examples [folder]   Download the example drawing sets (Maple Grove demo,
                       Vancouver house permit set with its PDF) into a folder
@@ -103,38 +74,29 @@ Options:
 API Options:
   --poll <seconds>    Polling interval for status checks (default: 5)
   --wait              Wait for job completion (used with status)
-  --then <command>    Pipe result into: validate, summary, explore
+  --then <command>    Pipe result into: validate, summary
   --stdout            process: print the result to stdout instead of saving it
   --force             examples: replace files that are already there
-  --pdf <file>        explore, gui: source PDF for "view" and the PDF pane
-                      (default: <name>.pdf next to the .jsonld, or the set's
-                      filename)
+  --pdf <file>        gui: the source PDF (default: <name>.pdf next to the
+                      .jsonld, or the set's filename)
   --browser           gui: open in your default browser instead of a window
 
 Examples:
-  aecdo
   aecdo validate drawings.jsonld
   aecdo summary drawings.jsonld
   aecdo sheets drawings.jsonld --format json
   aecdo page drawings.jsonld A101
   aecdo page drawings.jsonld 0 --format json
-  aecdo explore
-  aecdo explore drawings.jsonld
+  aecdo process plans.pdf
+  aecdo process plans.pdf --then summary
+  aecdo process plans.pdf --stdout | jq .sheets
+  aecdo status <jobId> --wait
+  aecdo download <jobId> -o result.jsonld
   aecdo gui drawings.jsonld
   aecdo configure
   aecdo configure ai
-  aecdo process
-  aecdo process plans.pdf
-  aecdo process plans.pdf --then summary
-  aecdo process plans.pdf -o result.jsonld
-  aecdo process plans.pdf --stdout | jq .sheets
-  aecdo upload plans.pdf
-  aecdo status <jobId> --wait
-  aecdo download <jobId> -o result.jsonld
-  aecdo update
   aecdo examples ~/aecdo-examples
   eval "$(aecdo completion bash)"      # add to ~/.bashrc (zsh: ~/.zshrc)
-  aecdo completion fish > ~/.config/fish/completions/aecdo.fish
 `;
 
 async function getVersion(): Promise<string> {
@@ -142,6 +104,45 @@ async function getVersion(): Promise<string> {
     embedded.version ??
     (JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf-8")) as { version: string }).version
   );
+}
+
+/** Loads a drawing set and runs one of the commands that read it. */
+async function runOnFile(command: "validate" | "summary" | "sheets" | "page", filePath: string, opts: ProcessOptions, selector?: string): Promise<void> {
+  const resolvedPath = resolve(filePath);
+  let fileContent: string;
+  try {
+    fileContent = await readFile(resolvedPath, "utf-8");
+  } catch (err) {
+    console.error(`Error: Could not read file "${filePath}": ${(err as Error).message}`);
+    process.exit(1);
+  }
+
+  let data: DrawingSet;
+  try {
+    data = JSON.parse(fileContent) as DrawingSet;
+  } catch (err) {
+    console.error(`Error: Invalid JSON in "${filePath}": ${(err as Error).message}`);
+    process.exit(1);
+  }
+
+  const cmdOpts: CommandOptions = { format: opts.format, pretty: opts.pretty, output: opts.output, schema: opts.schema };
+
+  switch (command) {
+    case "validate":
+      await validate(data, resolvedPath, cmdOpts);
+      return;
+    case "summary":
+      return summary(data, resolvedPath, cmdOpts);
+    case "sheets":
+      return sheets(data, resolvedPath, cmdOpts);
+    case "page":
+      if (!selector) {
+        console.error("Error: No sheet number or page index specified.");
+        console.error("Usage: aecdo page <file> <sheetNumber|pageIndex>");
+        process.exit(1);
+      }
+      return page(data, selector, cmdOpts);
+  }
 }
 
 async function main(): Promise<void> {
@@ -164,11 +165,7 @@ async function main(): Promise<void> {
     }
   }
 
-  if (args.length === 0 && canPrompt()) {
-    const chosen = await runMenu({ version: await getVersion() });
-    if (chosen === null) process.exit(0);
-    args = chosen;
-  }
+  if (args.length === 0 && canPrompt()) args = ["gui"];
 
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     console.log(HELP.trim());
@@ -218,7 +215,6 @@ async function main(): Promise<void> {
         then: { type: "string" },
         stdout: { type: "boolean", default: false },
         pdf: { type: "string" },
-        classic: { type: "boolean", default: false },
         force: { type: "boolean", default: false },
         browser: { type: "boolean", default: false },
       },
@@ -239,27 +235,13 @@ async function main(): Promise<void> {
     then: options.values.then,
     stdout: options.values.stdout,
     pdf: options.values.pdf,
-    classic: options.values.classic,
   };
 
   try {
     switch (command) {
       case "process":
       case "upload": {
-        let filePath = options.positionals[0];
-        if (!filePath && canPrompt()) {
-          const pdfs = await listPdfs(process.cwd());
-          if (pdfs.length === 0) {
-            console.error("Error: No input file specified, and no PDF files found in the current folder.");
-            process.exit(1);
-          }
-          const picked = await pick(pdfs, { title: `Select a PDF to ${command}:` });
-          if (picked === null) {
-            console.error("Cancelled.");
-            process.exit(130);
-          }
-          filePath = picked;
-        }
+        const filePath = options.positionals[0];
         if (!filePath) {
           console.error("Error: No input file specified.");
           console.error('Run "aecdo --help" for usage information.');
@@ -272,6 +254,16 @@ async function main(): Promise<void> {
         }
         break;
       }
+      case "explore":
+        if (!process.stdin.isTTY || opts.format === "json") {
+          if (!options.positionals[0]) {
+            console.error("Error: No input file specified.");
+            process.exit(1);
+          }
+          await runOnFile("sheets", options.positionals[0], opts);
+          break;
+        }
+      // falls through: in a terminal, explore opens the app
       case "gui":
         await gui(options.positionals[0], { pdf: options.values.pdf, schema: options.values.schema, browser: options.values.browser });
         break;
@@ -296,78 +288,14 @@ async function main(): Promise<void> {
       case "validate":
       case "summary":
       case "sheets":
-      case "page":
-      case "explore": {
-        let filePath = options.positionals[0];
-        if (!filePath && command === "explore" && canPrompt() && opts.format !== "json") {
-          const sets = await listJsonld(process.cwd());
-          if (sets.length === 0) {
-            console.error("Error: No input file specified, and no .jsonld files found in the current folder.");
-            console.error('Run "aecdo examples" to download the example drawing sets.');
-            process.exit(1);
-          }
-          const picked = await pick(sets, { title: "Select a drawing set to explore:" });
-          if (picked === null) {
-            console.error("Cancelled.");
-            process.exit(130);
-          }
-          filePath = picked;
-        }
+      case "page": {
+        const filePath = options.positionals[0];
         if (!filePath) {
           console.error("Error: No input file specified.");
           console.error('Run "aecdo --help" for usage information.');
           process.exit(1);
         }
-
-        const resolvedPath = resolve(filePath);
-        let fileContent: string;
-        try {
-          fileContent = await readFile(resolvedPath, "utf-8");
-        } catch (err) {
-          console.error(`Error: Could not read file "${filePath}": ${(err as Error).message}`);
-          process.exit(1);
-        }
-
-        let data: DrawingSet;
-        try {
-          data = JSON.parse(fileContent) as DrawingSet;
-        } catch (err) {
-          console.error(`Error: Invalid JSON in "${filePath}": ${(err as Error).message}`);
-          process.exit(1);
-        }
-
-        const cmdOpts: CommandOptions = {
-          format: opts.format,
-          pretty: opts.pretty,
-          output: opts.output,
-          schema: opts.schema,
-          pdf: opts.pdf,
-        };
-
-        switch (command) {
-          case "validate":
-            await validate(data, resolvedPath, cmdOpts);
-            break;
-          case "summary":
-            await summary(data, resolvedPath, cmdOpts);
-            break;
-          case "sheets":
-            await sheets(data, resolvedPath, cmdOpts);
-            break;
-          case "page": {
-            const selector = options.positionals[1];
-            if (!selector) {
-              console.error("Error: No sheet number or page index specified.");
-              console.error('Usage: aecdo page <file> <sheetNumber|pageIndex>');
-              process.exit(1);
-            }
-            await page(data, selector, cmdOpts);
-            break;
-          }
-          case "explore":
-            await explore(data, resolvedPath, cmdOpts);
-            break;
-        }
+        await runOnFile(command, filePath, opts, options.positionals[1]);
         break;
       }
       default:

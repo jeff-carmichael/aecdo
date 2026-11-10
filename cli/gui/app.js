@@ -1,5 +1,5 @@
 // The aecdo app: sheet list, contents, the PDF, and AI chats, all driven from the keyboard.
-// The server keeps the explore state; every move is one small request to it.
+// The server keeps the navigation state; every move is one small request to it.
 
 import { VirtualList } from "./list.js";
 import { PdfView, loadPdfjs } from "./pdf-view.js";

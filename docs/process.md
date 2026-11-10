@@ -22,33 +22,20 @@ You only need this for `process`, `upload`, `status`, and `download`. Everything
 
 ## Process a PDF
 
-The easiest way is to go to the folder with your drawings and run `process` with no file name:
+Go to the folder with your drawings and name the PDF:
 
 ```bash
 cd ~/Projects/my-building
-aecdo process
-```
-
-`aecdo` lists the PDFs in the folder:
-
-- **↑ / ↓** to move
-- **type** to filter the list by name
-- **Enter** to choose
-- **Esc** to cancel
-
-Or name the file directly:
-
-```bash
 aecdo process plans.pdf
 ```
 
 `process` then:
 
 1. uploads the PDF and prints the job ID;
-2. shows live progress while the sheets are processed;
+2. prints a line each time the progress changes while the sheets are processed;
 3. downloads the result and saves it as **`plans.jsonld` next to `plans.pdf`**, printing the path it saved to.
 
-Keeping the `.jsonld` next to the PDF matters: that's where `explore` looks for it when you press <kbd>v</kbd> to [see something on the PDF page](explore.md#see-it-on-the-pdf-page).
+Keeping the `.jsonld` next to the PDF matters: that's where the [app](app.md#finding-the-pdf) looks for the PDF.
 
 > `process` overwrites an existing file at the save path without asking. Use `-o` to keep an older result.
 
@@ -57,7 +44,6 @@ Keeping the `.jsonld` next to the PDF matters: that's where `explore` looks for 
 ```bash
 aecdo process plans.pdf -o result.jsonld          # save somewhere else
 aecdo process plans.pdf --then summary            # save, then print a summary
-aecdo process plans.pdf --then explore            # save, then start exploring
 aecdo process plans.pdf --stdout                  # print the JSON-LD instead of saving it
 aecdo process plans.pdf --stdout | jq '.sheets | length'
 aecdo process plans.pdf --poll 10                 # check progress every 10 seconds (default 5)
@@ -66,7 +52,7 @@ aecdo process plans.pdf --poll 10                 # check progress every 10 seco
 | Option | What it does |
 |--------|--------------|
 | `-o`, `--output <file>` | Save the result to this path instead of next to the PDF |
-| `--then validate\|summary\|explore` | After saving, run that command on the result. `--then explore` already knows where the PDF is, so <kbd>v</kbd> works right away |
+| `--then validate\|summary` | After saving, run that command on the result |
 | `--stdout` | Print the JSON-LD to standard output and don't save a file. Status messages go to stderr, so piping stays clean |
 | `--poll <seconds>` | How often to check progress |
 
@@ -79,14 +65,11 @@ JOB=$(aecdo upload plans.pdf)           # prints only the job ID on stdout
 aecdo status "$JOB"                      # one progress check
 aecdo status "$JOB" --wait               # wait until it's done
 aecdo download "$JOB" -o plans.jsonld    # save the result
-aecdo download "$JOB" --then explore     # or open it straight away
 ```
 
-`upload` with no file in a terminal opens the same PDF picker as `process`. Add `--format json` to `upload` or `status` for machine-readable output.
+Add `--format json` to `upload` or `status` for machine-readable output.
 
 Results stay available to download for **7 days**. After that, process the PDF again.
-
-> In scripts and pipes there is no picker: a missing file name is an error, so a script can never hang waiting for input.
 
 ## Check the result
 
@@ -95,4 +78,4 @@ aecdo validate plans.jsonld    # does it match the AECDO schema?
 aecdo summary plans.jsonld     # how many sheets, drawings, items, tables
 ```
 
-Then [explore it](explore.md).
+Then [open it in the app](app.md).

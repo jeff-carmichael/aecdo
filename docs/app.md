@@ -1,40 +1,41 @@
 ---
-title: The app (preview)
+title: Use the app
 ---
 
-# The app (preview)
+# Use the app
 
-`aecdo gui` opens a desktop window for a drawing set: the sheet list on the left, what you've opened in the middle, and the PDF page always on the right, with whatever you've selected outlined in red. It works like `explore`, so the same keys move you around, but you never have to ask to see the page, and you can keep several AI chats going at once.
+The `aecdo` app is how you look through a drawing set. The sheet list is on the left, what you've opened is in the middle, and the PDF page is always on the right, with whatever you've picked outlined in red. Everything works from the keyboard, and you can keep several AI chats going at once.
 
-This is a preview. `explore` stays as it is.
+## Open a drawing set
 
-## Open it
-
-```bash
-aecdo gui plans.jsonld
-```
-
-Leave out the file name to choose one in the window from the sets in the current folder and the ones you opened recently. You can also type just `aecdo` and choose **Open the app**.
-
-The PDF is found the same way as for `explore`'s `view`: `<name>.pdf` next to the `.jsonld`, or the file named in the set. If it isn't there, the PDF pane lists the PDFs in that folder to pick from, or start with `--pdf`:
+Go to the folder with your drawing set and type `aecdo`:
 
 ```bash
-aecdo gui plans.jsonld --pdf "Issued for Permit.pdf"
+cd ~/aecdo-examples
+aecdo
 ```
+
+The app opens and lists the `.jsonld` files in that folder and the ones you opened recently. Pick one with <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>. To open a file straight away, name it:
+
+```bash
+aecdo gui maple-grove-library.jsonld
+```
+
+`aecdo explore plans.jsonld` does the same thing. While the app is open, the terminal waits; closing the window (or pressing <kbd>q</kbd>) gives it back. <kbd>o</kbd> opens another drawing set without closing the app.
 
 ## What you need
 
-The window comes with the standalone `aecdo` binary ([Install and update](install.md)):
+The window comes with the standalone `aecdo` program ([Install and update](install.md)):
 
 - **macOS**: nothing else.
 - **Windows 11**: nothing else. Windows 10 needs the [Microsoft Edge WebView2 runtime](https://developer.microsoft.com/microsoft-edge/webview2/), which most machines already have.
 - **Linux**: GTK 4 and WebKitGTK 6. On Debian or Ubuntu: `sudo apt install libwebkitgtk-6.0-4`. Fedora: `sudo dnf install webkitgtk6.0`. Arch: `sudo pacman -S webkitgtk-6.0`.
 
-If the window can't open, `aecdo` says why and opens the app in your default browser instead. With an npm install it always opens in the browser. `--browser` asks for the browser on purpose. The page is served only to your own computer, at an address with a random secret in it, and closing the tab (or pressing Ctrl+C in the terminal) quits.
+If the window can't open, `aecdo` says why and opens the app in your default browser instead. With an npm install it always opens in the browser, and `--browser` asks for the browser on purpose. The page is served only to your own computer, at an address with a random secret in it. Closing the tab (or pressing <kbd>Ctrl</kbd> <kbd>C</kbd> in the terminal) quits.
 
-## The keys
+## Moving around
 
-Everything works from the keyboard. Press <kbd>?</kbd> in the app for the full list.
+Pick a sheet, open a drawing, open a layer, open an item: the app works the way you'd flip through the set. Press <kbd>?</kbd> in the app for every key.
 
 | Key | What it does |
 | --- | --- |
@@ -42,7 +43,8 @@ Everything works from the keyboard. Press <kbd>?</kbd> in the app for the full l
 | <kbd>Enter</kbd> or <kbd>→</kbd> | Open it |
 | <kbd>←</kbd> or <kbd>Backspace</kbd> | Go back to where you just were, even after following a link |
 | <kbd>u</kbd> | Go up a level |
-| <kbd>/</kbd> | Find a sheet by number or title words, like `/` in `explore` |
+| <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> … | Pick a row by its number |
+| <kbd>/</kbd> | Find a sheet |
 | <kbd>Tab</kbd> | Switch between the sheet list, the contents, and the PDF |
 | <kbd>z</kbd> / <kbd>f</kbd> | Zoom to what's selected / fit the page |
 | <kbd>+</kbd> <kbd>−</kbd>, <kbd>Shift</kbd> + arrows | Zoom, pan |
@@ -58,22 +60,73 @@ The mouse works too: click rows, click a box on the PDF to open it, scroll or pi
 
 While the sheet list has focus, moving through it previews each sheet: its contents in the middle and its page on the right. <kbd>Enter</kbd> opens it.
 
+What you see in the middle:
+
+- **A sheet** lists its drawings, tables (schedules), notes, and images.
+- **A drawing** lists its layers (Walls, Doors, Door Tags, …), then **Links to other drawings**: the sections, elevations, and details it calls out.
+- **A layer** lists its items.
+- **An item** shows what was read from the drawing as a list of fields, like `Mark 105A`. Which fields appear depends on the tool that made the file. The line under the name says what kind of item it is: an **Element** (a physical thing, like a wall or door), a **Tag** (an annotation, like a door tag), or an **Area** (a room or zone). Below the fields, **Related** lists things it links to, such as the door schedule.
+- **A table** shows the schedule as a grid.
+
+### Following links
+
+Rows under **Links to other drawings** and **Related** are links: open one to jump there. A door tag might link to the door schedule on A601 and to the door itself. <kbd>←</kbd> brings you back to where the link was, so you can follow its other links. <kbd>u</kbd> goes up a level where you landed instead (from the schedule to its sheet, for example).
+
+### Find a sheet
+
+Press <kbd>/</kbd> and start typing: the start of a sheet number (`a` lists the A sheets, `a1` the A1xx ones) or the start of words in a title (`fl pl` finds the Floor Plan sheets). <kbd>Enter</kbd> opens the sheet; <kbd>Esc</kbd> stops searching.
+
+### Large sets
+
+When a set has more than 25 sheets, the sheet list is grouped by discipline letter (G General, A Architectural, S Structural, and so on). <kbd>/</kbd> searches every sheet.
+
+### Ids and coordinates
+
+Press <kbd>d</kbd> to also show ids, item types, and each thing's `bbox` (where it sits on the page, in PDF points). See [Data model and bbox](data-model.md).
+
 ## The PDF
 
 PDF.js draws the page inside the app. It loads only the parts of the PDF it needs, so a 1,000-page set opens as fast as a small one, and the last few pages you looked at come back instantly. Zooming and panning move the page you already have; a sharper copy of what's on screen follows a moment later.
 
 Boxes from the data are drawn on top: dashed for everything in the list you're in, blue for the row you're on, red for what's open. Click any box to open it.
 
+### Finding the PDF
+
+The app needs the original PDF. The easiest setup is to keep it in the same folder as the `.jsonld`, with the same name: `plans.pdf` next to `plans.jsonld`. That's also where [`aecdo process`](process.md) saves its results. It also looks for the PDF file name stored inside the drawing set.
+
+If it can't find the PDF, the PDF pane says where it looked and lists the PDFs in that folder to pick from. You can also name it when you start:
+
+```bash
+aecdo gui plans.jsonld --pdf "Issued for Permit.pdf"
+```
+
+If the box lands in the wrong place, the file's coordinates may not be in PDF points from the top-left. See [bbox coordinates](data-model.md#bbox-coordinates).
+
 ## AI chats
 
-<kbd>a</kbd> opens the chat on the right. It's the same assistant as `@claude` in `explore` (set it up with `aecdo configure ai`): it sees the place you have open, can move around the set (the app follows), point at things on the PDF, propose markups, write notes to `notes.md`, and fill in a spreadsheet in the current folder. When it wants to change a file, the app asks you first.
+<kbd>a</kbd> opens the chat on the right. Ask about what you're looking at in plain words; the assistant sees the place you have open, can move around the set (the app follows), zoom the PDF to things, propose markups, write notes, and fill in a spreadsheet in the current folder. Set it up once with `aecdo configure ai`. See [AI assistant](assistant.md).
 
-Each chat is its own conversation, so you can check doors in one and ask about the structure in another. <kbd>t</kbd> (or <kbd>Ctrl</kbd>+<kbd>T</kbd>) starts a chat, the tabs at the top switch between them, and each one can use a different model: type `@gemini` to switch the chat you're in, or pick from the list under the input. Sheet numbers in answers are links. <kbd>Esc</kbd> stops an answer.
-
-Chats last until you close the app.
+Each chat is its own conversation, so you can check doors in one and ask about the structure in another. <kbd>t</kbd> (or <kbd>Ctrl</kbd>+<kbd>T</kbd>) starts a chat, the tabs at the top switch between them, and each one can use a different model. Chats last until you close the app.
 
 ## Markups
 
-Markups are the same as in `explore`, written into the PDF so Bluebeam and Acrobat can read them. Ask the AI to cloud something, press <kbd>M</kbd> on whatever's selected, or hold <kbd>Shift</kbd> and drag a box on the PDF. Pending markups show on the page in pink. Press <kbd>m</kbd> to review them: <kbd>s</kbd> saves them to `<name>-markups.pdf`, <kbd>S</kbd> into the original PDF, <kbd>x</kbd> drops one, <kbd>u</kbd> takes back the last save. Once saved, the PDF pane shows the copy with your markups.
+Ask the AI to cloud something, press <kbd>M</kbd> on whatever's selected, or hold <kbd>Shift</kbd> and drag a box on the PDF. Pending markups show on the page in pink. Press <kbd>m</kbd> to review them: <kbd>s</kbd> saves them to `<name>-markups.pdf`, <kbd>S</kbd> into the original PDF, <kbd>x</kbd> drops one, <kbd>u</kbd> takes back the last save. Once saved, the PDF pane shows the copy with your markups. See [Marking up the PDF](assistant.md#marking-up-the-pdf).
 
 If you quit with markups still pending, the app asks whether to save them.
+
+## Quick looks from the terminal
+
+These print and exit, for a quick check or for scripts and [AI agents](agents.md):
+
+```bash
+aecdo summary plans.jsonld          # counts of sheets, drawings, items, tables, notes, images
+aecdo sheets plans.jsonld           # one line per sheet: number, title, page
+aecdo page plans.jsonld A101        # everything on one sheet (by sheet number or page index)
+aecdo validate plans.jsonld         # check the file against the AECDO format
+```
+
+Add `--format json` for JSON, `--pretty` to indent it, and `-o file` to save it:
+
+```bash
+aecdo page plans.jsonld A601 --format json --pretty -o a601.json
+```

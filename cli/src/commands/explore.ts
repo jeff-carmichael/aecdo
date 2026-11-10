@@ -1,7 +1,5 @@
-import { createInterface } from "node:readline";
 import { readdirSync } from "node:fs";
-import { basename, dirname, join, relative } from "node:path";
-import { isValid } from "./validate.js";
+import { basename, dirname } from "node:path";
 import {
   printPage,
   printItem,
@@ -16,13 +14,11 @@ import {
   linkNote,
   fieldName,
   arrow,
+  plainValue,
+  bboxText,
   type RefResolver,
 } from "./page.js";
-import { palette, withPalette, bboxText, PLAIN } from "../lib/style.js";
-import { sheets as sheetsCmd } from "./sheets.js";
-import { formatTable, wrapText } from "../lib/table.js";
-import { Screen } from "../lib/screen.js";
-import { ExploreApp, quitFirst, type AiModel } from "./explore-app.js";
+import { parseTable } from "../lib/table.js";
 import {
   ASSISTANTS,
   assistantForMention,
@@ -36,22 +32,17 @@ import {
   type AssistantInfo,
   type AssistantName,
 } from "../lib/llm.js";
-import { enableMentionHighlight, colorEnabled, completeMention, stylePrompt } from "../lib/mention-highlight.js";
-import { createAssistantSession, type AssistantSession, type AssistantSurface } from "../lib/assistant.js";
+import { createAssistantSession, type AssistantSession } from "../lib/assistant.js";
 import {
   findSourcePdf,
-  renderPageView,
   sourcePdfCandidates,
   sourcePdfCandidatesWithReasons,
   unionBBox,
   type BBox,
-  type PageViewRequest,
-  type PageViewResult,
-} from "../lib/page-view.js";
-import { openWithDefaultApp } from "../lib/open.js";
-import { MarkupSession, parseMarkupsCommand } from "./markups.js";
+} from "../lib/pdf-page.js";
+import type { MarkupSession } from "./markups.js";
 import type { MutableModels } from "@earendil-works/pi-ai";
-import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image, CommandOptions } from "../types.js";
+import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image } from "../types.js";
 
 type SheetEntry =
   | { kind: "drawing"; value: Drawing }
@@ -83,16 +74,6 @@ export interface ViewTarget {
   id?: string;
   /** True when nothing is selected on a sheet, so there is no box to draw. */
   wholePage?: boolean;
-}
-
-const VIEW_COMMANDS = new Set(["view", "/view"]);
-
-/** Parses "view" or "/view [pdf path]". */
-export function parseViewCommand(input: string): { pdf?: string } | null {
-  const m = /^(\S+)(?:\s+([\s\S]+))?$/.exec(input.trim());
-  if (!m || !VIEW_COMMANDS.has(m[1].toLowerCase())) return null;
-  const pdf = m[2]?.trim().replace(/^(["'])(.*)\1$/, "$2");
-  return pdf ? { pdf } : {};
 }
 
 /** Above this many sheets, the sheet list shows groups by sheet-number prefix first. */
@@ -239,7 +220,7 @@ export function buildRefIndex(data: DrawingSet): Map<string, RefTarget> {
 const REF_COMMAND = /^r(\d*)$/i;
 
 function refTag(i: number): string {
-  return `${palette().bold(`[r${i + 1}]`)} `;
+  return `${`[r${i + 1}]`} `;
 }
 
 const GROUP_TITLES: Record<SheetEntry["kind"], string> = {
@@ -301,18 +282,6 @@ export interface ScreenModel {
 }
 
 const ITEM_KIND_NAMES: Record<Item["itemType"], string> = { tag: "Tag", thing: "Element", area: "Area" };
-
-export interface SheetMapBox {
-  bbox: BBox;
-  kind: SheetEntry["kind"];
-  selected: boolean;
-}
-
-/** The boxes the layout map draws for a sheet. */
-export interface SheetMap {
-  sheet: Sheet;
-  boxes: SheetMapBox[];
-}
 
 export interface ExplorerOptions {
   /** The .jsonld file name, shown above the sheet list. */
@@ -401,13 +370,6 @@ export class Explorer {
     return this.path(v).join(" › ");
   }
 
-  prompt(): string {
-    const v = this.view;
-    if (v.kind === "group") return `${v.group.prefix || "other"} sheets> `;
-    const parts = this.path(v);
-    return parts.length ? `${parts.join(" › ")}> ` : "sheet> ";
-  }
-
   render(): void {
     withDetails(this.details, () => this.renderView());
   }
@@ -429,11 +391,11 @@ export class Explorer {
   }
 
   /** What the main pane shows for the current place (or for `sheet`, as a preview), without printing. */
-  screenModel(width = 80, sheet?: Sheet): ScreenModel {
-    return withDetails(this.details, () => this.model(sheet ? { kind: "sheet", sheet } : this.view, width));
+  screenModel(sheet?: Sheet): ScreenModel {
+    return withDetails(this.details, () => this.model(sheet ? { kind: "sheet", sheet } : this.view));
   }
 
-  private model(v: Place, width: number): ScreenModel {
+  private model(v: Place): ScreenModel {
     const rows = <T>(list: T[], toRow: (x: T, i: number) => ScreenRow) => list.map(toRow);
     const links = (refs: string[], heading: string): ScreenSection[] =>
       refs.length ? [{ heading, rows: rows(refs, (ref, i) => ({ label: this.resolve(ref), command: `r${i + 1}` })) }] : [];
@@ -487,10 +449,7 @@ export class Explorer {
         const item = v.item;
         const fields = Object.entries(item.data).filter(([k]) => k !== "label");
         const keyWidth = Math.max(0, ...fields.map(([k]) => fieldName(k).length));
-        const body = fields.flatMap(([k, value]) => {
-          const text = typeof value === "string" ? value : Array.isArray(value) && value.every((x) => typeof x !== "object") ? value.join(", ") : JSON.stringify(value);
-          return wrapText(text, Math.max(20, width - keyWidth - 5)).map((line, i) => `${i === 0 ? fieldName(k).padEnd(keyWidth) : " ".repeat(keyWidth)}   ${line}`);
-        });
+        const body = fields.map(([k, value]) => `${fieldName(k).padEnd(keyWidth)}   ${plainValue(value)}`);
         if (this.details) body.push("", `id    ${item["@id"]}`, `type  ${item.itemType}`, ...(item.bbox ? [`bbox  [${item.bbox.join(", ")}]`] : []));
         return {
           title: itemName(item),
@@ -504,17 +463,17 @@ export class Explorer {
         const where = `on ${v.sheet.sheetNumber}`;
         if (e.kind === "table") {
           const t = e.value;
-          return { title: t.label ?? t.title ?? "Untitled Table", subtitle: `Table ${where}`, sections: [], body: formatTable(t.content, Math.max(30, width - 2)) };
+          return { title: t.label ?? t.title ?? "Untitled Table", subtitle: `Table ${where}`, sections: [], body: parseTable(t.content).map((row) => row.join(" | ")) };
         }
         if (e.kind === "note") {
-          return { title: "Note", subtitle: `Note ${where}`, sections: [], body: e.value.content.split("\n").flatMap((l) => wrapText(l, Math.max(20, width - 2))) };
+          return { title: "Note", subtitle: `Note ${where}`, sections: [], body: e.value.content.split("\n") };
         }
         const img = e.value;
         return {
           title: img.caption ?? img.role,
           subtitle: `${img.role[0].toUpperCase()}${img.role.slice(1)} ${where}`,
           sections: [],
-          body: ["Press v to see it on the PDF page."],
+          body: ["Outlined on the PDF page."],
         };
       }
     }
@@ -609,42 +568,13 @@ export class Explorer {
     return this.context();
   }
 
-  /**
-   * The sheet's main features for the layout map: one box per drawing, table, note, and image.
-   * `cursor` is the selected row in the main pane; `sheet` previews a sheet from the sheet list.
-   */
-  sheetMap(cursor: number, sheet?: Sheet): SheetMap | undefined {
-    const v: Place = sheet ? { kind: "sheet", sheet } : this.view;
-    if (v.kind === "sheets" || v.kind === "group") return undefined;
-    const entries = sheetEntries(v.sheet);
-    let selected: unknown;
-    switch (v.kind) {
-      case "sheet":
-        selected = sheet ? undefined : entries[cursor]?.value;
-        break;
-      case "drawing":
-      case "layer":
-      case "item":
-        selected = v.drawing;
-        break;
-      case "entry":
-        selected = v.entry.value;
-        break;
-    }
-    const boxes: SheetMapBox[] = [];
-    for (const e of entries) {
-      if (e.value.bbox) boxes.push({ bbox: e.value.bbox, kind: e.kind, selected: e.value === selected });
-    }
-    return { sheet: v.sheet, boxes };
-  }
-
-  /** What "view" should show: the current sheet's page, outlining what is open. */
+  /** What the PDF pane outlines: the current sheet's page and what is open on it. */
   viewTarget(): ViewTarget | { error: string } {
     const v = this.view;
     switch (v.kind) {
       case "sheets":
       case "group":
-        return { error: "Open a sheet first, then type \"view\"." };
+        return { error: "Open a sheet first." };
       case "sheet":
         return { sheet: v.sheet, label: `sheet ${v.sheet.sheetNumber}`, wholePage: true };
       case "drawing":
@@ -673,7 +603,7 @@ export class Explorer {
     const hinted = new Set(this.hinted);
     this.log = (line = "") => lines.push(line);
     try {
-      withPalette(PLAIN, fn);
+      fn();
     } finally {
       this.log = log;
       this.refs = refs;
@@ -700,18 +630,14 @@ export class Explorer {
       );
     }
     if (kind === "sheet" || kind === "entry") rows.push(["all", "show everything on this sheet at once"]);
-    if (kind !== "sheets" && kind !== "group") {
-      rows.push(["view", "open this page of the PDF, outlined in red"], ["markups", "review markups the AI suggested, then save them"]);
-    }
     if (kind !== "sheets" && kind !== "group") rows.push(["details", "show or hide ids and coordinates"]);
-    rows.push(["ls", "show this list again"], ["@claude …", "ask the AI a question (or @chatgpt …)"], ["quit", "close explore"]);
+    rows.push(["ls", "show this list again"]);
 
-    const c = palette();
     const width = Math.max(...rows.map(([cmd]) => cmd.length));
     this.log();
-    for (const [cmd, what] of rows) this.log(`  ${c.bold(cmd.padEnd(width))}   ${what}`);
+    for (const [cmd, what] of rows) this.log(`  ${cmd.padEnd(width)}   ${what}`);
     this.log();
-    this.log(`  ${c.dim("Type one and press Enter.")}`);
+    this.log(`  Type one and press Enter.`);
     this.log();
   }
 
@@ -726,12 +652,8 @@ export class Explorer {
       this.help();
       return true;
     }
-    if (parseViewCommand(answer)) {
-      this.log('"view" can\'t be run from here; the assistant uses its show_page tool instead.');
-      return true;
-    }
-    if (parseMarkupsCommand(answer)) {
-      this.log('"markups" can\'t be run from here; the user types it to review and save markups.');
+    if (/^\/?view\b/i.test(answer)) {
+      this.log('"view" can\'t be run from here; use the show_page tool instead.');
       return true;
     }
     if (cmd === "details") {
@@ -986,33 +908,31 @@ export class Explorer {
   private hint(key: string, text: string): void {
     if (this.hinted.has(key)) return;
     this.hinted.add(key);
-    this.log(`  ${palette().dim(text)}`);
+    this.log(`  ${text}`);
     this.log();
   }
 
   private renderGroups(groups: SheetGroup[]): void {
-    const c = palette();
-    this.log(`\n  ${c.bold(this.setTitle())}`);
-    this.log(`  ${c.dim(`${plural(this.data.sheets?.length ?? 0, "sheet")} in ${groups.length} groups`)}\n`);
+    this.log(`\n  ${this.setTitle()}`);
+    this.log(`  ${`${plural(this.data.sheets?.length ?? 0, "sheet")} in ${groups.length} groups`}\n`);
     const numberWidth = String(groups.length).length;
     const prefixWidth = Math.max(...groups.map((g) => (g.prefix || "-").length));
     groups.forEach((g, i) => {
       const name = g.prefix ? `${g.prefix.padEnd(prefixWidth)}  ${g.name ?? ""}` : `${"-".padEnd(prefixWidth)}  Other`;
-      this.log(`  ${c.dim(String(i + 1).padStart(numberWidth))}  ${c.bold(name)}  ${c.dim(plural(g.sheets.length, "sheet"))}`);
+      this.log(`  ${String(i + 1).padStart(numberWidth)}  ${name}  ${plural(g.sheets.length, "sheet")}`);
     });
     this.log();
     this.hint("groups", 'Type a number or letter (like A) to see those sheets, then press Enter. Type "help" for more.');
   }
 
   private renderSheets(sheets: Sheet[], group?: SheetGroup): void {
-    const c = palette();
     this.log();
     if (group) {
-      this.log(`  ${c.bold(groupLabel(group))}`);
-      this.log(`  ${c.dim(plural(sheets.length, "sheet"))}\n`);
+      this.log(`  ${groupLabel(group)}`);
+      this.log(`  ${plural(sheets.length, "sheet")}\n`);
     } else {
-      this.log(`  ${c.bold(this.setTitle())}`);
-      this.log(`  ${c.dim(plural(sheets.length, "sheet"))}\n`);
+      this.log(`  ${this.setTitle()}`);
+      this.log(`  ${plural(sheets.length, "sheet")}\n`);
     }
     const numberWidth = String(sheets.length).length;
     const sheetWidth = Math.max(...sheets.map((s) => s.sheetNumber.length));
@@ -1021,7 +941,7 @@ export class Explorer {
       const p = sheetPrefix(s.sheetNumber);
       if (prefix !== undefined && p !== prefix) this.log();
       prefix = p;
-      this.log(`  ${c.dim(String(i + 1).padStart(numberWidth))}  ${c.bold(s.sheetNumber.padEnd(sheetWidth))}  ${s.title}`);
+      this.log(`  ${String(i + 1).padStart(numberWidth)}  ${s.sheetNumber.padEnd(sheetWidth)}  ${s.title}`);
     });
     this.log();
     this.hint("sheets", 'Type a number or sheet number (like A101) and press Enter to open it. Type "help" for more.');
@@ -1032,11 +952,10 @@ export class Explorer {
 
     const entries = sheetEntries(sheet);
     if (entries.length === 0) {
-      this.log('\n  Nothing was found on this sheet. Type "view" to look at the PDF page, or "up" to go back.\n');
+      this.log('\n  Nothing was found on this sheet. Look at the PDF page, or type "up" to go back.\n');
       return;
     }
 
-    const c = palette();
     const width = String(entries.length).length;
     const described = entries.map(describeEntry);
     const nameWidth = Math.min(50, Math.max(...described.filter(([, note]) => note).map(([name]) => name.length), 0));
@@ -1044,47 +963,45 @@ export class Explorer {
     entries.forEach((entry, i) => {
       if (entry.kind !== current) {
         current = entry.kind;
-        this.log(`\n  ${c.bold(GROUP_TITLES[current])}`);
+        this.log(`\n  ${GROUP_TITLES[current]}`);
       }
       const [name, note] = described[i];
-      const after = note ? `  ${" ".repeat(Math.max(0, nameWidth - name.length))}${c.dim(note)}` : "";
-      this.log(`  ${c.dim(String(i + 1).padStart(width))}  ${name}${after}`);
+      const after = note ? `  ${" ".repeat(Math.max(0, nameWidth - name.length))}${note}` : "";
+      this.log(`  ${String(i + 1).padStart(width)}  ${name}${after}`);
     });
     this.log();
-    this.hint("sheet", 'Type a number to open it, "view" to see the PDF page, or "up" to go back.');
+    this.hint("sheet", 'Type a number to open it, or "up" to go back.');
   }
 
   /** A list of named rows with a dim count or note after each, numbered from 1. */
   private numbered(rows: [name: string, note?: string][]): void {
-    const c = palette();
     const width = String(rows.length).length;
     const nameWidth = Math.min(50, Math.max(...rows.map(([n]) => n.length)));
     rows.forEach(([name, note], i) => {
-      const after = note ? `  ${" ".repeat(Math.max(0, nameWidth - name.length))}${c.dim(note)}` : "";
-      this.log(`  ${c.dim(String(i + 1).padStart(width))}  ${name}${after}`);
+      const after = note ? `  ${" ".repeat(Math.max(0, nameWidth - name.length))}${note}` : "";
+      this.log(`  ${String(i + 1).padStart(width)}  ${name}${after}`);
     });
   }
 
   private renderDrawing(sheet: Sheet, drawing: Drawing): void {
-    const c = palette();
     const kind = [drawing.drawingType, drawing.scale].filter(Boolean).join(", ");
-    this.log(`\n  ${c.bold(drawingName(drawing))}`);
-    this.log(`  ${c.dim(`${kind ? `${kind[0].toUpperCase()}${kind.slice(1)}, on` : "On"} ${sheet.sheetNumber}`)}`);
+    this.log(`\n  ${drawingName(drawing)}`);
+    this.log(`  ${`${kind ? `${kind[0].toUpperCase()}${kind.slice(1)}, on` : "On"} ${sheet.sheetNumber}`}`);
     if (this.details) {
-      this.log(`  ${c.dim(`id    ${drawing["@id"]}`)}`);
-      this.log(`  ${c.dim("bbox")}  ${bboxText(drawing.bbox)}`);
+      this.log(`  ${`id    ${drawing["@id"]}`}`);
+      this.log(`  bbox  ${bboxText(drawing.bbox)}`);
     }
 
     if (drawing.layers.length === 0) {
       this.log("\n  Nothing was found in this drawing.\n");
     } else {
-      this.log(`\n  ${c.bold("Layers")}`);
+      this.log(`\n  Layers`);
       this.numbered(drawing.layers.map((layer) => [layer.name, plural(layer.items?.length ?? 0, "item")]));
     }
 
     const refs = drawing.references ?? [];
     if (refs.length) {
-      this.log(`\n  ${c.bold("Links to other drawings")}  ${c.dim(linkNote(refs.length))}`);
+      this.log(`\n  Links to other drawings  ${linkNote(refs.length)}`);
       refs.forEach((ref, i) => this.log(`  ${arrow()}${refTag(i)}${this.resolve(ref)}`));
     }
     this.refs = { view: this.view, ids: refs };
@@ -1094,10 +1011,9 @@ export class Explorer {
 
   private renderLayer(sheet: Sheet, drawing: Drawing, layer: Layer): void {
     const items = layer.items ?? [];
-    const c = palette();
-    this.log(`\n  ${c.bold(layer.name)}`);
-    this.log(`  ${c.dim(`${plural(items.length, "item")} on ${drawingName(drawing)}, ${sheet.sheetNumber}`)}`);
-    if (this.details && layer.bbox) this.log(`  ${c.dim("bbox")}  ${bboxText(layer.bbox)}`);
+    this.log(`\n  ${layer.name}`);
+    this.log(`  ${`${plural(items.length, "item")} on ${drawingName(drawing)}, ${sheet.sheetNumber}`}`);
+    if (this.details && layer.bbox) this.log(`  bbox  ${bboxText(layer.bbox)}`);
 
     if (items.length === 0) {
       this.log("\n  Nothing was found on this layer.\n");
@@ -1105,7 +1021,7 @@ export class Explorer {
     }
     this.log();
     if (this.details) {
-      items.forEach((item, i) => this.log(`  ${c.dim(String(i + 1).padStart(String(items.length).length))}  ${itemTypeTag(item)} ${truncate(itemName(item))}`));
+      items.forEach((item, i) => this.log(`  ${String(i + 1).padStart(String(items.length).length)}  ${itemTypeTag(item)} ${truncate(itemName(item))}`));
     } else {
       this.numbered(items.map((item) => [truncate(itemName(item))]));
     }
@@ -1149,6 +1065,16 @@ const SETUP_WAYS = {
 } as const;
 
 /** Where the assistant's answer goes: the terminal for the typed prompt, the chat panel in full screen or the app. */
+/** Which model an @mention uses and how it's reached. */
+export interface AiModel {
+  /** The model family, e.g. "Claude". */
+  label: string;
+  /** The model and how it's reached, e.g. "claude-sonnet-5-5 via Anthropic", or "not set up". */
+  detail?: string;
+  /** The other @names that are set up, e.g. ["@chatgpt"]. */
+  others: string[];
+}
+
 export interface AssistantOutput {
   write(text: string): void;
   print(line?: string): void;
@@ -1160,15 +1086,13 @@ export interface AssistantBridgeOptions {
   filePath: string;
   explorer: Explorer;
   out: AssistantOutput;
-  viewer?: PageViewer;
   markups?: MarkupSession;
   /** Called after each move the assistant makes, so the screen can show it. */
   onNavigate?: () => void;
-  /** Replaces opening the page in an image viewer, e.g. the app zooming its PDF pane. */
+  /** Shows the open place on the PDF page (the app zooms its PDF pane). */
   showPage?: () => Promise<string>;
   /** Called when the assistant starts using a tool. */
   onTool?: (name: string, args: unknown) => void;
-  surface?: AssistantSurface;
   /** Models to use instead of the ones set up with "aecdo configure ai" (tests). */
   models?: MutableModels;
 }
@@ -1240,7 +1164,7 @@ export class AssistantBridge {
     const existing = this.sessions.get(info.name);
     if (existing) return existing;
 
-    const { data, filePath, explorer, out, viewer, markups, onNavigate, onTool, surface } = this.opts;
+    const { data, filePath, explorer, out, markups, onNavigate, onTool, showPage } = this.opts;
     this.models ??= await createLlmModels();
     const route = await pickRoute(this.models, info.name);
     if (!route) {
@@ -1248,14 +1172,12 @@ export class AssistantBridge {
       return undefined;
     }
     const model = resolveModel(this.models, info.name, route);
-    out.print(palette().dim(`  ${info.label} via ${routeLabel(route.route, await getCustomEndpoint())} (${route.modelId})`));
-    const showPage = this.opts.showPage ?? (viewer ? async () => (await viewer.show(explorer)).join("\n") : undefined);
+    out.print(`  ${info.label} via ${routeLabel(route.route, await getCustomEndpoint())} (${route.modelId})`);
     const session = await createAssistantSession(
       {
         data,
         filePath,
         cwd: process.cwd(),
-        surface,
         view: {
           context: () => explorer.context(),
           navigate: (command) => {
@@ -1280,15 +1202,10 @@ export class AssistantBridge {
   }
 }
 
-export interface PageViewerDeps {
-  /** Pending markups to draw, and the copy that holds saved ones. */
-  markups?: Pick<MarkupSession, "pendingOn" | "savedCopy">;
-  render?: (req: PageViewRequest) => Promise<PageViewResult>;
-  open?: (path: string) => void;
+export interface PdfLocatorDeps {
   exists?: (path: string) => boolean;
   /** File names in a folder, for the "can't find the PDF" hint. */
   listDir?: (dir: string) => string[];
-  log?: (line?: string) => void;
 }
 
 function listDir(dir: string): string[] {
@@ -1299,76 +1216,22 @@ function listDir(dir: string): string[] {
   }
 }
 
-/** Handles "view" in explore: finds the source PDF, renders the page with the red box, opens it. */
-export class PageViewer {
-  private pdfPath?: string;
-
+/** Finds the source PDF for a drawing set, and says where it looked when it can't. */
+export class PdfLocator {
   constructor(
     private data: DrawingSet,
     private filePath: string,
     private explicitPdf?: string,
-    private deps: PageViewerDeps = {}
+    private deps: PdfLocatorDeps = {}
   ) {}
 
-  /** Prints what happened and returns the same lines, so the assistant can report them. */
-  async show(explorer: Explorer, pdfArg?: string): Promise<string[]> {
-    const lines: string[] = [];
-    const print = this.deps.log ?? console.log;
-    const log = (line: string) => {
-      lines.push(line);
-      print(line);
-    };
-    const target = explorer.viewTarget();
-    if ("error" in target) {
-      log(target.error);
-      return lines;
-    }
-
-    const pdf = this.locatePdf(pdfArg);
-    if (!pdf.path) {
-      for (const line of this.missingPdfLines(pdfArg)) log(line);
-      return lines;
-    }
-
-    if (!target.bbox && !target.wholePage) {
-      log(`No bounding box for ${target.label}; showing the whole page.`);
-    }
-
-    const pending = this.deps.markups?.pendingOn(target.sheet.pageIndex) ?? [];
-    const saved = pdfArg ? undefined : this.deps.markups?.savedCopy();
-    try {
-      const result = await (this.deps.render ?? renderPageView)({
-        pdfPath: saved ?? pdf.path,
-        pageIndex: target.sheet.pageIndex,
-        bbox: target.bbox,
-        name: target.sheet.sheetNumber,
-        ...(pending.length ? { markups: pending } : {}),
-      });
-      this.pdfPath = pdf.path;
-      if (saved) log(`Showing saved markups from ${basename(saved)}.`);
-      if (pending.length) log(`Showing ${pending.length} pending markup${pending.length === 1 ? "" : "s"} (not saved yet; "markups save" writes them).`);
-      if (result.outsidePage) {
-        const { width, height } = result.outsidePage;
-        log(`Note: the box [${target.bbox!.join(", ")}] runs past the page (${Math.round(width)} × ${Math.round(height)} pt), so it may be in different units.`);
-      }
-      const what = target.bbox ? ` with ${target.label} in red` : "";
-      log(`Opening sheet ${target.sheet.sheetNumber} (PDF page ${target.sheet.pageIndex + 1}) of ${basename(pdf.path)}${what}:`);
-      log(`  ${result.path}`);
-      (this.deps.open ?? openWithDefaultApp)(result.path);
-    } catch (err) {
-      log(`Couldn't render the page: ${(err as Error).message}`);
-    }
-    return lines;
-  }
-
-  /** The source PDF "view" uses: an explicit path, the last one used, or one found next to the JSON-LD. */
+  /** The source PDF: an explicit path, or one found next to the JSON-LD. */
   locatePdf(pdfArg?: string): { path?: string; looked: string[] } {
     const exists = this.deps.exists;
     if (pdfArg) {
       const looked = sourcePdfCandidates(this.filePath, this.data, pdfArg);
       return { path: findSourcePdf(looked, exists), looked };
     }
-    if (this.pdfPath) return { path: this.pdfPath, looked: [this.pdfPath] };
     const looked = sourcePdfCandidates(this.filePath, this.data, this.explicitPdf);
     return { path: findSourcePdf(looked, exists), looked };
   }
@@ -1396,219 +1259,29 @@ export class PageViewer {
         const more = pdfs.length > 5 ? `, and ${pdfs.length - 5} more` : "";
         const label = (p: string) => (owner(p) ? `${p} (goes with ${owner(p)})` : p);
         lines.push(`PDFs in that folder: ${pdfs.slice(0, 5).map(label).join(", ")}${more}.`);
-        const free = pdfs.find((p) => !owner(p));
-        if (free) {
-          const example = relative(process.cwd(), join(dir, free)) || free;
-          lines.push(`If one of them goes with ${file}, type "view ${example.includes(" ") ? `"${example}"` : example}".`);
-        } else {
-          lines.push(`Check that you opened the .jsonld you meant to.`);
-        }
+        if (pdfs.every((p) => owner(p))) lines.push(`Check that you opened the .jsonld you meant to.`);
       }
     }
-    lines.push('Type "view <path to pdf>", or start explore with --pdf <file>.');
     return lines;
   }
 }
 
-/** Full screen needs a real terminal big enough for two lines of chrome plus a list. */
-export function useFullScreen(opts: CommandOptions, env = process.env, out: NodeJS.WriteStream = process.stdout): boolean {
-  if (opts.classic || env.AECDO_EXPLORE === "classic" || env.TERM === "dumb") return false;
-  return Boolean(out.isTTY && process.stdin.isTTY) && (out.columns ?? 0) >= 50 && (out.rows ?? 0) >= 12;
+const words = (s: string): string[] => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+const compact = (s: string): string => words(s).join("");
+
+/**
+ * The sheets a search finds: sheet numbers that start with what was typed ("a1" finds A101), or else
+ * sheets where each typed word starts a word of the number or title.
+ */
+export function findSheetRows(rows: ScreenRow[], filter: string): ScreenRow[] {
+  const query = words(filter);
+  if (!query.length) return rows;
+  const byNumber = rows.filter((r) => compact(r.label).startsWith(query.join("")));
+  return byNumber.length ? byNumber : rows.filter((r) => startsWords(query, r));
 }
 
-/** Asks one question on the normal terminal; Ctrl+C answers "". */
-function questionOnce(q: string): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise<string>((res) => {
-    rl.on("SIGINT", () => {
-      process.stdout.write("\n");
-      rl.close();
-      res("");
-    });
-    rl.question(q, (answer) => {
-      rl.close();
-      res(answer);
-    });
-  });
-}
-
-async function exploreFullScreen(data: DrawingSet, filePath: string, opts: CommandOptions): Promise<void> {
-  let sink: (line: string) => void = () => undefined;
-  const explorer = new Explorer(data, (line = "") => sink(line), { fileName: basename(filePath) });
-  const screen = new Screen();
-  const ask = (q: string) => questionOnce(q);
-  const confirm = async (q: string) => /^y(es)?$/i.test((await ask(q)).trim());
-  // The chat lives in `app`, created below; nothing calls these before then.
-  const chat: AssistantOutput = {
-    write: (text) => app.chatWrite(text),
-    print: (line = "") => app.chatPrint(line),
-    confirm: (q) => (screen.suspended ? confirm(q) : app.chatConfirm(q)),
-  };
-  const viewerDeps: PageViewerDeps = { log: (line = "") => chat.print(line) };
-  const viewer = new PageViewer(data, filePath, opts.pdf, viewerDeps);
-  const markups = new MarkupSession(data, { locatePdf: () => viewer.locatePdf(), target: () => explorer.viewTarget(), confirm });
-  viewerDeps.markups = markups;
-  const assistant = new AssistantBridge({ data, filePath, explorer, out: chat, viewer, markups, onNavigate: () => app.assistantMoved() });
-  const c = palette();
-  let lastAssistant: AssistantName = "claude";
-  // Until the user names one, questions go to the first model that's set up.
-  let named = false;
-
-  const app: ExploreApp = new ExploreApp(explorer, screen, {
-    collect: (fn) => {
-      const lines: string[] = [];
-      const previous = sink;
-      sink = (line) => lines.push(line);
-      try {
-        fn();
-      } finally {
-        sink = previous;
-      }
-      return lines;
-    },
-    view: async () => {
-      const lines: string[] = [];
-      const previous = viewerDeps.log;
-      viewerDeps.log = (line = "") => lines.push(line);
-      try {
-        await viewer.show(explorer);
-      } finally {
-        viewerDeps.log = previous;
-      }
-      return lines;
-    },
-    ask: async (text) => {
-      // A question without @name goes to whichever assistant was asked last.
-      const mention = parseMention(text.startsWith("@") ? text : `@${lastAssistant} ${text}`)!;
-      if (mention.assistant) {
-        lastAssistant = mention.assistant.name;
-        named = true;
-      }
-      if (mention.assistant && !mention.text) {
-        const ai = await assistant.describe(mention.assistant.name);
-        if (ai.detail === "not set up") chat.print(notSetUpMessage(mention.assistant));
-        else chat.print(`Questions now go to ${ai.label}${ai.detail ? ` (${ai.detail})` : ""}.`);
-        return;
-      }
-      await assistant.run(mention);
-    },
-    aiModel: async () => {
-      if (!named) lastAssistant = (await assistant.setUp())[0] ?? lastAssistant;
-      return assistant.describe(lastAssistant);
-    },
-    stopAsking: () => assistant.active?.abort(),
-    markups: async () => {
-      for (;;) {
-        console.log();
-        await markups.run("list", []);
-        const answer = (await ask(c.dim('\nType "save", "undo", or "remove 2" — or press Enter to go back: '))).trim();
-        if (!answer) return;
-        const cmd = parseMarkupsCommand(`markups ${answer}`);
-        if (cmd) await markups.run(cmd.action, cmd.args);
-      }
-    },
-    hasPendingMarkups: () => markups.pending.length > 0,
-    beforeQuit: () => markups.beforeQuit(),
-  });
-
-  screen.start(
-    (str, key) => app.handleKey(str, key),
-    () => app.redraw()
-  );
-  try {
-    await app.run();
-  } finally {
-    screen.stop();
-  }
-}
-
-/** Bold cyan, the same accent the pickers use, so the prompt is the one colored thing to look for. */
-const PROMPT_COLOR = "\x1b[1;36m";
-
-export async function explore(data: DrawingSet, filePath: string, opts: CommandOptions = {}): Promise<void> {
-  if (opts.format === "json" || !process.stdin.isTTY) {
-    await sheetsCmd(data, filePath, opts);
-    return;
-  }
-
-  if (!(await isValid(data, opts.schema))) {
-    const name = filePath.startsWith("job:") ? "this file" : basename(filePath);
-    console.log(`\n  ${palette().warn(`Some of ${name} doesn't match the AECDO format, so parts may be missing.`)}`);
-    console.log(`  ${palette().dim(`Run "aecdo validate ${name}" to see what's wrong.`)}`);
-  }
-
-  if ((data.sheets ?? []).length === 0) {
-    console.log("\n  This file has no sheets to show.");
-    return;
-  }
-
-  if (useFullScreen(opts)) {
-    await exploreFullScreen(data, filePath, opts);
-    return;
-  }
-
-  const explorer = new Explorer(data, console.log, { fileName: basename(filePath) });
-  explorer.render();
-
-  const rl = createInterface({ input: process.stdin, output: process.stdout, completer: completeMention });
-  let editing = false;
-  const ask = (q: string) =>
-    new Promise<string>((res) => {
-      editing = true;
-      rl.question(q, (answer) => {
-        editing = false;
-        res(answer);
-      });
-    });
-  const color = colorEnabled();
-  if (color) enableMentionHighlight(rl, () => editing);
-  const confirm = async (q: string) => /^y(es)?$/i.test((await ask(q)).trim());
-  const viewerDeps: PageViewerDeps = {};
-  const viewer = new PageViewer(data, filePath, opts.pdf, viewerDeps);
-  const markups = new MarkupSession(data, { locatePdf: () => viewer.locatePdf(), target: () => explorer.viewTarget(), confirm });
-  viewerDeps.markups = markups;
-  const assistant = new AssistantBridge({
-    data,
-    filePath,
-    explorer,
-    out: { write: (text) => process.stdout.write(text), print: (line = "") => console.log(quitFirst(line, "Type q")), confirm },
-    viewer,
-    markups,
-  });
-
-  let closed = false;
-  rl.on("close", () => (closed = true));
-  rl.on("SIGINT", () => {
-    if (assistant.active) {
-      assistant.active.abort();
-      console.log("\n(stopped)");
-      return;
-    }
-    rl.close();
-    process.exit(130);
-  });
-
-  let running = true;
-  while (running && !closed) {
-    const input = await ask(color ? stylePrompt(explorer.prompt(), PROMPT_COLOR) : explorer.prompt());
-    const mention = parseMention(input);
-    if (mention) {
-      await assistant.run(mention);
-      continue;
-    }
-    const view = parseViewCommand(input);
-    if (view) {
-      await viewer.show(explorer, view.pdf);
-      continue;
-    }
-    const markupCmd = parseMarkupsCommand(input);
-    if (markupCmd) {
-      await markups.run(markupCmd.action, markupCmd.args);
-      continue;
-    }
-    running = explorer.handle(input);
-    if (!running) await markups.beforeQuit();
-  }
-
-  rl.close();
+/** Each typed word must start a word of the sheet number or title. */
+function startsWords(query: string[], row: ScreenRow): boolean {
+  const all = [...words(row.label), ...words(row.note ?? "")];
+  return query.every((q) => all.some((w) => w.startsWith(q)));
 }

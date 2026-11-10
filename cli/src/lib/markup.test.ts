@@ -16,7 +16,7 @@ import {
   undoSave,
   type Markup,
 } from "./markup.js";
-import { bboxToUserSpace, type BBox } from "./page-view.js";
+import { bboxToUserSpace, type BBox } from "./pdf-page.js";
 
 const ROTATIONS = [0, 90, 180, 270];
 

@@ -1,4 +1,4 @@
-// Times parse, validation and explore navigation on a large synthetic set built by copying
+// Times parse, validation and navigation on a large synthetic set built by copying
 // examples/maple-grove-library.jsonld. Usage: npm run build && npm run bench -- [sheets]
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -40,7 +40,7 @@ console.log = () => {};
 const data = time("JSON.parse", () => JSON.parse(text));
 const validator = time("compile schema", () => createValidator(loadSchemaSync()));
 time("validate", () => validator(data));
-const explorer = time("open explore", () => new Explorer(data, () => {}));
+const explorer = time("open explorer", () => new Explorer(data, () => {}));
 const last = sheets.at(-1).sheetNumber;
 time(`open sheet ${last}`, () => explorer.handle(last));
 time("open drawing, layer, item", () => ["1", "1", "1"].forEach((c) => explorer.handle(c)));

@@ -5,7 +5,7 @@ import { GuiApp } from "../gui/app.js";
 import { startGuiServer } from "../gui/server.js";
 import { embedded } from "../lib/embedded.js";
 import { openWithDefaultApp } from "../lib/open.js";
-import { canPrompt } from "../lib/picker.js";
+import { canPrompt } from "../lib/prompt.js";
 
 export interface GuiOptions {
   pdf?: string;
