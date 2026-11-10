@@ -25,8 +25,12 @@ export interface AssistantView {
   navigate(command: string): unknown;
 }
 
+/** Where the assistant runs: "terminal" for explore, "app" for the aecdo app window with its PDF pane. */
+export type AssistantSurface = "terminal" | "app";
+
 export interface AssistantHost {
   data: DrawingSet;
+  surface?: AssistantSurface;
   filePath: string;
   cwd: string;
   view: AssistantView;
@@ -39,6 +43,8 @@ export interface AssistantHost {
   showPage?(): Promise<string>;
   /** Pending PDF markups; the user reviews and saves them with "markups save". */
   markups?: AssistantMarkups;
+  /** Called when a tool starts, so the screen can show what the assistant is doing. */
+  onTool?(name: string, args: unknown): void;
 }
 
 export interface AssistantMarkups {
@@ -84,9 +90,25 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" | "data" | "showPage" | "markups">, info: AssistantInfo): string {
+export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" | "data" | "showPage" | "markups" | "surface">, info: AssistantInfo): string {
   const sheetCount = host.data.sheets?.length ?? 0;
-  return `You are ${info.label}, working inside "aecdo explore", a terminal browser for construction drawing sets.
+  const app = host.surface === "app";
+  const where = app
+    ? `the aecdo app, a desktop viewer for construction drawing sets that always shows the current PDF page next to the extracted data`
+    : `"aecdo explore", a terminal browser for construction drawing sets`;
+  const showPage = app
+    ? `show_page zooms the PDF pane, which is always visible, to the open drawing, layer, item, table, note, or image, outlined in red. Use it when the user asks to see, show, or find something on the drawing: navigate to it first (open the item for a red box around it), then call show_page. You can't see the page yourself.`
+    : `show_page opens the current sheet's page from the source PDF in the user's image viewer, with the open drawing, layer, item, table, note, or image outlined in red (same as the user typing "view"). Use it when the user asks to see, show, or find something on the drawing: navigate to it first (open the item for a red box around it), then call show_page. You can't see the image yourself.`;
+  const saving = app
+    ? `Markups stay pending until the user saves them from the Markups panel (press m), which writes them to a copy of the PDF; tell the user that after adding them. Pending markups show on the PDF pane right away.`
+    : `Markups stay pending until the user types "markups save", which writes them to a copy of the PDF; tell the user that after adding them, and that "view" shows them first.`;
+  const otherCommands = app
+    ? `Other aecdo commands (such as "aecdo configure ai" or "aecdo update") can't run inside the app. When you suggest one, tell the user to run it in a terminal.`
+    : `Other aecdo commands (such as "aecdo configure ai" or "aecdo update") can't run inside explore. When you suggest one, tell the user to quit explore first: press Esc to close the chat, then q (at the typed prompt, type q).`;
+  const style = app
+    ? `Answer in short paragraphs or simple lists. **bold**, \`code\` and "- " lists are shown formatted, and sheet numbers become links; avoid tables and headings.`
+    : `Answer in plain text suited to a terminal: short paragraphs or simple lists, no tables wider than 80 columns, no headings.`;
+  return `You are ${info.label}, working inside ${where}.
 
 The open file is ${basename(host.filePath)} (${sheetCount} sheets), extracted from a PDF drawing set by AEC DrawingBot.
 Its data follows the AEC Drawing Ontology: DrawingSet → Sheet → Drawing (plan, section, elevation, detail) → Layer → Item.
@@ -96,17 +118,17 @@ Sheets also hold tables (pipe-delimited rows), notes and images. bbox values are
 Each user message starts with <current_view>, the part of the set the user is looking at right now. Treat it as "this page". It also says how the user got there: "arrivedVia" when they followed a reference to it, "recentlyVisited" (the last few places, oldest first, including references they followed), and "backGoesTo". When the question refers to something earlier ("the tag I came from", "that door"), look there.
 You can move around with the navigate tool, using the same commands the user types: a sheet number or its number (1, 2, …) in the sheet list shown (or a group number or prefix such as "A" when the sheet list shows groups), an entry number from the current list, "r1", "r2", … to follow a reference shown as "→ [r1] …" (to another drawing, schedule, or item), "up" (one level up the tree), "back" (to the previous place, e.g. before a jump), "top", or "all". The user sees every move.
 Use list_sheets and read_sheet to look at other sheets without moving the user.
-${host.showPage ? `show_page opens the current sheet's page from the source PDF in the user's image viewer, with the open drawing, layer, item, table, note, or image outlined in red (same as the user typing "view"). Use it when the user asks to see, show, or find something on the drawing: navigate to it first (open the item for a red box around it), then call show_page. You can't see the image yourself.
+${host.showPage ? `${showPage}
 ` : ""}
-${host.markups ? `add_markup proposes a markup on the source PDF, the kind people draw in Bluebeam or Acrobat: "cloud" around a problem area, "callout" (a text box with a leader arrow pointing at it), or "note" (a sticky-note icon holding longer text). By default it marks the current selection (navigate to the item first, as for show_page); or pass a bbox in the same units as the data, plus the sheet. Write the text as a short review comment a reviewer would leave, e.g. "Door 209B is not in the door schedule (A601)." Markups stay pending until the user types "markups save", which writes them to a copy of the PDF; tell the user that after adding them, and that "view" shows them first. Use list_markups and remove_markup to review or take back pending ones. Only add markups when the user asks for them.
+${host.markups ? `add_markup proposes a markup on the source PDF, the kind people draw in Bluebeam or Acrobat: "cloud" around a problem area, "callout" (a text box with a leader arrow pointing at it), or "note" (a sticky-note icon holding longer text). By default it marks the current selection (navigate to the item first, as for show_page); or pass a bbox in the same units as the data, plus the sheet. Write the text as a short review comment a reviewer would leave, e.g. "Door 209B is not in the door schedule (A601)." ${saving} Use list_markups and remove_markup to review or take back pending ones. Only add markups when the user asks for them.
 ` : ""}
 You can write files in the current folder (${host.cwd}):
 - append_note adds Markdown to ${DEFAULT_NOTES_FILE} (or another .md file). Use it when the user asks you to note, record or remember something.
 - Spreadsheets: ${SPREADSHEET_EXTENSIONS.join(", ")}. Use list_spreadsheets first and work in the user's existing file and layout when there is one; read it before writing so new rows match its columns. Only create a new spreadsheet if none fits or the user asks.
 
-Other aecdo commands (such as "aecdo configure ai" or "aecdo update") can't run inside explore. When you suggest one, tell the user to quit explore first: press Esc to close the chat, then q (at the typed prompt, type q).
+${otherCommands}
 
-Answer in plain text suited to a terminal: short paragraphs or simple lists, no tables wider than 80 columns, no headings.
+${style}
 Base answers on the drawing data; say so when the data does not contain something rather than guessing. Cite sheet numbers.`;
 }
 
@@ -187,7 +209,9 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
             name: "show_page",
             label: "Show page",
             description:
-              "Open the current sheet's PDF page in the user's image viewer with the current selection outlined in red (the drawing, layer, or the last item, table, note, or image opened). Navigate to the target first. Returns what was opened, or why it couldn't be.",
+              host.surface === "app"
+                ? "Zoom the PDF pane to the current selection, outlined in red (the drawing, layer, or the last item, table, note, or image opened). Navigate to the target first. Returns what is shown, or why it couldn't be."
+                : "Open the current sheet's PDF page in the user's image viewer with the current selection outlined in red (the drawing, layer, or the last item, table, note, or image opened). Navigate to the target first. Returns what was opened, or why it couldn't be.",
             parameters: T.Object({}),
             executionMode: "sequential",
             execute: async () => text(await host.showPage!()),
@@ -448,6 +472,9 @@ export async function createAssistantSession(
     switch (event.type) {
       case "message_update":
         if (event.assistantMessageEvent.type === "text_delta") write(event.assistantMessageEvent.delta);
+        break;
+      case "tool_execution_start":
+        host.onTool?.(event.toolName, event.args);
         break;
       case "tool_execution_end":
         if (event.isError) {

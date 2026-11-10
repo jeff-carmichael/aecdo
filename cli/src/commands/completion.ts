@@ -8,6 +8,7 @@ const COMMANDS: [name: string, description: string][] = [
   ["sheets", "List all sheets"],
   ["page", "Print one sheet by sheet number or page index"],
   ["explore", "Browse a drawing set interactively"],
+  ["gui", "Open the app: the PDF beside the data, with AI chats"],
   ["configure", "Set up API credentials and region (configure ai: AI assistant)"],
   ["process", "Upload a PDF, wait, and save the result"],
   ["upload", "Upload a PDF and return the job ID"],
@@ -19,7 +20,7 @@ const COMMANDS: [name: string, description: string][] = [
 ];
 
 const PDF_COMMANDS = ["process", "upload"];
-const JSONLD_COMMANDS = ["validate", "summary", "sheets", "page", "explore"];
+const JSONLD_COMMANDS = ["validate", "summary", "sheets", "page", "explore", "gui"];
 const JOB_COMMANDS = ["status", "download"];
 
 const OPTIONS = [
@@ -35,6 +36,7 @@ const OPTIONS = [
   "--stdout",
   "--pdf",
   "--force",
+  "--browser",
   "--no-update-check",
 ];
 
@@ -121,8 +123,9 @@ ${commands}
     '--wait[Wait for job completion]'
     '--then[Pipe the result into a command]:command:(validate summary explore)'
     '--stdout[Print the result instead of saving it]'
-    '--pdf[Source PDF for view in explore]:pdf file:_files -g "*.(pdf|PDF)"'
+    '--pdf[Source PDF for explore and gui]:pdf file:_files -g "*.(pdf|PDF)"'
     '--force[Replace example files that are already there]'
+    '--browser[gui: open in the default browser instead of a window]'
     '--no-update-check[Skip the daily update check]'
   )
 
@@ -198,8 +201,9 @@ function fishScript(): string {
     "complete -c aecdo -l wait -d 'Wait for job completion'",
     "complete -c aecdo -l then -x -a 'validate summary explore' -d 'Pipe the result into a command'",
     "complete -c aecdo -l stdout -d 'Print the result instead of saving it'",
-    "complete -c aecdo -l pdf -r -F -d 'Source PDF for view in explore'",
+    "complete -c aecdo -l pdf -r -F -d 'Source PDF for explore and gui'",
     "complete -c aecdo -l force -d 'Replace example files that are already there'",
+    "complete -c aecdo -l browser -d 'gui: open in the default browser instead of a window'",
     "complete -c aecdo -l no-update-check -d 'Skip the daily update check'",
   ];
   return lines.join("\n") + "\n";

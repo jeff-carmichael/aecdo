@@ -156,6 +156,8 @@ Humans can also type `@claude …`, `@chatgpt …`, `@gemini …`, `@grok …`, 
 
 For a richer file to try commands on, `examples/maple-grove-library.jsonld` is a 19-sheet demo set (fictional library, all disciplines) with door, window, finish, equipment, and panel schedules. `examples/sample-drawing-package-1and2family.jsonld` comes with its source PDF (a 7-page house permit set from the City of Vancouver), so `view` and markups work on it.
 
+`aecdo gui [file]` opens the same navigation as a desktop app (a window with the standalone binary, otherwise the default browser; `--browser` forces the browser): the sheet list, what's open, and the PDF page with the selection in red, plus several AI chats at once and markups. It is for people only; agents should never run it, since it opens a window and waits.
+
 **Agents / non-interactive use:** `explore` detects when stdin is not a TTY or when `--format json` is passed and falls back to listing sheets, so it won't hang on the prompt. Prefer `sheets` and `page` for scripted workflows.
 
 ### Validate all JSON-LD files in a directory

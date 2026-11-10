@@ -34,6 +34,7 @@ test("every menu action maps to args or quits", async () => {
 
 test("commands with their own pickers run bare", async () => {
   assert.deepEqual(await argsFor("explore", deps()), ["explore"]);
+  assert.deepEqual(await argsFor("gui", deps()), ["gui"]);
   assert.deepEqual(await argsFor("process", deps()), ["process"]);
   assert.deepEqual(await argsFor("configure-ai", deps()), ["configure", "ai"]);
   assert.deepEqual(await argsFor("help", deps()), ["--help"]);

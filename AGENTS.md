@@ -30,6 +30,9 @@ You should work to keep the codebase clean at all times. Merge repeated code and
 - `cli/src/lib/page-view.ts` — `view` in `explore`: finds the source PDF, copies the page with pdf-lib, draws the red bbox (top-left PDF points, rotation-aware), rasterizes with `pdftoppm`/`mutool` when installed
 - `cli/src/lib/spreadsheet.ts`, `cli/src/lib/zip.ts` — dependency-free `.xlsx`/`.csv`/`.tsv` read and write; xlsx edits patch the sheet XML so formatting survives
 - `cli/src/lib/screen.ts` — full-window terminal screen (alternate buffer, raw keys, resize, rewrites only changed rows, always restores the terminal); `cli/src/commands/explore-app.ts` — `ExploreApp`, the full-screen `explore` (sheet pane + main pane + AI chat panel and bar + footer; the assistant's output goes to `chatWrite`/`chatPrint`/`chatConfirm`) driving `Explorer.handle()` and reading `Explorer.screenModel()`/`sheetPane()`; tested with a fake screen. `explore --classic` / `AECDO_EXPLORE=classic` keeps the typed prompt
+- `cli/src/commands/gui.ts` — `aecdo gui`: starts the local server and opens the window (the standalone binary re-runs itself as `__gui-window <url>`, see `cli/bin/gui-window.ts`, since webview-bun's `run()` blocks), else the default browser; quits with the window or 20 s after the last browser tab closes
+- `cli/src/gui/` — the app's backend: `GuiApp` (open set, home screen, recent files in `~/.aecdo/gui.json`, confirm questions), `GuiSession` (one set: wraps `Explorer` into JSON states with row bboxes, PDF lookup, markups, and AI chat threads, each its own `AssistantBridge` with `surface: "app"`), `server.ts` (127.0.0.1, random token path prefix, Host check, SSE events, PDF byte ranges), `assets.ts` (frontend and PDF.js file paths, embedded in the binary)
+- `cli/gui/` — the app's frontend, plain ES modules with JSDoc types (checked by `tsc -p cli/gui/tsconfig.json` in `npm run lint`), no framework: `app.js` (layout, keys, modals), `pdf-view.js` (PDF.js page with instant CSS zoom/pan, sharp re-render of the visible area, box overlay), `list.js` (virtual list), `chat.js`, `keys.js`. PDF.js is `pdfjs-dist`'s legacy build; `cli/bin/gui-assets.js` lists the files Bun embeds
 - `cli/src/lib/minimap.ts` — the small layout map inset in the bottom-right corner of full-screen `explore`'s right column: draws `Explorer.sheetMap()`'s boxes on a character grid, guessing the page size from common sheet sizes since the data doesn't store it
 - `cli/src/lib/tui.ts` — shared terminal UI kit with no dependencies: glyphs with ASCII fallback, width-aware `fit`/`padEnd`, spinner, progress bar, key hints, `box`, `LiveRegion` (redraw-in-place block, cut to the terminal size) and `task()` (spinner around a promise). Used by the picker, menu, `progress.ts` (`ProgressView` for `process`/`status`) and the `explore` banner; colors come from `style.ts` (`paletteFor(stream)`)
 - `cli/src/lib/table.ts` — boxed, padded table rendering for `explore`/`page`; wraps long cells to the terminal width
@@ -105,8 +108,8 @@ API credentials are stored at `~/.aecdo/config.json` (0o600 permissions). Tokens
 - TypeScript with strict mode, compiled via `tsc`
 - ES modules (`import`/`export`), no CommonJS
 - No comments unless explaining a non-obvious "why"
-- Minimal dependencies (ajv for validation, native fetch for API calls, pi-ai/pi-agent-core for the AI assistant, pdf-lib for `view`)
-- Lint with `npm run lint` (ESLint flat config in `eslint.config.js`, `typescript-eslint` type-checked rules); CI enforces it
+- Minimal dependencies (ajv for validation, native fetch for API calls, pi-ai/pi-agent-core for the AI assistant, pdf-lib for `view`, pdfjs-dist for the app; webview-bun is a devDependency, bundled only into the standalone binary)
+- Lint with `npm run lint` (ESLint flat config in `eslint.config.js`, `typescript-eslint` type-checked rules, plus a type check of `cli/gui/`); CI enforces it
 - Use Node.js built-in test runner (`node --test`); tests live next to source as `cli/src/**/*.test.ts` and run via `npm test`
 
 ## Workflow for changes

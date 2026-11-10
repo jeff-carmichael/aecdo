@@ -17,6 +17,7 @@ import { processPdf } from "../src/commands/process.js";
 import { update, cleanupOldBinary } from "../src/commands/update.js";
 import { completion } from "../src/commands/completion.js";
 import { examples } from "../src/commands/examples.js";
+import { gui } from "../src/commands/gui.js";
 import { runMenu } from "../src/commands/menu.js";
 import { pick, listPdfs, listJsonld, canPrompt } from "../src/lib/picker.js";
 import { embedded } from "../src/lib/embedded.js";
@@ -62,6 +63,14 @@ Commands:
                       (--in-place for the original), "markups undo" takes
                       the last save back.
                       Non-TTY / --format json falls back to listing sheets.
+  gui [file]          Open the app (preview): the sheet list, what you've opened,
+                      and the PDF page side by side, with the selection
+                      outlined in red. Same keys as explore (? lists them), the
+                      AI in as many chats as you like (a asks, t starts
+                      another), and markups (M marks up the selection, m
+                      reviews and saves). A window with the standalone binary;
+                      otherwise, or with --browser, your default browser.
+                      With no file, pick one in the app
   configure           Set up DrawingBot API credentials and region
   configure ai        Set up the explore assistant: Sign in with ChatGPT or
                       OpenRouter, add an OpenAI, Anthropic, or OpenRouter API
@@ -97,8 +106,10 @@ API Options:
   --then <command>    Pipe result into: validate, summary, explore
   --stdout            process: print the result to stdout instead of saving it
   --force             examples: replace files that are already there
-  --pdf <file>        explore: source PDF for "view" (default: <name>.pdf
-                      next to the .jsonld, or the set's filename)
+  --pdf <file>        explore, gui: source PDF for "view" and the PDF pane
+                      (default: <name>.pdf next to the .jsonld, or the set's
+                      filename)
+  --browser           gui: open in your default browser instead of a window
 
 Examples:
   aecdo
@@ -109,6 +120,7 @@ Examples:
   aecdo page drawings.jsonld 0 --format json
   aecdo explore
   aecdo explore drawings.jsonld
+  aecdo gui drawings.jsonld
   aecdo configure
   aecdo configure ai
   aecdo process
@@ -208,6 +220,7 @@ async function main(): Promise<void> {
         pdf: { type: "string" },
         classic: { type: "boolean", default: false },
         force: { type: "boolean", default: false },
+        browser: { type: "boolean", default: false },
       },
       allowPositionals: true,
     });
@@ -259,6 +272,9 @@ async function main(): Promise<void> {
         }
         break;
       }
+      case "gui":
+        await gui(options.positionals[0], { pdf: options.values.pdf, schema: options.values.schema, browser: options.values.browser });
+        break;
       case "examples":
         await examples(options.positionals[0], { version: await getVersion(), force: options.values.force });
         break;

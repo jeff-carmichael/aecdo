@@ -37,7 +37,7 @@ import {
   type AssistantName,
 } from "../lib/llm.js";
 import { enableMentionHighlight, colorEnabled, completeMention, stylePrompt } from "../lib/mention-highlight.js";
-import { createAssistantSession, type AssistantSession } from "../lib/assistant.js";
+import { createAssistantSession, type AssistantSession, type AssistantSurface } from "../lib/assistant.js";
 import {
   findSourcePdf,
   renderPageView,
@@ -946,22 +946,34 @@ export class Explorer {
       this.log(`No reference "${raw}". Pick r1–r${ids.length}, or "back".`);
       return;
     }
-    this.refIndex ??= buildRefIndex(this.data);
-    const t = this.refIndex.get(id);
-    if (!t) {
+    const place = this.placeOf(id);
+    if (!place) {
       this.log(`${raw} points to ${id}, which isn't in this file.`);
       return;
     }
-
-    const { sheet, drawing, layer, item, entry } = t;
-    let place: Place;
-    if (drawing && layer && item) place = { kind: "item", sheet, drawing, layer, item };
-    else if (drawing && layer) place = { kind: "layer", sheet, drawing, layer };
-    else if (drawing) place = { kind: "drawing", sheet, drawing };
-    else if (entry && entry.kind !== "drawing") place = { kind: "entry", sheet, entry };
-    else place = { kind: "sheet", sheet };
     this.log(`\n  Jumped to ${this.resolve(id)}. "back" returns.`);
     this.go(place, "push", `${raw.toLowerCase()} from ${this.where(this.view)}`);
+  }
+
+  /** Where the sheet, drawing, layer, item, table, note, or image with this `@id` is. */
+  private placeOf(id: string): Place | undefined {
+    this.refIndex ??= buildRefIndex(this.data);
+    const t = this.refIndex.get(id);
+    if (!t) return undefined;
+    const { sheet, drawing, layer, item, entry } = t;
+    if (drawing && layer && item) return { kind: "item", sheet, drawing, layer, item };
+    if (drawing && layer) return { kind: "layer", sheet, drawing, layer };
+    if (drawing) return { kind: "drawing", sheet, drawing };
+    if (entry && entry.kind !== "drawing") return { kind: "entry", sheet, entry };
+    return { kind: "sheet", sheet };
+  }
+
+  /** Opens whatever has this `@id`, on top of where the user is, so "back" returns. False if it isn't in the set. */
+  openById(id: string): boolean {
+    const place = this.placeOf(id);
+    if (!place) return false;
+    this.go(place);
+    return true;
   }
 
   /** What the team calls the set: the PDF's name without the extension or underscores. */
@@ -1136,29 +1148,41 @@ const SETUP_WAYS = {
   openrouter: "OpenRouter",
 } as const;
 
-/** Where the assistant's answer goes: the terminal for the typed prompt, the chat panel in full screen. */
-interface AssistantOutput {
+/** Where the assistant's answer goes: the terminal for the typed prompt, the chat panel in full screen or the app. */
+export interface AssistantOutput {
   write(text: string): void;
   print(line?: string): void;
   confirm(question: string): Promise<boolean>;
 }
 
-class AssistantBridge {
+export interface AssistantBridgeOptions {
+  data: DrawingSet;
+  filePath: string;
+  explorer: Explorer;
+  out: AssistantOutput;
+  viewer?: PageViewer;
+  markups?: MarkupSession;
+  /** Called after each move the assistant makes, so the screen can show it. */
+  onNavigate?: () => void;
+  /** Replaces opening the page in an image viewer, e.g. the app zooming its PDF pane. */
+  showPage?: () => Promise<string>;
+  /** Called when the assistant starts using a tool. */
+  onTool?: (name: string, args: unknown) => void;
+  surface?: AssistantSurface;
+  /** Models to use instead of the ones set up with "aecdo configure ai" (tests). */
+  models?: MutableModels;
+}
+
+/** Runs @mentions: one conversation per model family, kept for the session. */
+export class AssistantBridge {
   private models?: MutableModels;
   private sessions = new Map<AssistantName, AssistantSession>();
   active?: AssistantSession;
   private setUpNames?: AssistantName[];
 
-  constructor(
-    private data: DrawingSet,
-    private filePath: string,
-    private explorer: Explorer,
-    private out: AssistantOutput,
-    private viewer?: PageViewer,
-    private markups?: MarkupSession,
-    /** Called after each move the assistant makes, so the screen can show it. */
-    private onNavigate?: () => void
-  ) {}
+  constructor(private opts: AssistantBridgeOptions) {
+    this.models = opts.models;
+  }
 
   /** The model families that have a way to reach them set up, in the usual order. */
   async setUp(): Promise<AssistantName[]> {
@@ -1183,7 +1207,7 @@ class AssistantBridge {
 
   async run(mention: Mention): Promise<void> {
     const info = mention.assistant;
-    const print = (line = "") => this.out.print(line);
+    const print = (line = "") => this.opts.out.print(line);
     if (!info) {
       const names = Object.values(ASSISTANTS).map((a) => `@${a.name}`).join(", ");
       print(`Unknown assistant "@${mention.word}". Try one of ${names}.`);
@@ -1216,32 +1240,36 @@ class AssistantBridge {
     const existing = this.sessions.get(info.name);
     if (existing) return existing;
 
+    const { data, filePath, explorer, out, viewer, markups, onNavigate, onTool, surface } = this.opts;
     this.models ??= await createLlmModels();
     const route = await pickRoute(this.models, info.name);
     if (!route) {
-      this.out.print(notSetUpMessage(info));
+      out.print(notSetUpMessage(info));
       return undefined;
     }
     const model = resolveModel(this.models, info.name, route);
-    this.out.print(palette().dim(`  ${info.label} via ${routeLabel(route.route, await getCustomEndpoint())} (${route.modelId})`));
+    out.print(palette().dim(`  ${info.label} via ${routeLabel(route.route, await getCustomEndpoint())} (${route.modelId})`));
+    const showPage = this.opts.showPage ?? (viewer ? async () => (await viewer.show(explorer)).join("\n") : undefined);
     const session = await createAssistantSession(
       {
-        data: this.data,
-        filePath: this.filePath,
+        data,
+        filePath,
         cwd: process.cwd(),
+        surface,
         view: {
-          context: () => this.explorer.context(),
+          context: () => explorer.context(),
           navigate: (command) => {
-            const result = this.explorer.navigate(command);
-            this.onNavigate?.();
+            const result = explorer.navigate(command);
+            onNavigate?.();
             return result;
           },
         },
-        showPage: this.viewer ? async () => (await this.viewer!.show(this.explorer)).join("\n") : undefined,
-        markups: this.markups,
-        write: (text) => this.out.write(text),
-        print: (line) => this.out.print(line),
-        confirm: (q) => this.out.confirm(q),
+        showPage,
+        markups,
+        write: (text) => out.write(text),
+        print: (line) => out.print(line),
+        confirm: (q) => out.confirm(q),
+        onTool,
       },
       info,
       this.models,
@@ -1420,7 +1448,7 @@ async function exploreFullScreen(data: DrawingSet, filePath: string, opts: Comma
   const viewer = new PageViewer(data, filePath, opts.pdf, viewerDeps);
   const markups = new MarkupSession(data, { locatePdf: () => viewer.locatePdf(), target: () => explorer.viewTarget(), confirm });
   viewerDeps.markups = markups;
-  const assistant = new AssistantBridge(data, filePath, explorer, chat, viewer, markups, () => app.assistantMoved());
+  const assistant = new AssistantBridge({ data, filePath, explorer, out: chat, viewer, markups, onNavigate: () => app.assistantMoved() });
   const c = palette();
   let lastAssistant: AssistantName = "claude";
   // Until the user names one, questions go to the first model that's set up.
@@ -1539,14 +1567,14 @@ export async function explore(data: DrawingSet, filePath: string, opts: CommandO
   const viewer = new PageViewer(data, filePath, opts.pdf, viewerDeps);
   const markups = new MarkupSession(data, { locatePdf: () => viewer.locatePdf(), target: () => explorer.viewTarget(), confirm });
   viewerDeps.markups = markups;
-  const assistant = new AssistantBridge(
+  const assistant = new AssistantBridge({
     data,
     filePath,
     explorer,
-    { write: (text) => process.stdout.write(text), print: (line = "") => console.log(quitFirst(line, "Type q")), confirm },
+    out: { write: (text) => process.stdout.write(text), print: (line = "") => console.log(quitFirst(line, "Type q")), confirm },
     viewer,
-    markups
-  );
+    markups,
+  });
 
   let closed = false;
   rl.on("close", () => (closed = true));

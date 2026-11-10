@@ -14,6 +14,7 @@
   "files": [
     "dist/",
     "!dist/**/*.test.*",
+    "cli/gui/",
     "ontology/",
     "examples/",
     "!examples/*.pdf",
@@ -34,7 +35,7 @@
     "build:bin:all": "bun run build:bin:darwin-x64 && bun run build:bin:darwin-arm64 && bun run build:bin:linux-x64 && bun run build:bin:linux-arm64 && bun run build:bin:windows-x64",
     "prebuild": "node -e \"import('node:fs').then(f=>f.promises.rm('dist',{recursive:true,force:true}))\"",
     "test": "npm run build && node --test dist/src/**/*.test.js",
-    "lint": "eslint cli/",
+    "lint": "eslint cli/ && tsc -p cli/gui/tsconfig.json",
     "diagram": "node scripts/generate-diagram.mjs",
     "bench": "node scripts/bench-large-set.mjs",
     "diagram:check": "node scripts/generate-diagram.mjs --check",
@@ -46,13 +47,15 @@
     "@earendil-works/pi-ai": "^1.4.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.7.284"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "eslint": "^9.0.0",
     "typescript": "^5.7.0",
-    "typescript-eslint": "^8.72.0"
+    "typescript-eslint": "^8.72.0",
+    "webview-bun": "^2.4.0"
   },
   "engines": {
     "node": ">=18.0.0"

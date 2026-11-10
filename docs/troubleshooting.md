@@ -69,6 +69,20 @@ The DrawingBot API isn't available yet; these apply once it is.
 **`explore` just prints the sheet list and exits**
 : It isn't running in an interactive terminal (for example, its input is piped), or you passed `--format json`. Run it directly in a terminal.
 
+## The app (`aecdo gui`)
+
+**It opened in my browser instead of a window**
+: The window needs the standalone program ([Install and update](install.md)); an npm install always uses the browser. On Linux, it also needs WebKitGTK 6: `sudo apt install libwebkitgtk-6.0-4` (Debian, Ubuntu), `sudo dnf install webkitgtk6.0` (Fedora), or `sudo pacman -S webkitgtk-6.0` (Arch). On Windows 10, install the [WebView2 runtime](https://developer.microsoft.com/microsoft-edge/webview2/). `aecdo` prints why the window didn't open.
+
+**The PDF pane says it can't find the PDF**
+: Pick one from the list in the pane, or start with `aecdo gui plans.jsonld --pdf path/to/plans.pdf`. The same rules as `view` in `explore` apply.
+
+**Some text on the PDF is missing or looks wrong**
+: Pages that use Chinese, Japanese, or Korean fonts that aren't embedded in the PDF may not draw their text in the standalone program. Open the page in your PDF reader to check.
+
+**Keys type into the chat instead of moving around**
+: The chat has focus. Press <kbd>Esc</kbd> (or <kbd>Tab</kbd>) to move back to the lists.
+
 ## AI assistant
 
 **`Claude isn't set up yet` (or ChatGPT, Gemini, …)**

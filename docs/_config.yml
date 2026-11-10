@@ -35,6 +35,8 @@ nav:
     url: /install.html
   - title: Explore a drawing set
     url: /explore.html
+  - title: The app (preview)
+    url: /app.html
   - title: AI assistant
     url: /assistant.html
   - title: Demo walkthrough

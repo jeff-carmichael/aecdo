@@ -130,11 +130,7 @@ export class ExploreApp {
 
   private sheetRows(): ScreenRow[] {
     const rows = this.finding && !this.sheetFocus ? this.explorer.allSheetRows() : this.explorer.sheetPane().rows;
-    if (!this.filter) return rows;
-    const query = words(this.filter);
-    if (!query.length) return rows;
-    const byNumber = rows.filter((r) => compact(r.label).startsWith(query.join("")));
-    return byNumber.length ? byNumber : rows.filter((r) => startsWords(query, r));
+    return this.filter ? findSheetRows(rows, this.filter) : rows;
   }
 
   private mainWidth(): number {
@@ -765,6 +761,17 @@ export function window(selected: number, count: number, height: number, margin =
 
 const words = (s: string): string[] => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 const compact = (s: string): string => words(s).join("");
+
+/**
+ * The rows "/" finds: sheet numbers that start with what was typed ("a1" finds A101), or else
+ * sheets where each typed word starts a word of the number or title.
+ */
+export function findSheetRows(rows: ScreenRow[], filter: string): ScreenRow[] {
+  const query = words(filter);
+  if (!query.length) return rows;
+  const byNumber = rows.filter((r) => compact(r.label).startsWith(query.join("")));
+  return byNumber.length ? byNumber : rows.filter((r) => startsWords(query, r));
+}
 
 /** Each typed word must start a word of the sheet number or title. */
 function startsWords(query: string[], row: ScreenRow): boolean {

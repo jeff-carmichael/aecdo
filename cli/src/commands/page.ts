@@ -139,7 +139,7 @@ export function fieldName(key: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-function plainValue(value: unknown): string {
+export function plainValue(value: unknown): string {
   if (Array.isArray(value) && value.every((v) => typeof v !== "object" || v === null)) return value.join(", ");
   return formatValue(value);
 }

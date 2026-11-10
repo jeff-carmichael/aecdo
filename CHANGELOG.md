@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- New `aecdo gui` (preview): the drawing set in a desktop window, with the sheet list, what you've opened, and the PDF page side by side. The PDF is always open and the selection is outlined in red as you move; zoom and pan are instant, and big PDFs load only the pages you look at. It uses the same keys as `explore` (press `?` for the list), keeps several AI chats going at once (`a` asks, `t` starts another chat, each with its own model), and adds markups from the selection (`M`) or a Shift-drag on the page, reviewed and saved with `m`. With no file it lists the sets in the folder and recent ones. The window comes with the standalone binary (Linux needs WebKitGTK 6; Windows 10 needs WebView2); an npm install, `--browser`, or a missing library opens it in the default browser instead. `explore` is unchanged. `aecdo` with no arguments offers it as "Open the app".
+
 ## [0.5.2] - 2026-11-10
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.

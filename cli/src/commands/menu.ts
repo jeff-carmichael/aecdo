@@ -4,6 +4,7 @@ import { paletteFor } from "../lib/style.js";
 
 export type MenuAction =
   | "explore"
+  | "gui"
   | "examples"
   | "validate"
   | "summary"
@@ -24,6 +25,7 @@ export interface MenuEntry {
 
 export const MENU: MenuEntry[] = [
   { action: "explore", label: "Explore a drawing set", hint: "browse sheets, drawings, and items; ask @claude" },
+  { action: "gui", label: "Open the app", hint: "the PDF beside the data, keyboard-driven, with AI chats" },
   { action: "examples", label: "Download example sets", hint: "Maple Grove demo and a real permit set with PDF" },
   { action: "validate", label: "Validate a drawing set", hint: "check a .jsonld file against the schema" },
   { action: "summary", label: "Summarize a drawing set", hint: "counts of sheets, drawings, items" },
@@ -51,6 +53,7 @@ export interface MenuDeps {
 export async function argsFor(action: MenuAction, deps: MenuDeps): Promise<string[] | null> {
   switch (action) {
     case "explore":
+    case "gui":
     case "process":
     case "examples":
     case "update":

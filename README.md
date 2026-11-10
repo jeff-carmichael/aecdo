@@ -37,6 +37,7 @@ See [Install and update](https://jeff-carmichael.github.io/aecdo/install.html) f
 aecdo explore maple-grove-library.jsonld            # browse the 19-sheet demo set
 aecdo validate plans.jsonld                          # check your own file against the schema
 aecdo explore plans.jsonld                           # arrow keys to move, v to see the PDF page, a to ask the AI
+aecdo gui plans.jsonld                               # preview: the same in a window, with the PDF always open
 ```
 
 The installer offers to download the example drawing sets to a folder (or run `aecdo examples` later). Open the demo set, [`maple-grove-library.jsonld`](examples/maple-grove-library.jsonld), and follow the [demo walkthrough](https://jeff-carmichael.github.io/aecdo/demo.html) for a first tour. To see items outlined on the PDF and try markups, use [`examples/sample-drawing-package-1and2family.jsonld`](examples/sample-drawing-package-1and2family.jsonld) with its PDF, the City of Vancouver's sample house permit set. Run `aecdo --help` for every command.

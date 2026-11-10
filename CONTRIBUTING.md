@@ -23,7 +23,7 @@ CI runs these checks on every pull request. Run them locally first:
 | CI check | What it enforces | Run locally |
 |----------|------------------|-------------|
 | Build and test | TypeScript compiles and tests pass | `npm test` (builds first) |
-| ESLint | No lint errors in `cli/` | `npm run lint` |
+| ESLint | No lint errors in `cli/`, and `cli/gui/` type-checks | `npm run lint` |
 | diagram.mmd is up to date | the current schema's `diagram.mmd` matches the schema | `npm run diagram:check` (fix with `npm run diagram`) |
 | CHANGELOG updated | Any change under `ontology/` or `cli/src/` also updates `CHANGELOG.md` | add an entry under `[Unreleased]` |
 
