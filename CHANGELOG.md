@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-10
+
 No schema changes; the CLI still validates against `ontology/v0.3.0`.
 
 ### CLI
