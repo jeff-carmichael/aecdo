@@ -4,9 +4,9 @@ title: Install and update
 
 # Install and update
 
-`aecdo` is a single program with nothing else to install. Pick your operating system below, paste the command into a terminal, and press Enter. Then close the terminal, open a new one, and run `aecdo --version` to check it worked.
+`aecdo` is a single program: the app and its commands in one file, with nothing else to install (on Linux, the app's window also needs [WebKitGTK](app.md#what-you-need)). Pick your operating system below, paste the command into a terminal, and press Enter. Then close the terminal, open a new one, and run `aecdo --version` to check it worked.
 
-Never used a terminal? See [New to the command line?](index.md#new-to-the-command-line) for how to open one and paste a command.
+Never used a terminal? See [You only need a terminal to start it](index.md#you-only-need-a-terminal-to-start-it) for how to open one and paste a command.
 
 ## macOS and Linux
 
@@ -22,7 +22,7 @@ To change what it installs, set these before `sh`:
 
 | Variable | What it does | Example |
 |----------|--------------|---------|
-| `AECDO_VERSION` | Install a specific release instead of the latest | `v0.5.1` |
+| `AECDO_VERSION` | Install a specific release instead of the latest | `v0.6.0` |
 | `AECDO_INSTALL_DIR` | Install somewhere else, such as a folder you own | `$HOME/.local/bin` |
 | `AECDO_EXAMPLES` | `1` downloads the [example drawing sets](#example-drawing-sets) without asking, `0` skips them | `0` |
 | `AECDO_EXAMPLES_DIR` | Where to put the examples | `$HOME/aecdo-examples` |
@@ -48,7 +48,7 @@ This downloads the latest `aecdo-windows-x64.zip`, checks its checksum, puts `ae
 The same `AECDO_VERSION`, `AECDO_INSTALL_DIR`, `AECDO_EXAMPLES`, and `AECDO_EXAMPLES_DIR` settings work here:
 
 ```powershell
-$env:AECDO_VERSION = "v0.5.1"
+$env:AECDO_VERSION = "v0.6.0"
 irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex
 ```
 
@@ -61,7 +61,7 @@ If you'd rather download `aecdo-windows-x64.zip` from [Releases](https://github.
 - When the warning appears, click **More info**, then **Run anyway**. Windows remembers this for that file.
 - Or, **before** extracting, right-click the zip, choose **Properties**, tick **Unblock**, and click **OK**. You can also run `Unblock-File .\aecdo.exe` in PowerShell after extracting.
 
-> `aecdo` is a command-line tool, so double-clicking `aecdo.exe` only flashes a window. Open PowerShell in the folder and run `.\aecdo.exe --help`, or move it to a folder on your PATH.
+> Start `aecdo` from PowerShell or Windows Terminal, in the folder with your drawings, by typing `aecdo`. If you put `aecdo.exe` somewhere that isn't on your PATH, run it as `.\aecdo.exe` from its folder, or move it to a folder on your PATH.
 
 ## Example drawing sets
 
@@ -99,30 +99,6 @@ npm link          # makes the aecdo command available everywhere
 
 `npm install` also copies the [Claude Code skill](agents.md) into `~/.claude/skills/aecdo/`. It doesn't ask about the examples; run `aecdo examples` to get them.
 
-## Tab completion
-
-Set up tab completion once and `aecdo process <Tab>` offers only PDFs (and folders), while `summary`, `gui`, and the other file commands offer only `.jsonld` and `.json` files. Commands, options, and values like `--format json` and `--then summary` complete too.
-
-**bash** (add to `~/.bashrc`):
-
-```bash
-echo 'eval "$(aecdo completion bash)"' >> ~/.bashrc
-```
-
-**zsh**, the default on macOS (add to `~/.zshrc`):
-
-```bash
-echo 'eval "$(aecdo completion zsh)"' >> ~/.zshrc
-```
-
-**fish**:
-
-```bash
-aecdo completion fish > ~/.config/fish/completions/aecdo.fish
-```
-
-Open a new terminal afterwards. `aecdo completion` with no shell name prints the script for the shell in your `$SHELL`. PowerShell completion isn't available yet.
-
 ## Updating
 
 ```bash
@@ -139,7 +115,7 @@ aecdo update
 
 ### Update notices
 
-Once a day, `aecdo` checks [GitHub Releases](https://github.com/jeff-carmichael/aecdo/releases) in the background. When there's a newer version, the next command you run ends with a short notice suggesting `aecdo update`. The check never slows a command down, the notice goes to stderr so it never ends up in piped output, and it's skipped in CI and when output isn't a terminal.
+Once a day, `aecdo` checks [GitHub Releases](https://github.com/jeff-carmichael/aecdo/releases) in the background. When there's a newer version, a short notice suggesting `aecdo update` shows in the terminal when you close the app (or when a command finishes). The check never slows a command down, the notice goes to stderr so it never ends up in piped output, and it's skipped in CI and when output isn't a terminal.
 
 To turn it off, set `NO_UPDATE_CHECK=1` in your environment, or add `--no-update-check` to a command.
 

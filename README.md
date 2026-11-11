@@ -13,7 +13,7 @@ The CLI also includes an optional wrapper for the [DrawingBot](https://aecdrawin
 
 ## 📖 [Read the Getting Started guide](https://jeff-carmichael.github.io/aecdo/)
 
-The guide covers installing on every platform, exploring a drawing set, the AI assistant, a walkthrough of the demo set, the data model and bbox coordinates, using `aecdo` with Claude Code, and processing PDFs. Its source is in [`docs/`](docs/).
+The guide covers installing on every platform, using the app, the AI assistant, a walkthrough of the demo set, the data model and bbox coordinates, the commands for scripts and agents (including Claude Code), and processing PDFs. Its source is in [`docs/`](docs/).
 
 ## Install
 

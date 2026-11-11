@@ -15,13 +15,22 @@ cd ~/aecdo-examples
 aecdo
 ```
 
-The app opens and lists the `.jsonld` files in that folder and the ones you opened recently. Pick one with <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>. To open a file straight away, name it:
+The app opens on **Open a drawing set**:
+
+- **Recent** lists the sets you opened before, from any folder.
+- **In** followed by the folder name lists the `.jsonld` files in the folder you started from.
+- The box at the bottom takes the path to any `.jsonld` file. Press <kbd>/</kbd> to jump to it.
+- **Settings** (or <kbd>,</kbd>) sets up the AI models.
+
+Pick a set with <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>, or click it. Press <kbd>o</kbd> later to come back here and open another set without closing the app.
+
+To skip this screen, name the file when you start:
 
 ```bash
 aecdo gui maple-grove-library.jsonld
 ```
 
-`aecdo explore plans.jsonld` does the same thing. While the app is open, the terminal waits; closing the window (or pressing <kbd>q</kbd>) gives it back. <kbd>o</kbd> opens another drawing set without closing the app.
+(`aecdo explore` does the same.) While the app is open, the terminal waits; closing the window or pressing <kbd>q</kbd> gives it back. The folder you start from matters: it's where the [AI assistant](assistant.md) keeps its notes and spreadsheets and looks for an `AGENTS.md`.
 
 ## What you need
 
@@ -50,6 +59,7 @@ Pick a sheet, open a drawing, open a layer, open an item: the app works the way 
 | <kbd>+</kbd> <kbd>−</kbd>, <kbd>Shift</kbd> + arrows | Zoom, pan |
 | <kbd>a</kbd> | Ask the AI about what you're looking at |
 | <kbd>t</kbd> | Start another chat; <kbd>[</kbd> <kbd>]</kbd> switch chats |
+| <kbd>c</kbd> | Show or hide the chat |
 | <kbd>M</kbd> | Mark up what's selected |
 | <kbd>m</kbd> | Review and save markups |
 | <kbd>d</kbd> | Show ids and coordinates |
@@ -105,7 +115,7 @@ If the box lands in the wrong place, the file's coordinates may not be in PDF po
 
 ## AI chats
 
-<kbd>a</kbd> opens the chat on the right. Ask about what you're looking at in plain words; the assistant sees the place you have open, can move around the set (the app follows), zoom the PDF to things, propose markups, write notes, and fill in a spreadsheet in the current folder. Set it up once in Settings (<kbd>,</kbd>). When it writes a note or a spreadsheet, the chat links to the file so you can open it. See [AI assistant](assistant.md).
+<kbd>a</kbd> opens the chat on the right, and <kbd>c</kbd> shows or hides it. Ask about what you're looking at in plain words; the assistant sees the place you have open, can move around the set (the app follows), zoom the PDF to things, propose markups, write notes, and fill in a spreadsheet in the current folder. Set it up once in Settings (<kbd>,</kbd>). When it writes a note or a spreadsheet, the chat links to the file so you can open it. See [AI assistant](assistant.md).
 
 Each chat is its own conversation, so you can check doors in one and ask about the structure in another. <kbd>t</kbd> (or <kbd>Ctrl</kbd>+<kbd>T</kbd>) starts a chat, the tabs at the top switch between them, and each one can use a different model. Chats last until you close the app.
 
@@ -115,19 +125,13 @@ Ask the AI to cloud something, press <kbd>M</kbd> on whatever's selected, or hol
 
 If you quit with markups still pending, the app asks whether to save them.
 
-## Quick looks from the terminal
+## From the terminal
 
-These print and exit, for a quick check or for scripts and [AI agents](agents.md):
+The same data is available as plain commands that print and exit, for a quick count or for scripts and AI agents:
 
 ```bash
 aecdo summary plans.jsonld          # counts of sheets, drawings, items, tables, notes, images
-aecdo sheets plans.jsonld           # one line per sheet: number, title, page
-aecdo page plans.jsonld A101        # everything on one sheet (by sheet number or page index)
-aecdo validate plans.jsonld         # check the file against the AECDO format
+aecdo page plans.jsonld A101        # everything on one sheet
 ```
 
-Add `--format json` for JSON, `--pretty` to indent it, and `-o file` to save it:
-
-```bash
-aecdo page plans.jsonld A601 --format json --pretty -o a601.json
-```
+See [Command line and agents](agents.md) for every command.

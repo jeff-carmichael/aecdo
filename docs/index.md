@@ -12,12 +12,12 @@ With `aecdo` you can:
 
 - **Look through** a drawing set sheet by sheet in the app, down to single door tags and walls, with the PDF page always beside it and whatever you pick outlined in red.
 - **Ask** an AI model such as Claude or ChatGPT about what you're looking at, in as many chats as you like, and have it take notes, fill in a spreadsheet, or cloud problems on the PDF.
-- **Check** files against the format and get summaries, for scripts or AI agents.
+- **Script it**: plain commands check files against the format and print summaries and sheets for scripts and AI agents such as Claude Code.
 - **Process** PDFs into AECDO files through the [DrawingBot](https://aecdrawingbot.com) API (coming soon).
 
-## New to the command line?
+## You only need a terminal to start it
 
-You start `aecdo` from a **terminal**: a window where you type commands instead of clicking. After that, the app opens in its own window. You only need a few things.
+`aecdo` is an app with its own window. You use a **terminal** (a window where you type commands) for just two things: installing it once, and starting it. Everything else happens in the app, with the keyboard or the mouse.
 
 **Open a terminal.**
 
@@ -27,15 +27,13 @@ You start `aecdo` from a **terminal**: a window where you type commands instead 
 
 **Run a command.** Type it (or paste it) and press <kbd>Enter</kbd>. Each grey box on this site holds a command; the button in its corner copies it. To paste into a terminal, use <kbd>Ctrl</kbd> <kbd>V</kbd> on Windows (or right-click), <kbd>⌘</kbd> <kbd>V</kbd> on macOS, or <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>V</kbd> on Linux. Lines in a box that start with `#` are notes for you, not something to type.
 
-**Go to a folder.** A terminal is always "in" one folder, shown before the spot where you type. `cd` moves to another folder, and `aecdo` looks for drawing files in the folder you're in:
+**Go to a folder.** A terminal is always "in" one folder. `cd` moves to another one. The app lists the drawing sets in the folder you start it from, and the AI assistant keeps its notes and spreadsheets there, so start it from your project folder:
 
 ```bash
 cd Documents
 ```
 
 The `~` you'll see in some commands means your home folder (like `C:\Users\you` or `/Users/you`). If you get lost, `cd ~` takes you home.
-
-**Stop.** Press <kbd>Ctrl</kbd> <kbd>C</kbd> to stop whatever is running.
 
 ## Quick start
 
@@ -61,7 +59,7 @@ At the end, it asks whether to download the example drawing sets. Press <kbd>Ent
 aecdo --version
 ```
 
-It should print a version number like `0.5.1`. If it says the command isn't found, see [Troubleshooting](troubleshooting.md#installing). More options are on [Install and update](install.md).
+It should print a version number like `0.6.0`. If it says the command isn't found, see [Troubleshooting](troubleshooting.md#installing). More options are on [Install and update](install.md).
 </li>
 <li markdown="1">
 **Open the demo drawing set.** Go to the examples folder and open the [Maple Grove Library demo](demo.md), a made-up 19-sheet set. You don't need an account.
@@ -71,7 +69,7 @@ cd ~/aecdo-examples
 aecdo
 ```
 
-The app opens and lists the drawing sets in the folder. Pick **maple-grove-library.jsonld** with <kbd>↓</kbd> and <kbd>Enter</kbd>. (If you skipped the examples, run `aecdo examples ~/aecdo-examples` first to download them.) On Linux, the window needs WebKitGTK; see [Use the app](app.md#what-you-need).
+The app opens on **Open a drawing set**, which lists the sets you opened recently and the ones in this folder. Pick **maple-grove-library.jsonld** with <kbd>↓</kbd> and <kbd>Enter</kbd>, or click it. You can also type the path to any `.jsonld` file in the box at the bottom. (If you skipped the examples, run `aecdo examples ~/aecdo-examples` first to download them.) On Linux, the window needs WebKitGTK; see [Use the app](app.md#what-you-need).
 </li>
 <li markdown="1">
 **Move around with the arrow keys.** The sheets are listed on the left, and what you open shows in the middle.
@@ -99,14 +97,14 @@ The bottom of the window always shows the keys that work. [Use the app](app.md) 
 | Page | What you'll learn |
 |------|-------------------|
 | [Install and update](install.md) | Installing on Windows, macOS, and Linux, the "Windows protected your PC" warning, updating, and uninstalling |
-| [Use the app](app.md) | The app, its keys, seeing things on the PDF, AI chats, markups, and quick one-line commands |
+| [Use the app](app.md) | Opening a set, moving around, the PDF pane, AI chats, and markups |
 | [AI assistant](assistant.md) | Setting up Claude, ChatGPT, or another model, what the assistant can do, and marking up PDFs |
 | [Demo walkthrough](demo.md) | A guided tour of the 19-sheet Maple Grove Library set |
 | [Data model and bbox](data-model.md) | How the data is organized, what the coordinates mean, and how to make your own files |
-| [Claude Code and agents](agents.md) | Letting Claude Code and other AI agents use `aecdo` |
+| [Command line and agents](agents.md) | Every command, for scripts, Claude Code, and other AI agents |
 | [Process PDFs](process.md) | Turning PDFs into AECDO files with the DrawingBot API (coming soon) |
 | [Troubleshooting](troubleshooting.md) | Fixes for common problems |
 
 ## Getting help
 
-Type `aecdo --help` for every command and option. Found a bug or have an idea? [Open an issue](https://github.com/jeff-carmichael/aecdo/issues). Want to contribute? Read [CONTRIBUTING.md](https://github.com/jeff-carmichael/aecdo/blob/main/CONTRIBUTING.md).
+In the app, press <kbd>?</kbd> for every key. For the commands, see [Command line and agents](agents.md) or type `aecdo --help`. Found a bug or have an idea? [Open an issue](https://github.com/jeff-carmichael/aecdo/issues). Want to contribute? Read [CONTRIBUTING.md](https://github.com/jeff-carmichael/aecdo/blob/main/CONTRIBUTING.md).

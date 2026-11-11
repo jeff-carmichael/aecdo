@@ -12,8 +12,8 @@ title: Troubleshooting
 **"Windows protected your PC"**
 : `aecdo.exe` isn't code-signed yet. Install with the [PowerShell one-liner](install.md#windows) to avoid the warning, or click **More info → Run anyway**. See [Install and update](install.md#windows-protected-your-pc).
 
-**Double-clicking `aecdo.exe` just flashes a window**
-: It's a command-line tool. Run it from PowerShell or Windows Terminal.
+**How do I start the app on Windows?**
+: Open PowerShell or Windows Terminal, `cd` to the folder with your drawings, and type `aecdo`.
 
 **`musl-based Linux (e.g. Alpine) is not supported yet`**
 : [Build from source](install.md#build-from-source) with Node.js.
