@@ -59,7 +59,6 @@ Pick a sheet, open a drawing, open a layer, open an item: the app works the way 
 | <kbd>+</kbd> <kbd>−</kbd>, <kbd>Shift</kbd> + arrows | Zoom, pan |
 | <kbd>a</kbd> | Ask the AI about what you're looking at |
 | <kbd>t</kbd> | Start another chat; <kbd>[</kbd> <kbd>]</kbd> switch chats |
-| <kbd>c</kbd> | Show or hide the chat |
 | <kbd>M</kbd> | Mark up what's selected |
 | <kbd>m</kbd> | Review and save markups |
 | <kbd>d</kbd> | Show ids and coordinates |
@@ -115,7 +114,7 @@ If the box lands in the wrong place, the file's coordinates may not be in PDF po
 
 ## AI chats
 
-<kbd>a</kbd> opens the chat on the right, and <kbd>c</kbd> shows or hides it. Ask about what you're looking at in plain words; the assistant sees the place you have open, can move around the set (the app follows), zoom the PDF to things, propose markups, write notes, and fill in a spreadsheet in the current folder. Set it up once in Settings (<kbd>,</kbd>). When it writes a note or a spreadsheet, the chat links to the file so you can open it. See [AI assistant](assistant.md).
+<kbd>a</kbd> opens the chat on the right. Ask about what you're looking at in plain words; the assistant sees the place you have open, can move around the set (the app follows), zoom the PDF to things, propose markups, write notes, and fill in a spreadsheet in the current folder. Set it up once in Settings (<kbd>,</kbd>). When it writes a note or a spreadsheet, the chat links to the file so you can open it. See [AI assistant](assistant.md).
 
 Each chat is its own conversation, so you can check doors in one and ask about the structure in another. <kbd>t</kbd> (or <kbd>Ctrl</kbd>+<kbd>T</kbd>) starts a chat, the tabs at the top switch between them, and each one can use a different model. Chats last until you close the app.
 
