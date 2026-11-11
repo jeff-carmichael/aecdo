@@ -411,7 +411,12 @@ function setFocus(f) {
     if (row && state && !state.sheet) schedulePreview(row.n, 0);
   } else if (f === "main") $("main-list").focus({ preventScroll: true });
   else if (f === "pdf") $("pdf-stage").focus({ preventScroll: true });
-  else if (f === "chat") void chat.ensureThread().then(() => chat.focus());
+  else if (f === "chat") {
+    // The chat pane takes focus without jumping into the input, so [ ] switch chats; Enter or a starts typing.
+    void chat.ensureThread().then(() => {
+      if (!chat.typing) chat.blur();
+    });
+  }
   renderHints();
 }
 
@@ -424,7 +429,7 @@ function cycleFocus(/** @type {number} */ dir) {
 }
 
 function renderHints() {
-  const hints = HINTS[focus] ?? [];
+  const hints = (focus === "chat" && chat.typing ? HINTS.chatInput : HINTS[focus]) ?? [];
   $("hints").innerHTML = hints.map(([k, v]) => `<span><kbd>${esc(k)}</kbd> ${esc(v)}</span>`).join("");
 }
 
@@ -486,6 +491,7 @@ function openChat() {
   if (!$("chat-pane").hidden) return;
   $("chat-pane").hidden = false;
   app.classList.add("chat-open");
+  $("chat-btn").textContent = "Hide AI";
 }
 
 function toggleChat() {
@@ -494,6 +500,7 @@ function toggleChat() {
   else {
     pane.hidden = true;
     app.classList.remove("chat-open");
+    $("chat-btn").textContent = "Ask AI";
     if (focus === "chat") setFocus(state?.sheet ? "main" : "sheets");
   }
 }
@@ -1238,6 +1245,36 @@ function onKey(e) {
   const list = focus === "sheets" ? sheetList : mainList;
   const handled = () => e.preventDefault();
 
+  if (focus === "chat") {
+    // In the chat, [ ] switch chats and Esc leaves; any other character starts typing the question.
+    switch (k) {
+      case "Enter":
+        handled();
+        return chat.focus();
+      case "Delete":
+        handled();
+        if (chat.current) void chat.close(chat.current).then(() => chat.ensureThread());
+        return;
+      case "ArrowDown":
+      case "ArrowUp":
+        handled();
+        return chat.scroll(k === "ArrowDown" ? 1 : -1);
+      case "PageDown":
+      case "PageUp":
+        handled();
+        return chat.scroll(k === "PageUp" ? -1 : 1, true);
+      case "[":
+      case "]":
+      case "Tab":
+        break;
+      default:
+        if (k.length === 1) {
+          handled();
+          return chat.focus(chat.input.value + k);
+        }
+    }
+  }
+
   if (e.shiftKey && k.startsWith("Arrow")) {
     handled();
     const step = 120;
@@ -1378,6 +1415,9 @@ document.addEventListener("keydown", onKey);
 $("help-btn").addEventListener("click", helpModal);
 $("settings-btn").addEventListener("click", () => void settingsModal());
 $("chat-btn").addEventListener("click", toggleChat);
+$("chat-hide").addEventListener("click", toggleChat);
+$("chat-input").addEventListener("focus", renderHints);
+$("chat-input").addEventListener("blur", renderHints);
 $("markups-btn").addEventListener("click", markupsPanel);
 $("zoom-in").addEventListener("click", () => pdf.zoomBy(1.25));
 $("zoom-out").addEventListener("click", () => pdf.zoomBy(0.8));
