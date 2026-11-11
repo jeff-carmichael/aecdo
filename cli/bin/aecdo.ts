@@ -50,8 +50,8 @@ For people:
                       ChatGPT or OpenRouter, API keys, Amazon Bedrock, a custom
                       endpoint) and the DrawingBot API credentials
   update              Update aecdo to the latest release
-  examples [folder]   Download the example drawing sets (Maple Grove demo,
-                      Vancouver house permit set with its PDF) into a folder
+  examples [folder]   Download the example drawing set (a Vancouver house
+                      permit set with its PDF) into a folder
                       (default: ./aecdo-examples). Existing files are kept
                       unless you add --force
   completion [shell]  Print a tab-completion script for bash, zsh, or fish

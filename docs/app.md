@@ -27,7 +27,7 @@ Pick a set with <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>, or click it.
 To skip this screen, name the file when you start:
 
 ```bash
-aecdo gui maple-grove-library.jsonld
+aecdo gui sample-drawing-package-1and2family.jsonld
 ```
 
 (`aecdo explore` does the same.) While the app is open, the terminal waits; closing the window or pressing <kbd>q</kbd> gives it back. The folder you start from matters: it's where the [AI assistant](assistant.md) keeps its notes and spreadsheets and looks for an `AGENTS.md`.

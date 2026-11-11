@@ -91,7 +91,7 @@ Replaces the standalone binary with the latest GitHub release after verifying it
 aecdo examples [folder]   # default ./aecdo-examples; --force replaces existing files
 ```
 
-Downloads `maple-grove-library.jsonld` (19-sheet demo, data only), `sample-drawing-package-1and2family.{jsonld,pdf}` (real permit set with its PDF), `sample-drawing-set.jsonld`, and a README from the GitHub tag matching the CLI version (falls back to `main`). Existing files are skipped unless `--force`. The install scripts offer this at the end in a terminal; `AECDO_EXAMPLES=1|0` and `AECDO_EXAMPLES_DIR` answer it ahead of time.
+Downloads `sample-drawing-package-1and2family.{jsonld,pdf}` (a real 7-page permit set with its PDF) from the GitHub tag matching the CLI version (falls back to `main`). Existing files are skipped unless `--force`. The install scripts offer this at the end in a terminal; `AECDO_EXAMPLES=1|0` and `AECDO_EXAMPLES_DIR` answer it ahead of time.
 
 ### Shell tab completion
 
@@ -104,7 +104,7 @@ Prints a completion script for a human's shell (`process <Tab>` lists only PDFs)
 ### Validate a file
 
 ```bash
-aecdo validate examples/sample-drawing-set.jsonld
+aecdo validate examples/sample-drawing-package-1and2family.jsonld
 ```
 
 Output: `✓ file.jsonld is valid against AECDO schema.` or lists errors. Exit code 1 on failure.
@@ -120,8 +120,8 @@ Returns: `{"valid": true, "file": "...", "errors": []}`
 ### Get a summary
 
 ```bash
-aecdo summary examples/sample-drawing-set.jsonld
-aecdo summary examples/sample-drawing-set.jsonld --format json
+aecdo summary examples/sample-drawing-package-1and2family.jsonld
+aecdo summary examples/sample-drawing-package-1and2family.jsonld --format json
 ```
 
 Prints totals: sheet count, drawing count, item count, breakdowns by drawing type and item type.
@@ -129,8 +129,8 @@ Prints totals: sheet count, drawing count, item count, breakdowns by drawing typ
 ### List sheets (non-interactive)
 
 ```bash
-aecdo sheets examples/sample-drawing-set.jsonld
-aecdo sheets examples/sample-drawing-set.jsonld --format json
+aecdo sheets examples/sample-drawing-package-1and2family.jsonld
+aecdo sheets examples/sample-drawing-package-1and2family.jsonld --format json
 ```
 
 Prints each sheet's number, title, and page index. It completes in one shot and supports JSON.
@@ -138,8 +138,8 @@ Prints each sheet's number, title, and page index. It completes in one shot and 
 ### Print one sheet
 
 ```bash
-aecdo page examples/sample-drawing-set.jsonld A101
-aecdo page examples/sample-drawing-set.jsonld 0 --format json
+aecdo page examples/sample-drawing-package-1and2family.jsonld 2
+aecdo page examples/sample-drawing-package-1and2family.jsonld 0 --format json
 ```
 
 Prints everything on a sheet — drawings, layers, items with their data and references, tables, notes, and images — selected by sheet number (e.g. `A101`) or page index (e.g. `0`). With `--format json`, emits the raw sheet object. Exits non-zero if no sheet matches.
@@ -147,12 +147,12 @@ Prints everything on a sheet — drawings, layers, items with their data and ref
 ### The app (people only)
 
 ```bash
-aecdo gui examples/maple-grove-library.jsonld
+aecdo gui examples/sample-drawing-package-1and2family.jsonld
 ```
 
 `aecdo gui [file]` (also bare `aecdo` in a terminal, and `aecdo explore [file]`) opens a desktop window for people: the sheet list, what's open, and the PDF page with the selection outlined in red, AI chats (`@claude`, `@chatgpt`, `@gemini`, `@grok`, `@deepseek`, `@kimi`, set up in the app's Settings, `,`), and PDF markups. It waits until the window is closed, so **agents should never run `gui`**, nor bare `aecdo` in a terminal. Without a TTY, bare `aecdo` prints the help, and `explore <file>` (or `explore --format json`) prints the sheet list like `sheets`.
 
-For a richer file to try commands on, `examples/maple-grove-library.jsonld` is a 19-sheet demo set (fictional library, all disciplines) with door, window, finish, equipment, and panel schedules. `examples/sample-drawing-package-1and2family.jsonld` comes with its source PDF (a 7-page house permit set from the City of Vancouver).
+`examples/sample-drawing-package-1and2family.jsonld` comes with its source PDF (a 7-page house permit set from the City of Vancouver), so it's a good file to try commands on.
 
 ### Validate all JSON-LD files in a directory
 

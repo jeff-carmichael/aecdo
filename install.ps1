@@ -5,7 +5,7 @@
 # Environment overrides:
 #   AECDO_VERSION      release tag to install, e.g. v0.5.1 (default: latest)
 #   AECDO_INSTALL_DIR  destination folder (default: %LOCALAPPDATA%\Programs\aecdo)
-#   AECDO_EXAMPLES     1 to download the example drawing sets without asking,
+#   AECDO_EXAMPLES     1 to download the example drawing set without asking,
 #                      0 to skip them (default: ask in an interactive window)
 #   AECDO_EXAMPLES_DIR where to put the examples (default: %USERPROFILE%\aecdo-examples)
 #
@@ -27,7 +27,7 @@ function Install-Aecdo {
       if ($env:CI -or -not [Environment]::UserInteractive -or [Console]::IsInputRedirected) { return }
       try {
         Write-Host ''
-        $answer = Read-Host 'Download the example drawing sets (about 3 MB) to try aecdo? [Y/n]'
+        $answer = Read-Host 'Download the example drawing set (about 2.5 MB) to try aecdo? [Y/n]'
         if ($answer -match '^\s*n') { return }
         $answer = Read-Host "Folder [$dir]"
         if ($answer -and $answer.Trim()) { $dir = $answer.Trim() }

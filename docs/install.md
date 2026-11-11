@@ -65,14 +65,11 @@ If you'd rather download `aecdo-windows-x64.zip` from [Releases](https://github.
 
 ## Example drawing sets
 
-At the end of the install, both scripts ask whether to download the example drawing sets (about 3 MB) and which folder to put them in. Press Enter twice to accept the default, `aecdo-examples` in your home folder, or type `n` to skip. You get:
+At the end of the install, both scripts ask whether to download the example drawing set (about 2.5 MB) and which folder to put them in. Press Enter twice to accept the default, `aecdo-examples` in your home folder, or type `n` to skip. You get:
 
 | File | What it is |
 |------|------------|
-| `maple-grove-library.jsonld` | The 19-sheet [demo set](demo.md) for a fictional library (data only, no PDF) |
-| `sample-drawing-package-1and2family.jsonld` and `.pdf` | The City of Vancouver's [sample house permit set](demo.md#real-drawings-vancouver-sample-house) with its PDF, for seeing items outlined on the PDF and trying markups |
-| `sample-drawing-set.jsonld` | A minimal complete example |
-| `README.md` | Where each file comes from |
+| `sample-drawing-package-1and2family.jsonld` and `.pdf` | The City of Vancouver's [sample house permit set](demo.md) with its PDF, for seeing items outlined on the PDF and trying markups |
 
 The question is skipped when there's no one to answer it: in CI, or when the script isn't run from a terminal. Set `AECDO_EXAMPLES=1` or `AECDO_EXAMPLES=0` to decide ahead of time.
 

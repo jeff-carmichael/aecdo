@@ -35,11 +35,10 @@ You should work to keep the codebase clean at all times. Merge repeated code and
 - `cli/src/lib/update-check.ts` — daily background check for newer GitHub releases (detached worker + cache at `~/.aecdo/update-check.json`, notice on stderr)
 - `package.json` — at repo root, npm-publishable as "aecdo"
 - `docs/` — user guide (Jekyll, served by GitHub Pages from `main`/`docs` at https://jeff-carmichael.github.io/aecdo/); one Markdown page per topic, sidebar order in `docs/_config.yml`; README is short and links here
-- `examples/sample-drawing-set.jsonld` — validates against the schema (small; used by unit tests)
-- `examples/maple-grove-library.jsonld` — detailed 19-sheet demo set (fictional library) for demos of the app and the assistant; `cli/src/lib/schema.test.ts` validates every `.jsonld` file in `examples/`
-- `examples/sample-drawing-package-1and2family.{pdf,jsonld}` — City of Vancouver sample house permit set (7 pages) with a hand-built JSON-LD, for trying the PDF pane and markups on a real PDF; source in `examples/README.md`. The PDF is left out of the npm package
+- `examples/` — only example sets that come with their source PDF, all downloaded by `aecdo examples`: `sample-drawing-package-1and2family.{pdf,jsonld}`, the City of Vancouver sample house permit set (7 pages) with a hand-built JSON-LD, for the demo walkthrough, the PDF pane, and markups; source and copyright in `docs/demo.md`. The PDF is left out of the npm package
+- `test/fixtures/` — data-only sets for tests: `sample-drawing-set.jsonld` (small, every type) and `maple-grove-library.jsonld` (19-sheet fictional library, used by the explore/app tests and `npm run bench`); `cli/src/lib/schema.test.ts` validates every `.jsonld` file here and in `examples/`
 - `.claude/skills/aecdo/SKILL.md` — installable Claude Code skill
-- `scripts/bench-large-set.mjs` — `npm run bench -- 1000` times parse/validate/navigation on a synthetic large set (copies of the Maple Grove demo); run after `npm run build`
+- `scripts/bench-large-set.mjs` — `npm run bench -- 1000` times parse/validate/navigation on a synthetic large set (copies of `test/fixtures/maple-grove-library.jsonld`); run after `npm run build`
 - `scripts/postinstall.mjs` — copies the skill to `~/.claude/skills/` on a global npm install
 - `cli/bin/standalone.ts`, `cli/bin/embed-assets.ts` — Bun entry for standalone binaries (embeds schema + version)
 - `install.sh` — end-user installer for the standalone binary (`curl … | sh`)
@@ -64,11 +63,11 @@ Hierarchy: **DrawingSet → Sheet → Drawing → Layer → Item**, plus Table, 
 ```bash
 npm install
 npm run build
-npx aecdo validate examples/sample-drawing-set.jsonld
-npx aecdo summary examples/sample-drawing-set.jsonld
-npx aecdo sheets examples/sample-drawing-set.jsonld --format json
-npx aecdo page examples/sample-drawing-set.jsonld A101
-npx aecdo gui examples/maple-grove-library.jsonld      # the app (humans)
+npx aecdo validate test/fixtures/sample-drawing-set.jsonld
+npx aecdo summary test/fixtures/sample-drawing-set.jsonld
+npx aecdo sheets test/fixtures/sample-drawing-set.jsonld --format json
+npx aecdo page test/fixtures/sample-drawing-set.jsonld A101
+npx aecdo gui examples/sample-drawing-package-1and2family.jsonld   # the app (humans)
 ```
 
 The CLI is for scripts and agents: plain output (no colors, spinners, pickers, or screens), and nothing waits for input. `configure` opens the app at Settings (`#settings`). `validate`, `summary`, `sheets`, `page` all support `--format json`. People use the app: bare `aecdo` in a TTY opens it (non-TTY prints `HELP`), and `explore` is an alias for `gui` that falls back to listing sheets without a TTY or with `--format json`.

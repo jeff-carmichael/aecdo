@@ -6,7 +6,7 @@ import { Explorer, PdfLocator, groupSheets, sheetEntries, sheetPrefix } from "./
 import type { DrawingSet } from "../types.js";
 
 const data = JSON.parse(
-  readFileSync(new URL("../../../examples/sample-drawing-set.jsonld", import.meta.url), "utf-8")
+  readFileSync(new URL("../../../test/fixtures/sample-drawing-set.jsonld", import.meta.url), "utf-8")
 ) as DrawingSet;
 
 function kindOf(ex: Explorer): string {
@@ -163,7 +163,7 @@ test("a reference to an id outside the file says so", () => {
 
 test("jumping to a schedule opens it on its sheet", () => {
   const demo = JSON.parse(
-    readFileSync(new URL("../../../examples/maple-grove-library.jsonld", import.meta.url), "utf-8")
+    readFileSync(new URL("../../../test/fixtures/maple-grove-library.jsonld", import.meta.url), "utf-8")
   ) as DrawingSet;
   const sheet = demo.sheets.find((s) => s.sheetNumber === "A101")!;
   const drawing = sheet.drawings![0];
@@ -184,7 +184,7 @@ test("jumping to a schedule opens it on its sheet", () => {
 
 function maple() {
   const demo = JSON.parse(
-    readFileSync(new URL("../../../examples/maple-grove-library.jsonld", import.meta.url), "utf-8")
+    readFileSync(new URL("../../../test/fixtures/maple-grove-library.jsonld", import.meta.url), "utf-8")
   ) as DrawingSet;
   const lines: string[] = [];
   const ex = new Explorer(demo, (l = "") => lines.push(l), { fileName: "maple-grove-library.jsonld" });

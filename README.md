@@ -9,7 +9,7 @@ An open schema and open-source CLI for structured data extracted from Architectu
 The CLI also includes an optional wrapper for the [DrawingBot](https://aecdrawingbot.com) API, which turns PDFs into AECDO files.
 
 > [!IMPORTANT]
-> **The DrawingBot API isn't available yet.** `aecdo process`, `upload`, `status`, `download`, and `configure` will work once it launches. Everything else works today with any AECDO JSON-LD file, including the [demo set](examples/maple-grove-library.jsonld).
+> **The DrawingBot API isn't available yet.** `aecdo process`, `upload`, `status`, `download`, and `configure` will work once it launches. Everything else works today with any AECDO JSON-LD file, including the [example set](examples/sample-drawing-package-1and2family.jsonld).
 
 ## 📖 [Read the Getting Started guide](https://jeff-carmichael.github.io/aecdo/)
 
@@ -34,13 +34,13 @@ See [Install and update](https://jeff-carmichael.github.io/aecdo/install.html) f
 ## Quick start
 
 ```bash
-aecdo gui maple-grove-library.jsonld                # open the 19-sheet demo set in the app
+aecdo gui sample-drawing-package-1and2family.jsonld # open the example set and its PDF in the app
 aecdo                                                # or pick a set from the current folder
 aecdo validate plans.jsonld                          # check your own file against the schema
 aecdo page plans.jsonld A101 --format json           # one sheet's data, for scripts and agents
 ```
 
-The installer offers to download the example drawing sets to a folder (or run `aecdo examples` later). Open the demo set, [`maple-grove-library.jsonld`](examples/maple-grove-library.jsonld), and follow the [demo walkthrough](https://jeff-carmichael.github.io/aecdo/demo.html) for a first tour. To see items outlined on the PDF and try markups, use [`examples/sample-drawing-package-1and2family.jsonld`](examples/sample-drawing-package-1and2family.jsonld) with its PDF, the City of Vancouver's sample house permit set. Run `aecdo --help` for every command.
+The installer offers to download the example drawing set to a folder (or run `aecdo examples` later): [`sample-drawing-package-1and2family.jsonld`](examples/sample-drawing-package-1and2family.jsonld) with its PDF, the City of Vancouver's sample house permit set. Open it and follow the [demo walkthrough](https://jeff-carmichael.github.io/aecdo/demo.html) for a first tour, including markups on the PDF. Run `aecdo --help` for every command.
 
 ## Schema
 

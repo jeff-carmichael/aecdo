@@ -1,5 +1,5 @@
 // Times parse, validation and navigation on a large synthetic set built by copying
-// examples/maple-grove-library.jsonld. Usage: npm run build && npm run bench -- [sheets]
+// test/fixtures/maple-grove-library.jsonld. Usage: npm run build && npm run bench -- [sheets]
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
@@ -10,7 +10,7 @@ const { createValidator } = await import(new URL("lib/schema.js", dist).href);
 const { Explorer } = await import(new URL("commands/explore.js", dist).href);
 const { printPage, findSheet } = await import(new URL("commands/page.js", dist).href);
 
-const base = JSON.parse(readFileSync(new URL("../examples/maple-grove-library.jsonld", import.meta.url), "utf-8"));
+const base = JSON.parse(readFileSync(new URL("../test/fixtures/maple-grove-library.jsonld", import.meta.url), "utf-8"));
 const sheets = [];
 for (let copy = 0; sheets.length < target; copy++) {
   const ids = new Map();
