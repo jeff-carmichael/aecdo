@@ -224,11 +224,12 @@ export class ChatPanel {
   /** @param {string} id */
   switchTo(id) {
     if (!this.threads.has(id)) return;
+    const typing = document.activeElement === this.input;
     this.current = id;
     this.renderTabs();
     this.renderLog();
     this.renderModel();
-    this.focus();
+    if (typing) this.focus();
   }
 
   /** @param {number} dir */
@@ -247,6 +248,20 @@ export class ChatPanel {
     }
     this.input.focus();
     this.input.setSelectionRange(this.input.value.length, this.input.value.length);
+  }
+
+  /** Leaves the input but stays in the chat, so [ ] switch chats and Esc leaves. */
+  blur() {
+    this.log.focus({ preventScroll: true });
+  }
+
+  get typing() {
+    return document.activeElement === this.input;
+  }
+
+  /** @param {number} dir */
+  scroll(dir, page = false) {
+    this.log.scrollBy({ top: dir * (page ? this.log.clientHeight * 0.9 : 60) });
   }
 
   stop() {
@@ -282,7 +297,7 @@ export class ChatPanel {
       e.preventDefault();
       e.stopPropagation();
       if (this.busy) this.stop();
-      else this.deps.onLeave();
+      else this.blur();
       return;
     }
     if (e.key === "Tab" && /^@\w*$/.test(this.input.value.split(/\s/)[0] ?? "") && !this.input.value.includes(" ")) {
@@ -350,7 +365,7 @@ export class ChatPanel {
     const parts = [...this.threads.values()].map((t, i) => {
       const cls = t.id === this.current ? "tab active" : "tab";
       const busy = t.busy ? '<span class="dot busy" aria-label="answering"></span>' : "";
-      return `<button class="${cls}" data-thread="${t.id}" title="${escapeHtml(t.title)} (${t.modelLabel})">${busy}<span class="tab-n">${i + 1}</span> ${escapeHtml(t.title)}<span class="x" data-close="${t.id}" title="Close chat">×</span></button>`;
+      return `<div class="${cls}" role="tab" aria-selected="${t.id === this.current}" data-thread="${t.id}" title="${escapeHtml(t.title)} (${t.modelLabel})">${busy}<span class="tab-n">${i + 1}</span><span class="tab-title">${escapeHtml(t.title)}</span><button class="x" data-close="${t.id}" title="Close this chat (x)" aria-label="Close chat ${i + 1}">×</button></div>`;
     });
     parts.push('<button class="tab new" data-new title="New chat (Ctrl+T, or t)">+</button>');
     this.tabs.innerHTML = parts.join("");

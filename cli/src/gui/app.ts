@@ -196,7 +196,7 @@ export class GuiApp {
       confirm: (q, thread) => this.confirm(q, thread),
       bridge: this.opts.bridge,
     });
-    void this.remember(full);
+    await this.remember(full);
     void this.checkValid(data, full);
     return this.session.boot();
   }

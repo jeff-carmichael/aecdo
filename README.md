@@ -9,11 +9,11 @@ An open schema and open-source CLI for structured data extracted from Architectu
 The CLI also includes an optional wrapper for the [DrawingBot](https://aecdrawingbot.com) API, which turns PDFs into AECDO files.
 
 > [!IMPORTANT]
-> **The DrawingBot API isn't available yet.** `aecdo process`, `upload`, `status`, `download`, and `configure` will work once it launches. Everything else works today with any AECDO JSON-LD file, including the [demo set](examples/maple-grove-library.jsonld).
+> **The DrawingBot API isn't available yet.** `aecdo process`, `upload`, `status`, `download`, and `configure` will work once it launches. Everything else works today with any AECDO JSON-LD file, including the [example set](examples/sample-drawing-package-1and2family.jsonld).
 
 ## 📖 [Read the Getting Started guide](https://jeff-carmichael.github.io/aecdo/)
 
-The guide covers installing on every platform, exploring a drawing set, the AI assistant, a walkthrough of the demo set, the data model and bbox coordinates, using `aecdo` with Claude Code, and processing PDFs. Its source is in [`docs/`](docs/).
+The guide covers installing on every platform, using the app, the AI assistant, a walkthrough of the demo set, the data model and bbox coordinates, the commands for scripts and agents (including Claude Code), and processing PDFs. Its source is in [`docs/`](docs/).
 
 ## Install
 
