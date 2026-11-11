@@ -30,7 +30,7 @@ test("examples downloads every file from the release tag", async () => {
     assert.equal(readFileSync(join(dir, file), "utf-8"), `content of ${exampleUrl("v1.2.3", file)}`);
   }
   assert.ok(seen.every((u) => u.includes("/v1.2.3/examples/")));
-  assert.ok(lines.some((l) => l.includes("aecdo gui maple-grove-library.jsonld")));
+  assert.ok(lines.some((l) => l.includes("aecdo gui sample-drawing-package-1and2family.jsonld")));
 });
 
 test("examples falls back to main when the tag doesn't exist", async () => {
@@ -45,19 +45,19 @@ test("examples falls back to main when the tag doesn't exist", async () => {
 
 test("examples keeps existing files unless forced", async () => {
   const dir = tmp();
-  writeFileSync(join(dir, "maple-grove-library.jsonld"), "mine");
+  writeFileSync(join(dir, "sample-drawing-package-1and2family.jsonld"), "mine");
   const opts = { version: "1.0.0", fetchImpl: fakeFetch(() => new Response("new")), log: () => {} };
   await examples(dir, opts);
-  assert.equal(readFileSync(join(dir, "maple-grove-library.jsonld"), "utf-8"), "mine");
+  assert.equal(readFileSync(join(dir, "sample-drawing-package-1and2family.jsonld"), "utf-8"), "mine");
   await examples(dir, { ...opts, force: true });
-  assert.equal(readFileSync(join(dir, "maple-grove-library.jsonld"), "utf-8"), "new");
+  assert.equal(readFileSync(join(dir, "sample-drawing-package-1and2family.jsonld"), "utf-8"), "new");
 });
 
 test("examples reports a failed download and leaves no partial file", async () => {
   const dir = tmp();
   await assert.rejects(
     examples(dir, { version: "1.0.0", fetchImpl: fakeFetch(() => new Response("", { status: 500 })), log: () => {} }),
-    /Could not download README\.md \(500\)/,
+    /Could not download sample-drawing-package-1and2family\.jsonld \(500\)/,
   );
   assert.deepEqual(readdirSync(dir), []);
 });

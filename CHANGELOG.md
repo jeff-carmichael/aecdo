@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Examples
+- `examples/` now holds only sets that come with their PDF: the City of Vancouver sample house. `aecdo examples` and the installers download just that set and its PDF (about 2.5 MB), and the demo walkthrough in the guide now uses it. The data-only `sample-drawing-set.jsonld` and Maple Grove Library demo moved to `test/fixtures/` for the tests, and `examples/README.md` is gone (the Vancouver source and copyright note is now on the demo walkthrough page).
+
 ## [0.6.0] - 2026-11-10
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.

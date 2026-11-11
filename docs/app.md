@@ -18,7 +18,7 @@ aecdo
 The app opens and lists the `.jsonld` files in that folder and the ones you opened recently. Pick one with <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>. To open a file straight away, name it:
 
 ```bash
-aecdo gui maple-grove-library.jsonld
+aecdo gui sample-drawing-package-1and2family.jsonld
 ```
 
 `aecdo explore plans.jsonld` does the same thing. While the app is open, the terminal waits; closing the window (or pressing <kbd>q</kbd>) gives it back. <kbd>o</kbd> opens another drawing set without closing the app.

@@ -11,7 +11,7 @@ The current schema is **v0.3.0**:
 
 - [`aecdo.schema.json`](https://github.com/jeff-carmichael/aecdo/blob/main/ontology/v0.3.0/aecdo.schema.json), the JSON Schema that `aecdo validate` checks against
 - [`context.jsonld`](https://github.com/jeff-carmichael/aecdo/blob/main/ontology/v0.3.0/context.jsonld), the JSON-LD context
-- [`sample-drawing-set.jsonld`](https://github.com/jeff-carmichael/aecdo/blob/main/examples/sample-drawing-set.jsonld), a minimal complete example
+- [`sample-drawing-package-1and2family.jsonld`](https://github.com/jeff-carmichael/aecdo/blob/main/examples/sample-drawing-package-1and2family.jsonld), a complete example that goes with its [PDF](https://github.com/jeff-carmichael/aecdo/blob/main/examples/sample-drawing-package-1and2family.pdf)
 
 ## How it's organized
 
@@ -175,7 +175,7 @@ This is exactly how the app draws its [red box on the PDF](app.md#the-pdf). If t
 
 AECDO is an open standard, and `aecdo` works with any file that matches the schema, whatever produced it: your own extraction pipeline, a script that converts another tool's output, or a commercial service. To make a file `aecdo` can use:
 
-1. Follow the structure above, starting from [`sample-drawing-set.jsonld`](https://github.com/jeff-carmichael/aecdo/blob/main/examples/sample-drawing-set.jsonld).
+1. Follow the structure above, using [the example](https://github.com/jeff-carmichael/aecdo/blob/main/examples/sample-drawing-package-1and2family.jsonld) as a model.
 2. Give every object a unique `urn:uuid:` `@id`.
 3. Write each `bbox` in PDF points from the top-left of the page, as described above, so the red box lines up.
 4. Set `filename` to the source PDF's name, and save the `.jsonld` next to the PDF with the same base name, so the app can find it.

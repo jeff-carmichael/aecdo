@@ -67,7 +67,7 @@ Pre-1.0, minor versions may include breaking changes (per semver convention), bu
 4. **Validate your changes:**
    ```bash
    npm install && npm test
-   npx aecdo validate examples/sample-drawing-set.jsonld
+   npx aecdo validate test/fixtures/sample-drawing-set.jsonld
    ```
 
 5. **Submit a pull request** referencing the issue.
@@ -103,7 +103,7 @@ Whenever you add, remove, rename, or restructure a type or field, walk this chec
 - `cli/src/commands/explore.ts` — add new sheet-level types to `sheetEntries`/`describeEntry` so they appear in the app; new Drawing/Layer children need a new navigation level
 
 **Examples & fixtures:**
-- `examples/sample-drawing-set.jsonld` — bump the `@context` URL and include at least one instance of any new type/field
+- `test/fixtures/sample-drawing-set.jsonld` — bump the `@context` URL and include at least one instance of any new type/field
 - Any other files under `examples/` — bump `@context` URLs
 
 **Docs & metadata:**
@@ -118,8 +118,8 @@ Whenever you add, remove, rename, or restructure a type or field, walk this chec
 **Verify before opening a PR:**
 ```bash
 npm run build
-npx aecdo validate examples/sample-drawing-set.jsonld
-npx aecdo summary examples/sample-drawing-set.jsonld
+npx aecdo validate test/fixtures/sample-drawing-set.jsonld
+npx aecdo summary test/fixtures/sample-drawing-set.jsonld
 npm test
 ```
 
@@ -144,7 +144,7 @@ npm run build
 
 ```bash
 npx aecdo --help
-npx aecdo validate examples/sample-drawing-set.jsonld
+npx aecdo validate test/fixtures/sample-drawing-set.jsonld
 ```
 
 ### Tests and lint

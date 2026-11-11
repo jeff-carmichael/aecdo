@@ -55,7 +55,7 @@ jobs:
           BIN=dist-bin/${{ matrix.target }}/aecdo
           "$BIN" --version
           cd "$RUNNER_TEMP"
-          "$GITHUB_WORKSPACE/$BIN" validate "$GITHUB_WORKSPACE/examples/sample-drawing-set.jsonld"
+          "$GITHUB_WORKSPACE/$BIN" validate "$GITHUB_WORKSPACE/examples/sample-drawing-package-1and2family.jsonld"
 
       - name: Package
         run: |

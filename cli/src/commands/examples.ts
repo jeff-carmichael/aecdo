@@ -8,11 +8,8 @@ const DOWNLOAD_TIMEOUT_MS = 120_000;
 export const DEFAULT_EXAMPLES_DIR = "aecdo-examples";
 
 export const EXAMPLE_FILES = [
-  "README.md",
-  "maple-grove-library.jsonld",
   "sample-drawing-package-1and2family.jsonld",
   "sample-drawing-package-1and2family.pdf",
-  "sample-drawing-set.jsonld",
 ];
 
 export interface ExamplesOptions {
@@ -85,7 +82,6 @@ export async function examples(dirArg: string | undefined, opts: ExamplesOptions
   log("");
   log("Try:");
   log(`  cd "${dir}"`);
-  log("  aecdo gui maple-grove-library.jsonld");
-  log("  aecdo gui sample-drawing-package-1and2family.jsonld   # comes with its PDF");
+  log("  aecdo gui sample-drawing-package-1and2family.jsonld");
   return dir;
 }

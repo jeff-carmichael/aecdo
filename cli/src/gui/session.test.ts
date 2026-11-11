@@ -8,9 +8,9 @@ import type { AssistantOutput, Mention } from "../commands/explore.js";
 import type { DrawingSet } from "../types.js";
 
 const examples = new URL("../../../examples/", import.meta.url);
-const read = (name: string) => JSON.parse(readFileSync(new URL(name, examples), "utf-8")) as DrawingSet;
-const maple = read("maple-grove-library.jsonld");
-const house = read("sample-drawing-package-1and2family.jsonld");
+const read = (url: URL) => JSON.parse(readFileSync(url, "utf-8")) as DrawingSet;
+const maple = read(new URL("../../../test/fixtures/maple-grove-library.jsonld", import.meta.url));
+const house = read(new URL("sample-drawing-package-1and2family.jsonld", examples));
 
 function session(data = maple, file = "/work/maple-grove-library.jsonld", bridge?: (out: AssistantOutput, hooks: BridgeHooks) => ChatBridge) {
   const events: GuiEvent[] = [];

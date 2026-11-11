@@ -11,7 +11,7 @@ import { listSavedMarkups } from "../lib/markup.js";
 import type { DrawingSet } from "../types.js";
 
 const data = JSON.parse(
-  readFileSync(new URL("../../../examples/sample-drawing-set.jsonld", import.meta.url), "utf-8")
+  readFileSync(new URL("../../../test/fixtures/sample-drawing-set.jsonld", import.meta.url), "utf-8")
 ) as DrawingSet;
 
 async function setup(answer = true) {

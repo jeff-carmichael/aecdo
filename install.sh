@@ -6,7 +6,7 @@
 # Environment overrides:
 #   AECDO_VERSION      release tag to install, e.g. v0.3.1 (default: latest)
 #   AECDO_INSTALL_DIR  destination directory (default: /usr/local/bin)
-#   AECDO_EXAMPLES     1 to download the example drawing sets without asking,
+#   AECDO_EXAMPLES     1 to download the example drawing set without asking,
 #                      0 to skip them (default: ask when run in a terminal)
 #   AECDO_EXAMPLES_DIR where to put the examples (default: ~/aecdo-examples)
 
@@ -94,7 +94,7 @@ offer_examples() {
       [ -z "${CI:-}" ] || return 0
       # `curl | sh` feeds the script on stdin, so ask on the terminal itself.
       { : </dev/tty; } 2>/dev/null || return 0
-      printf '\nDownload the example drawing sets (about 3 MB) to try aecdo? [Y/n] ' >/dev/tty
+      printf '\nDownload the example drawing set (about 2.5 MB) to try aecdo? [Y/n] ' >/dev/tty
       read -r answer </dev/tty || return 0
       case "$answer" in [nN]*) return 0 ;; esac
       printf 'Folder [%s]: ' "$dir" >/dev/tty

@@ -15,7 +15,7 @@ import _Ajv2020 from "ajv/dist/2020.js";
 const Ajv2020 = _Ajv2020 as unknown as typeof _Ajv2020.default;
 
 const data = JSON.parse(
-  readFileSync(new URL("../../../examples/sample-drawing-set.jsonld", import.meta.url), "utf-8")
+  readFileSync(new URL("../../../test/fixtures/sample-drawing-set.jsonld", import.meta.url), "utf-8")
 ) as DrawingSet;
 
 function setup(confirm = true) {
