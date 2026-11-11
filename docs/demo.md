@@ -118,12 +118,7 @@ The chat says `Using AGENTS.md from this folder`, and the assistant logs what it
 - **G002** Code Analysis & Life Safety Plan: occupancy and egress information.
 - **S001** General Structural Notes: press <kbd>a</kbd> and ask `what concrete strength is specified for footings?`
 - **E601** Electrical Panel Schedules: open a panel table.
-- Quick summaries without opening the app: run these in a terminal to get counts and the sheet list:
-
-  ```bash
-  aecdo summary maple-grove-library.jsonld
-  aecdo sheets maple-grove-library.jsonld
-  ```
+- Quick summaries without opening the app: `aecdo summary maple-grove-library.jsonld` in a terminal prints the counts (see [Command line and agents](agents.md)).
 
 ## Real drawings: Vancouver sample house
 
