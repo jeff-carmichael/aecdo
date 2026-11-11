@@ -53,8 +53,11 @@
       </div>
     </section>
     <aside id="chat-pane" class="pane" data-focus="chat" hidden>
-      <div id="thread-tabs" role="tablist"></div>
-      <div id="chat-log" aria-live="polite"></div>
+      <div class="chat-head">
+        <div id="thread-tabs" role="tablist"></div>
+        <button id="chat-hide" class="chip" title="Hide the chat (c)" aria-label="Hide the chat">Hide ›</button>
+      </div>
+      <div id="chat-log" aria-live="polite" tabindex="-1"></div>
       <div class="chat-compose">
         <textarea id="chat-input" rows="1" placeholder="Ask about this sheet…  (@model to switch)" spellcheck="true"></textarea>
         <div class="chat-meta">
