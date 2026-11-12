@@ -839,7 +839,7 @@ ${models}
       : `<p class="warn">The AI chat needs Node.js 22.19 or newer. Use the standalone aecdo, or update Node.js.</p>`;
     body.innerHTML = `${auth}<h3>AI models</h3>${aiPart}
 <h3>DrawingBot API</h3>
-${info.api.available ? `<p class="dim">Turns PDFs into drawing sets: pick one under “PDFs to process” on the home screen. ${info.api.configured ? "Set up." : "Not set up."} Saved in <code>${esc(info.api.path)}</code>.</p>
+${info.api.available ? `<p class="dim">Turns PDFs into drawing sets: pick one on the home screen. ${info.api.configured ? "Set up." : "Not set up."} Saved in <code>${esc(info.api.path)}</code>.</p>
 <form class="settings-form" data-form="api">
 <label>Client ID <input name="clientId" placeholder="${esc(info.api.clientId ?? "")}" autocomplete="off" spellcheck="false"${info.api.configured ? "" : " required"}></label>
 <label>Client Secret <input name="clientSecret" type="password" placeholder="${info.api.configured ? "leave blank to keep the saved one" : ""}" autocomplete="off"${info.api.configured ? "" : " required"}></label>
@@ -1020,22 +1020,38 @@ function promptModal(p) {
   /** @type {HTMLElement | null} */ (body.querySelector("input"))?.focus();
 }
 
+/** @typedef {{ kind: "set" | "pdf" | "recent" | "folder", path: string, name: string, where?: string }} HomeItem */
+
+/** Shows the drawing sets in the current folder, then sets and folders used recently elsewhere. */
 /** @param {any} home */
 function showHome(home) {
   const body = document.createElement("div");
   body.className = "home";
+  const sep = /[\\/]/;
+  const name = (/** @type {string} */ p) => p.split(sep).filter(Boolean).pop() ?? p;
+  const parent = (/** @type {string} */ p) => p.replace(/[\\/][^\\/]*[\\/]?$/, "") || p;
+  const tilde = (/** @type {string} */ p) => (home.homeDir && p.startsWith(home.homeDir) && /^([\\/]|$)/.test(p.slice(home.homeDir.length)) ? "~" + p.slice(home.homeDir.length) : p);
   const recent = /** @type {string[]} */ (home.recent);
-  const here = /** @type {string[]} */ (home.files).filter((f) => !recent.includes(f));
+  const elsewhere = recent.filter((f) => parent(f) !== home.cwd).slice(0, 5);
   /** @type {{ name: string, status?: string }[]} */
   const pdfs = home.pdfs;
-  /** @type {{ kind: "file" | "folder" | "pdf", path: string, heading?: string }[]} */
-  const items = [
-    ...recent.map((path, i) => ({ kind: /** @type {const} */ ("file"), path, heading: i === 0 ? "Recent" : undefined })),
-    ...here.map((path, i) => ({ kind: /** @type {const} */ ("file"), path, heading: i === 0 ? `In ${home.cwd}` : undefined })),
-    ...pdfs.map((p, i) => ({ kind: /** @type {const} */ ("pdf"), path: p.name, heading: i === 0 ? "PDFs to process" : undefined })),
-    ...(/** @type {string[]} */ (home.folders)).map((path, i) => ({ kind: /** @type {const} */ ("folder"), path, heading: i === 0 ? "Recent folders" : undefined })),
+  /** @type {HomeItem[]} */
+  const here = [
+    ...(/** @type {string[]} */ (home.files)).map((f) => ({ kind: /** @type {const} */ ("set"), path: f, name: f })),
+    ...pdfs.map((p) => ({ kind: /** @type {const} */ ("pdf"), path: p.name, name: p.name })),
   ];
-  let selected = 0;
+  /** @type {HomeItem[]} */
+  const others = [
+    ...elsewhere.map((f) => ({ kind: /** @type {const} */ ("recent"), path: f, name: name(f), where: tilde(parent(f)) })),
+    ...(/** @type {string[]} */ (home.folders))
+      .filter((d) => !elsewhere.some((f) => parent(f) === d))
+      .slice(0, Math.max(0, 6 - elsewhere.length))
+      .map((d) => ({ kind: /** @type {const} */ ("folder"), path: d, name: name(d), where: tilde(parent(d)) })),
+  ];
+  const items = [...here, ...others];
+  const last = here.findIndex((item) => item.kind === "set" && recent[0] && parent(recent[0]) === home.cwd && name(recent[0]) === item.path);
+  let selected = Math.max(0, last);
+  let typingPath = false;
   const choose = (/** @type {number} */ i) => {
     const item = items[i];
     if (item?.kind === "pdf") void processPdf(item.path);
@@ -1057,18 +1073,19 @@ function showHome(home) {
       showHome(home);
     }
   };
+  const row = (/** @type {HomeItem} */ item, /** @type {number} */ i) => {
+    const status = item.kind === "pdf" ? (pdfs.find((p) => p.name === item.path)?.status ?? "Process into a drawing set") : item.where;
+    return `<li class="${item.kind}${i === selected ? " selected" : ""}" data-i="${i}"><span class="name">${esc(item.name)}</span>${status ? `<span class="where">${esc(status)}</span>` : ""}</li>`;
+  };
   const draw = () => {
-    const status = (/** @type {{ kind: string, path: string }} */ item) => {
-      const s = item.kind === "pdf" ? pdfs.find((p) => p.name === item.path)?.status : undefined;
-      return s ? ` <span class="dim">${esc(s)}</span>` : "";
-    };
-    const list = items
-      .map((item, i) => `${item.heading ? `</ul><h3>${esc(item.heading)}</h3><ul class="files">` : ""}<li class="${item.kind}${i === selected ? " selected" : ""}" data-i="${i}">${esc(item.path)}${status(item)}</li>`)
-      .join("");
-    const empty = here.length || pdfs.length ? "" : `<p>There are no .jsonld drawing sets in ${esc(home.cwd)}. Open another folder, run <code>aecdo examples</code> to download the example set, or type a path below.</p>`;
-    body.innerHTML = `${empty}<ul class="files">${list}</ul>
-<form class="open-path"><input placeholder="Path to a .jsonld file or a folder" autocomplete="off" spellcheck="false"><button class="primary">Open</button></form>
-<div class="actions"><button data-folder>Open folder… <kbd>o</kbd></button><button data-settings>Settings <kbd>,</kbd></button></div>`;
+    const none = pdfs.length
+      ? `<p class="dim">No drawing sets here yet. Process a PDF to make one.</p>`
+      : `<p class="dim">No drawing sets here. A drawing set is a <code>.jsonld</code> file: open the folder that has yours.</p>`;
+    body.innerHTML = `<div class="folder-bar"><span class="folder" title="${esc(home.cwd)}">In ${esc(tilde(home.cwd))}</span><button data-folder>Open another folder… <kbd>o</kbd></button></div>
+${home.files.length ? "" : none}<ul class="files">${here.map((item, i) => row(item, i)).join("")}</ul>
+${others.length ? `<h3>Recent</h3><ul class="files">${others.map((item, i) => row(item, here.length + i)).join("")}</ul>` : ""}
+<form class="open-path"${typingPath ? "" : " hidden"}><input placeholder="Path to a .jsonld file or a folder" autocomplete="off" spellcheck="false"><button class="primary">Open</button></form>
+<div class="actions"><button data-settings>Settings <kbd>,</kbd></button></div>`;
     body.querySelector("[data-settings]")?.addEventListener("click", () => void settingsModal());
     body.querySelector("[data-folder]")?.addEventListener("click", () => void pickFolder());
     body.querySelectorAll("li[data-i]").forEach((li) => li.addEventListener("click", () => choose(Number(/** @type {HTMLElement} */ (li).dataset.i))));
@@ -1077,7 +1094,13 @@ function showHome(home) {
       void openSet(/** @type {HTMLInputElement} */ (body.querySelector("input")).value);
     });
   };
-  const focusPath = () => /** @type {HTMLInputElement} */ (body.querySelector("input")).focus();
+  const focusPath = () => {
+    if (!typingPath) {
+      typingPath = true;
+      draw();
+    }
+    /** @type {HTMLInputElement} */ (body.querySelector("input")).focus();
+  };
   const pickFolder = async () => {
     try {
       const r = await api("api/folder/pick", {});
