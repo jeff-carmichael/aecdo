@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-11
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
 - App chat: a **Hide** button on the chat (and the top **Ask AI** button turns into **Hide AI**), and every chat tab has a × to close it. Going to the chat (`a`, Tab, or a click) no longer jumps into the text box, so `[` `]` switch chats, the arrows scroll, and Delete closes the chat; any other key starts typing. Esc stops typing, and Esc again leaves the chat.
 
