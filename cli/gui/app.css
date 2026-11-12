@@ -1036,6 +1036,7 @@ button.icon {
 
 .actions button,
 .open-path button,
+.folder-bar button,
 #pdf-form button {
   border: 1px solid var(--line);
   background: var(--panel);
@@ -1091,7 +1092,6 @@ button.primary kbd {
   padding: 0;
 }
 
-.home li,
 .markups-panel li {
   padding: 6px 10px;
   border-radius: 6px;
@@ -1099,6 +1099,47 @@ button.primary kbd {
   font-family: var(--mono);
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+.home li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.home li .name {
+  overflow-wrap: anywhere;
+}
+
+.home li .where {
+  margin-left: auto;
+  color: var(--dim);
+  font-size: 12px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.home li.pdf .name,
+.home li.pdf .where {
+  color: var(--dim);
+}
+
+.home li::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 14px;
+  align-self: center;
+  background: var(--dim);
+  mask: var(--icon) center / contain no-repeat;
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 1h7l3 3v11H3z' fill='none' stroke='black' stroke-width='1.4'/%3E%3C/svg%3E");
+}
+
+.home li.folder::before {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3h5l1.5 2h6.5v8.5h-13z' fill='none' stroke='black' stroke-width='1.4'/%3E%3C/svg%3E");
 }
 
 .home li.selected,
@@ -1110,9 +1151,29 @@ button.primary kbd {
   display: none;
 }
 
-.home li.folder::before {
-  content: "▸ ";
+.home .folder-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -4px 0 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.home .folder-bar .folder {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 12px;
   color: var(--dim);
+  overflow-wrap: anywhere;
+}
+
+.home .open-path[hidden] {
+  display: none;
+}
+
+.home .open-path {
+  margin-bottom: 14px;
 }
 
 .markups-panel .n {

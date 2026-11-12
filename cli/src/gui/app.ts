@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { getConfigDir, processingAvailable } from "../lib/config.js";
 import { listJsonld, listPdfs } from "../lib/files.js";
@@ -54,11 +55,14 @@ export interface HomePdf {
 
 export interface HomeInfo {
   cwd: string;
+  /** The user's home folder, so the page can show paths as "~/…". */
+  homeDir: string;
   files: string[];
   /** Empty while processing PDFs is coming soon. */
   pdfs: HomePdf[];
   /** Whether DrawingBot API credentials are saved, so a PDF can be processed. */
   canProcess: boolean;
+  /** Recently opened sets that are still there, newest first. */
   recent: string[];
   /** Recently used folders, other than the current one. */
   folders: string[];
@@ -232,16 +236,20 @@ export class GuiApp {
     if (/\.pdf$/i.test(full)) {
       throw new Error(
         this.processing
-          ? `${basename(full)} is a PDF. Pick it under "PDFs to process" to turn it into a drawing set.`
+          ? `${basename(full)} is a PDF. Pick it on the home screen to turn it into a drawing set.`
           : `${basename(full)} is a PDF. Open its .jsonld drawing set instead; turning PDFs into drawing sets in the app is coming soon.`
       );
     }
     const data = await loadDrawingSet(full);
     if (!Array.isArray(data.sheets)) throw new Error(`${basename(full)} has no sheets to show.`);
-    this.session?.stopAll();
     // --pdf belongs to the set named on the command line, not to ones opened later.
-    const pdf = this.usedPdfOption ? undefined : this.opts.pdf;
+    // Named from the starting folder, which opening the set may switch away from.
+    const named = this.usedPdfOption || !this.opts.pdf ? undefined : this.fullPath(this.opts.pdf);
+    const pdf = named && existsSync(named) ? named : this.usedPdfOption ? undefined : this.opts.pdf;
     this.usedPdfOption = true;
+    // The app works in the open set's folder, so the assistant sees the files next to it.
+    if (dirname(full) !== this.cwd) this.useFolder(dirname(full));
+    this.session?.stopAll();
     this.session = new GuiSession(data, full, {
       pdf,
       emit: (e) => this.emit(e),
@@ -310,10 +318,14 @@ export class GuiApp {
   async openFolder(path: string): Promise<HomeInfo> {
     const full = this.fullPath(path);
     if (!(await stat(full).catch(() => undefined))?.isDirectory()) throw new Error(`${full} isn't a folder.`);
-    if (this.opts.chdir) process.chdir(full);
-    this.cwd = full;
+    this.useFolder(full);
     await this.remember({ folder: full });
     return this.home();
+  }
+
+  private useFolder(full: string): void {
+    if (this.opts.chdir) process.chdir(full);
+    this.cwd = full;
   }
 
   /**
@@ -340,12 +352,14 @@ export class GuiApp {
       // an unreadable folder lists nothing
     }
     const saved = await this.remembered();
+    const exists = await Promise.all(saved.recent.map(async (f) => Boolean((await stat(f).catch(() => undefined))?.isFile())));
     return {
       cwd: this.cwd,
+      homeDir: homedir(),
       files,
       pdfs: await this.pdfsToProcess(files),
       canProcess: this.processing && (await this.settings.apiConfigured()),
-      recent: saved.recent,
+      recent: saved.recent.filter((_, i) => exists[i]),
       folders: saved.folders.filter((f) => f !== this.cwd),
     };
   }

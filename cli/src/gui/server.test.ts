@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { copyFileSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { request } from "node:http";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { GuiApp, type HomeInfo } from "./app.js";
 import type { BootInfo, GuiState } from "./session.js";
@@ -110,7 +110,7 @@ test("the app opens other folders, remembers them, and starts in the last one", 
 
     let picked: string | null | undefined = dir;
     const picker = new GuiApp({ cwd: other, settingsPath: join(dir, "gui.json"), chooseFolder: () => Promise.resolve(picked) });
-    assert.deepEqual(await picker.pickFolder(), { cwd: dir, files: ["sample-drawing-package-1and2family.jsonld"], pdfs: [], canProcess: false, recent: [], folders: [other] });
+    assert.deepEqual(await picker.pickFolder(), { cwd: dir, homeDir: homedir(), files: ["sample-drawing-package-1and2family.jsonld"], pdfs: [], canProcess: false, recent: [], folders: [other] });
     picked = null;
     assert.equal(await picker.pickFolder(), "cancelled");
     picked = undefined;
@@ -118,6 +118,13 @@ test("the app opens other folders, remembers them, and starts in the last one", 
     assert.equal(await picker.lastFolder(), dir);
 
     assert.equal((await json(`${url}api/open`, { path: join(dir, "missing-folder") })).status, 400);
+
+    await app.open(join(other, "house.jsonld"));
+    await app.open(join(dir, "sample-drawing-package-1and2family.jsonld"));
+    assert.equal(app.cwd, dir, "opening a set from another folder works in that folder");
+    assert.equal(await app.lastFolder(), dir);
+    rmSync(join(other, "house.jsonld"));
+    assert.deepEqual((await app.home()).recent, [join(dir, "sample-drawing-package-1and2family.jsonld")], "sets that are gone aren't offered");
   } finally {
     await server.close();
   }
