@@ -15,5 +15,5 @@
     "resolveJsonModule": true
   },
   "include": ["bin/**/*.ts", "src/**/*.ts"],
-  "exclude": ["bin/standalone.ts", "bin/embed-assets.ts", "bin/gui-window.ts", "bin/*.d.ts"]
+  "exclude": ["bin/standalone.ts", "bin/embed-assets.ts", "bin/gui-window.ts", "bin/app-launch.ts", "bin/*.d.ts"]
 }

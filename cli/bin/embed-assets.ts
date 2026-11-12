@@ -17,4 +17,4 @@ setBedrockProviderModule(bedrockProviderModule);
 embedded.guiAssets = guiAssets;
 // `aecdo gui` opens its window by running this binary again (or `bun standalone.ts` in development).
 const compiled = !/^bun(\.exe)?$/i.test(basename(process.execPath));
-embedded.windowCommand = (url) => (compiled ? [process.execPath, "__gui-window", url] : [process.execPath, process.argv[1], "__gui-window", url]);
+embedded.selfCommand = compiled ? [process.execPath] : [process.execPath, process.argv[1]];

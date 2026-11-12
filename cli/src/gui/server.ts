@@ -136,10 +136,14 @@ function routes(app: GuiApp): Record<string, Handler> {
     "POST /api/open": async (b) => {
       const path = str(b, "path");
       try {
-        return { set: await app.open(path) };
+        return (await app.isFolder(path)) ? { home: await app.openFolder(path) } : { set: await app.open(path) };
       } catch (err) {
         throw new HttpError(400, (err as Error).message);
       }
+    },
+    "POST /api/folder/pick": async () => {
+      const r = await app.pickFolder();
+      return typeof r === "string" ? { [r]: true } : { home: r };
     },
     "GET /api/state": () => session(app).state(),
     "POST /api/cmd": (b) => {
@@ -270,9 +274,10 @@ function openEvents(app: GuiApp, req: IncomingMessage, res: ServerResponse): voi
 
 /**
  * Serves the app on 127.0.0.1 under a random secret path, so other programs and web pages
- * on this computer can't drive it. `onDisconnect` hears when the last open page goes away.
+ * on this computer can't drive it. `onConnect` hears when a page opens its event stream, and
+ * `onDisconnect` when the last open page goes away.
  */
-export async function startGuiServer(app: GuiApp, opts: { token?: string; port?: number; onDisconnect?: () => void } = {}): Promise<GuiServer> {
+export async function startGuiServer(app: GuiApp, opts: { token?: string; port?: number; onConnect?: () => void; onDisconnect?: () => void } = {}): Promise<GuiServer> {
   const token = opts.token ?? randomBytes(18).toString("base64url");
   const prefix = `/${token}`;
   const table = routes(app);
@@ -299,6 +304,7 @@ export async function startGuiServer(app: GuiApp, opts: { token?: string; port?:
       }
       if (path === "/api/events" && method === "GET") {
         openEvents(app, req, res);
+        opts.onConnect?.();
         req.on("close", () => {
           if (app.clientCount === 0) opts.onDisconnect?.();
         });

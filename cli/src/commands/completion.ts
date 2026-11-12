@@ -15,6 +15,7 @@ const COMMANDS: [name: string, description: string][] = [
   ["status", "Check the status of a processing job"],
   ["download", "Download the result of a completed job"],
   ["update", "Update aecdo to the latest release"],
+  ["shortcut", "Add the app to the Start menu, Applications, or app menu"],
   ["examples", "Download the example drawing sets into a folder"],
   ["completion", "Print a shell completion script"],
 ];

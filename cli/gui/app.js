@@ -1024,26 +1024,47 @@ function promptModal(p) {
 function showHome(home) {
   const body = document.createElement("div");
   body.className = "home";
-  /** @type {string[]} */
-  const items = [...new Set([...home.recent, ...home.files])];
+  const recent = /** @type {string[]} */ (home.recent);
+  const here = /** @type {string[]} */ (home.files).filter((f) => !recent.includes(f));
+  /** @type {{ kind: "file" | "folder", path: string, heading?: string }[]} */
+  const items = [
+    ...recent.map((path, i) => ({ kind: /** @type {const} */ ("file"), path, heading: i === 0 ? "Recent" : undefined })),
+    ...here.map((path, i) => ({ kind: /** @type {const} */ ("file"), path, heading: i === 0 ? `In ${home.cwd}` : undefined })),
+    ...(/** @type {string[]} */ (home.folders)).map((path, i) => ({ kind: /** @type {const} */ ("folder"), path, heading: i === 0 ? "Recent folders" : undefined })),
+  ];
   let selected = 0;
+  const choose = (/** @type {number} */ i) => {
+    const item = items[i];
+    if (item) void openSet(item.path);
+  };
   const draw = () => {
-    const recent = home.recent.length ? `<h3>Recent</h3>` : "";
     const list = items
-      .map((p, i) => {
-        const heading = i === home.recent.length && home.files.length ? `<h3>In ${esc(home.cwd)}</h3>` : "";
-        return `${heading}<li class="${i === selected ? "selected" : ""}" data-i="${i}">${esc(p)}</li>`;
-      })
+      .map((item, i) => `${item.heading ? `</ul><h3>${esc(item.heading)}</h3><ul class="files">` : ""}<li class="${item.kind}${i === selected ? " selected" : ""}" data-i="${i}">${esc(item.path)}</li>`)
       .join("");
-    body.innerHTML = `${items.length ? `${recent}<ul class="files">${list}</ul>` : `<p>There are no .jsonld drawing sets in ${esc(home.cwd)}. Run <code>aecdo examples</code> to download the example sets, or type a path below.</p>`}
-<form class="open-path"><input placeholder="Path to a .jsonld file" autocomplete="off" spellcheck="false"><button class="primary">Open</button></form>
-<div class="actions"><button data-settings>Settings <kbd>,</kbd></button></div>`;
+    const empty = here.length ? "" : `<p>There are no .jsonld drawing sets in ${esc(home.cwd)}. Open another folder, run <code>aecdo examples</code> to download the example set, or type a path below.</p>`;
+    body.innerHTML = `${empty}<ul class="files">${list}</ul>
+<form class="open-path"><input placeholder="Path to a .jsonld file or a folder" autocomplete="off" spellcheck="false"><button class="primary">Open</button></form>
+<div class="actions"><button data-folder>Open folder… <kbd>o</kbd></button><button data-settings>Settings <kbd>,</kbd></button></div>`;
     body.querySelector("[data-settings]")?.addEventListener("click", () => void settingsModal());
-    body.querySelectorAll("li[data-i]").forEach((li) => li.addEventListener("click", () => void openSet(items[Number(/** @type {HTMLElement} */ (li).dataset.i)])));
+    body.querySelector("[data-folder]")?.addEventListener("click", () => void pickFolder());
+    body.querySelectorAll("li[data-i]").forEach((li) => li.addEventListener("click", () => choose(Number(/** @type {HTMLElement} */ (li).dataset.i))));
     body.querySelector("form")?.addEventListener("submit", (e) => {
       e.preventDefault();
       void openSet(/** @type {HTMLInputElement} */ (body.querySelector("input")).value);
     });
+  };
+  const focusPath = () => /** @type {HTMLInputElement} */ (body.querySelector("input")).focus();
+  const pickFolder = async () => {
+    try {
+      const r = await api("api/folder/pick", {});
+      if (r.home) showHome(r.home);
+      else if (r.unavailable) {
+        toast("There's no folder dialog on this computer (install zenity or kdialog). Type the folder's path instead.", "warn");
+        focusPath();
+      }
+    } catch (err) {
+      toast(/** @type {Error} */ (err).message, "warn");
+    }
   };
   draw();
   openModal({
@@ -1055,12 +1076,13 @@ function showHome(home) {
     keys: (e) => {
       if (typing(e)) return false;
       if (e.key === ",") return void settingsModal(), true;
+      if (e.key === "o") return void pickFolder(), true;
       if (e.key === "ArrowDown" || e.key === "j") selected = Math.min(items.length - 1, selected + 1);
       else if (e.key === "ArrowUp" || e.key === "k") selected = Math.max(0, selected - 1);
-      else if (e.key === "Enter" && items[selected]) void openSet(items[selected]);
+      else if (e.key === "Enter" && items[selected]) choose(selected);
       else if (e.key === "/" || e.key === "p") {
         e.preventDefault();
-        /** @type {HTMLInputElement} */ (body.querySelector("input")).focus();
+        focusPath();
         return true;
       } else return false;
       draw();
@@ -1074,7 +1096,8 @@ async function openSet(path) {
   if (!path?.trim()) return;
   try {
     const r = await api("api/open", { path: path.trim() });
-    await start(r.set);
+    if (r.home) showHome(r.home);
+    else await start(r.set);
   } catch (err) {
     toast(/** @type {Error} */ (err).message, "warn");
   }

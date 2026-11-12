@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { embedded } from "../lib/embedded.js";
 
 /** The app's own files, served under app/. Kept in step with cli/bin/embed-assets.ts. */
-export const APP_FILES = ["index.html", "app.css", "app.js", "pdf-view.js", "chat.js", "list.js", "keys.js"] as const;
+export const APP_FILES = ["index.html", "app.css", "app.js", "pdf-view.js", "chat.js", "list.js", "keys.js", "icon.svg", "icon.ico", "icon.icns"] as const;
 
 const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -14,6 +14,8 @@ const TYPES: Record<string, string> = {
   ".wasm": "application/wasm",
   ".ttf": "font/ttf",
   ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".icns": "image/icns",
 };
 
 export function contentType(path: string): string {

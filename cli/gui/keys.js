@@ -44,7 +44,7 @@ export const SHORTCUTS = [
     "Other",
     [
       ["d", "show ids and coordinates"],
-      ["o", "open another drawing set"],
+      ["o", "open another drawing set or folder"],
       [",", "Settings: AI models and API credentials"],
       ["?", "this list"],
       ["q", "quit"],

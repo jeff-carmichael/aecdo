@@ -1,10 +1,12 @@
 import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { basename, join, resolve } from "node:path";
+import { homedir } from "node:os";
 import { getConfigDir } from "../lib/config.js";
 import { listJsonld } from "../lib/files.js";
 import { isValid } from "../commands/validate.js";
 import { openWithDefaultApp } from "../lib/open.js";
+import { chooseFolder } from "../lib/folder-dialog.js";
 import { GuiSettings } from "./settings.js";
 import { NOTE_EXTENSIONS, resolveInCwd } from "../lib/assistant.js";
 import { SPREADSHEET_EXTENSIONS } from "../lib/spreadsheet.js";
@@ -25,12 +27,24 @@ export interface GuiAppOptions {
   configDir?: string;
   /** Opens sign-in pages and files the assistant wrote; tests replace it. */
   openUrl?: (url: string) => void;
+  /** Makes a folder the process's working folder too, which the assistant works in (off in tests). */
+  chdir?: boolean;
+  /** Shows the system's folder picker; tests replace it. */
+  chooseFolder?: (start: string) => Promise<string | null | undefined>;
+}
+
+/** What `~/.aecdo/gui.json` remembers. */
+interface Remembered {
+  recent: string[];
+  folders: string[];
 }
 
 export interface HomeInfo {
   cwd: string;
   files: string[];
   recent: string[];
+  /** Recently used folders, other than the current one. */
+  folders: string[];
 }
 
 const RECENT_LIMIT = 10;
@@ -63,8 +77,11 @@ export class GuiApp {
   private usedPdfOption = false;
   private quitWith!: (reason: string) => void;
   readonly quitting: Promise<string>;
+  /** The folder the app works in: its home screen lists it, and the assistant writes there. */
+  cwd: string;
 
   constructor(private opts: GuiAppOptions) {
+    this.cwd = opts.cwd;
     this.quitting = new Promise((res) => (this.quitWith = res));
     this.settings = new GuiSettings(this.interaction(), { llmPath: opts.llmPath, configDir: opts.configDir });
   }
@@ -176,14 +193,19 @@ export class GuiApp {
     } catch {
       throw new Error("That isn't a file link.");
     }
-    const full = resolveInCwd(this.opts.cwd, path, [...SPREADSHEET_EXTENSIONS, ...NOTE_EXTENSIONS]);
+    const full = resolveInCwd(this.cwd, path, [...SPREADSHEET_EXTENSIONS, ...NOTE_EXTENSIONS]);
     if (!(await stat(full).catch(() => undefined))?.isFile()) throw new Error(`${basename(full)} isn't there.`);
     (this.opts.openUrl ?? openWithDefaultApp)(full);
     return full;
   }
 
+  /** A path typed in the app, relative to the current folder; "~" is the home folder. */
+  private fullPath(path: string): string {
+    return resolve(this.cwd, path.replace(/^~(?=$|[\\/])/, homedir()));
+  }
+
   async open(path: string): Promise<BootInfo> {
-    const full = resolve(this.opts.cwd, path);
+    const full = this.fullPath(path);
     const data = await loadDrawingSet(full);
     if (!Array.isArray(data.sheets)) throw new Error(`${basename(full)} has no sheets to show.`);
     this.session?.stopAll();
@@ -196,7 +218,7 @@ export class GuiApp {
       confirm: (q, thread) => this.confirm(q, thread),
       bridge: this.opts.bridge,
     });
-    await this.remember(full);
+    await this.remember({ file: full, folder: this.cwd });
     void this.checkValid(data, full);
     return this.session.boot();
   }
@@ -219,34 +241,76 @@ export class GuiApp {
     return this.opts.settingsPath ?? join(getConfigDir(), "gui.json");
   }
 
-  async recent(): Promise<string[]> {
+  private async remembered(): Promise<Remembered> {
     try {
-      const saved = JSON.parse(await readFile(this.settingsPath(), "utf-8")) as { recent?: unknown };
-      return Array.isArray(saved.recent) ? saved.recent.filter((p): p is string => typeof p === "string") : [];
+      const saved = JSON.parse(await readFile(this.settingsPath(), "utf-8")) as Partial<Record<keyof Remembered, unknown>>;
+      const strings = (v: unknown) => (Array.isArray(v) ? v.filter((p): p is string => typeof p === "string") : []);
+      return { recent: strings(saved.recent), folders: strings(saved.folders) };
     } catch {
-      return [];
+      return { recent: [], folders: [] };
     }
   }
 
-  private async remember(path: string): Promise<void> {
+  async recent(): Promise<string[]> {
+    return (await this.remembered()).recent;
+  }
+
+  /** The folder used last, where the app starts when opened from its icon. */
+  async lastFolder(): Promise<string | undefined> {
+    for (const folder of (await this.remembered()).folders) {
+      if ((await stat(folder).catch(() => undefined))?.isDirectory()) return folder;
+    }
+    return undefined;
+  }
+
+  private async remember(used: { file?: string; folder?: string }): Promise<void> {
     try {
-      const recent = [path, ...(await this.recent()).filter((p) => p !== path)].slice(0, RECENT_LIMIT);
+      const saved = await this.remembered();
+      const bump = (list: string[], item?: string) => (item ? [item, ...list.filter((p) => p !== item)].slice(0, RECENT_LIMIT) : list);
+      const next: Remembered = { recent: bump(saved.recent, used.file), folders: bump(saved.folders, used.folder) };
       const file = this.settingsPath();
       await mkdir(join(file, ".."), { recursive: true });
-      await writeFile(file, JSON.stringify({ recent }, null, 2) + "\n");
+      await writeFile(file, JSON.stringify(next, null, 2) + "\n");
     } catch {
       // remembering recent files is a convenience
     }
   }
 
+  /** Works in another folder from now on, like "Open Folder" in an editor. */
+  async openFolder(path: string): Promise<HomeInfo> {
+    const full = this.fullPath(path);
+    if (!(await stat(full).catch(() => undefined))?.isDirectory()) throw new Error(`${full} isn't a folder.`);
+    if (this.opts.chdir) process.chdir(full);
+    this.cwd = full;
+    await this.remember({ folder: full });
+    return this.home();
+  }
+
+  /**
+   * Asks for a folder with the system's picker. Resolves the new home screen, "cancelled", or
+   * "unavailable" when there's no picker (Linux without zenity or kdialog), so the page asks for a path.
+   */
+  async pickFolder(): Promise<HomeInfo | "cancelled" | "unavailable"> {
+    const picked = await (this.opts.chooseFolder ?? chooseFolder)(this.cwd);
+    if (picked === undefined) return "unavailable";
+    if (picked === null) return "cancelled";
+    return this.openFolder(picked);
+  }
+
+  /** Whether a path is a folder rather than a set, for the home screen's path box. */
+  async isFolder(path: string): Promise<boolean> {
+    return Boolean((await stat(this.fullPath(path)).catch(() => undefined))?.isDirectory());
+  }
+
   async home(): Promise<HomeInfo> {
     let files: string[] = [];
     try {
-      files = await listJsonld(this.opts.cwd);
+      files = await listJsonld(this.cwd);
     } catch {
       // an unreadable folder lists nothing
     }
-    return { cwd: this.opts.cwd, files, recent: await this.recent() };
+    const saved = await this.remembered();
+    return { cwd: this.cwd, files, recent: saved.recent, folders: saved.folders.filter((f) => f !== this.cwd) };
   }
 
   quit(reason: string): void {

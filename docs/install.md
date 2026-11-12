@@ -26,10 +26,13 @@ To change what it installs, set these before `sh`:
 | `AECDO_INSTALL_DIR` | Install somewhere else, such as a folder you own | `$HOME/.local/bin` |
 | `AECDO_EXAMPLES` | `1` downloads the [example drawing sets](#example-drawing-sets) without asking, `0` skips them | `0` |
 | `AECDO_EXAMPLES_DIR` | Where to put the examples | `$HOME/aecdo-examples` |
+| `AECDO_SHORTCUT` | `0` skips adding the app to Applications (macOS) or your app menu (Linux) | `0` |
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.sh | AECDO_INSTALL_DIR="$HOME/.local/bin" sh
 ```
+
+It also adds **aecdo** to your apps, so you can open it from its icon like any desktop app: `~/Applications/aecdo.app` on macOS (find it with Spotlight or Launchpad, or drag it to the Dock), and your app menu on Linux desktops. See [Use the app](app.md#open-a-drawing-set).
 
 If the script prints `note: … is not on your PATH`, add that folder to your PATH in `~/.zshrc` or `~/.bashrc`.
 
@@ -43,9 +46,9 @@ Open **PowerShell** or **Windows Terminal** (not Command Prompt) and run:
 irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex
 ```
 
-This downloads the latest `aecdo-windows-x64.zip`, checks its checksum, puts `aecdo.exe` in `%LOCALAPPDATA%\Programs\aecdo`, and adds that folder to your user PATH. You don't need administrator rights. **Open a new terminal afterwards** so it picks up the new PATH, then run `aecdo --version`.
+This downloads the latest `aecdo-windows-x64.zip`, checks its checksum, puts `aecdo.exe` in `%LOCALAPPDATA%\Programs\aecdo`, and adds that folder to your user PATH. It also adds **aecdo** to the Start menu, so you can open the app from there and pin it to the taskbar. You don't need administrator rights. **Open a new terminal afterwards** so it picks up the new PATH, then run `aecdo --version`.
 
-The same `AECDO_VERSION`, `AECDO_INSTALL_DIR`, `AECDO_EXAMPLES`, and `AECDO_EXAMPLES_DIR` settings work here:
+The same `AECDO_VERSION`, `AECDO_INSTALL_DIR`, `AECDO_EXAMPLES`, `AECDO_EXAMPLES_DIR`, and `AECDO_SHORTCUT` settings work here:
 
 ```powershell
 $env:AECDO_VERSION = "v0.6.0"
@@ -61,7 +64,7 @@ If you'd rather download `aecdo-windows-x64.zip` from [Releases](https://github.
 - When the warning appears, click **More info**, then **Run anyway**. Windows remembers this for that file.
 - Or, **before** extracting, right-click the zip, choose **Properties**, tick **Unblock**, and click **OK**. You can also run `Unblock-File .\aecdo.exe` in PowerShell after extracting.
 
-> Start `aecdo` from PowerShell or Windows Terminal, in the folder with your drawings, by typing `aecdo`. If you put `aecdo.exe` somewhere that isn't on your PATH, run it as `.\aecdo.exe` from its folder, or move it to a folder on your PATH.
+> Open the app from the Start menu, or start `aecdo` from PowerShell or Windows Terminal, in the folder with your drawings, by typing `aecdo`. If you put `aecdo.exe` somewhere that isn't on your PATH, run it as `.\aecdo.exe` from its folder, or move it to a folder on your PATH.
 
 ## Example drawing sets
 
@@ -121,8 +124,12 @@ To turn it off, set `NO_UPDATE_CHECK=1` in your environment, or add `--no-update
 1. Delete the program:
    - macOS/Linux: `sudo rm /usr/local/bin/aecdo` (or wherever you installed it; `which aecdo` tells you).
    - Windows: delete the folder `%LOCALAPPDATA%\Programs\aecdo`, then remove it from your PATH in **Settings → System → About → Advanced system settings → Environment Variables**.
-2. Delete your settings and saved credentials: the `.aecdo` folder in your home folder (`~/.aecdo`, or `%USERPROFILE%\.aecdo` on Windows).
-3. If you installed the Claude Code skill, delete `~/.claude/skills/aecdo`.
+2. Delete the app shortcut, if the installer or `aecdo shortcut` added one:
+   - macOS: `~/Applications/aecdo.app`.
+   - Linux: `~/.local/share/applications/aecdo.desktop` and `~/.local/share/icons/hicolor/scalable/apps/aecdo.svg`.
+   - Windows: `aecdo.lnk` in `%APPDATA%\Microsoft\Windows\Start Menu\Programs`.
+3. Delete your settings and saved credentials: the `.aecdo` folder in your home folder (`~/.aecdo`, or `%USERPROFILE%\.aecdo` on Windows).
+4. If you installed the Claude Code skill, delete `~/.claude/skills/aecdo`.
 
 ## What's stored on your computer
 
@@ -132,4 +139,6 @@ To turn it off, set `NO_UPDATE_CHECK=1` in your environment, or add `--no-update
 | `~/.aecdo/token.json` | A cached DrawingBot API sign-in token, valid for 4 hours |
 | `~/.aecdo/llm.json` | AI assistant sign-ins, API keys, and model choices (readable only by you) |
 | `~/.aecdo/update-check.json` | When `aecdo` last checked for updates, and what it found |
+| `~/.aecdo/gui.json` | The sets and folders you opened recently in the app |
+| `~/.aecdo/aecdo.ico` | The Start menu icon (Windows only) |
 

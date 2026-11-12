@@ -8,6 +8,9 @@ import app_pdf_view_js from "../gui/pdf-view.js" with { type: "file" };
 import app_chat_js from "../gui/chat.js" with { type: "file" };
 import app_list_js from "../gui/list.js" with { type: "file" };
 import app_keys_js from "../gui/keys.js" with { type: "file" };
+import app_icon_svg from "../gui/icon.svg" with { type: "file" };
+import app_icon_ico from "../gui/icon.ico" with { type: "file" };
+import app_icon_icns from "../gui/icon.icns" with { type: "file" };
 import pdfjs_pdf_min_mjs from "pdfjs-dist/legacy/build/pdf.min.mjs" with { type: "file" };
 import pdfjs_pdf_worker_min_mjs from "pdfjs-dist/legacy/build/pdf.worker.min.mjs" with { type: "file" };
 import font_FoxitDingbats_pfb from "pdfjs-dist/standard_fonts/FoxitDingbats.pfb" with { type: "file" };
@@ -36,6 +39,9 @@ export const guiAssets = {
   "app/chat.js": app_chat_js,
   "app/list.js": app_list_js,
   "app/keys.js": app_keys_js,
+  "app/icon.svg": app_icon_svg,
+  "app/icon.ico": app_icon_ico,
+  "app/icon.icns": app_icon_icns,
   "pdfjs/pdf.min.mjs": pdfjs_pdf_min_mjs,
   "pdfjs/pdf.worker.min.mjs": pdfjs_pdf_worker_min_mjs,
   "pdfjs/standard_fonts/FoxitDingbats.pfb": font_FoxitDingbats_pfb,
