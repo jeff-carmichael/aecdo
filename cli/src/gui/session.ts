@@ -76,9 +76,9 @@ export interface SheetIndexEntry {
 export interface PdfInfo {
   available: boolean;
   name?: string;
-  /** Changes when the file to show changes (a PDF picked, markups saved). */
+  /** Changes when the file to show changes (a PDF picked, a markup added). */
   version: number;
-  /** True when showing <name>-markups.pdf with saved markups. */
+  /** True when showing <name>-markups.pdf, the copy that holds the markups. */
   savedCopy?: boolean;
   /** Why the PDF wasn't found, and PDFs in the folder to pick from. */
   missing?: string[];
@@ -169,7 +169,7 @@ class ChatThread {
   }
 }
 
-/** Pending markups that tell the app when they change. */
+/** Markups that tell the app when the copy changes, so the PDF pane reloads it. */
 class GuiMarkups extends MarkupSession {
   onChange: () => void = () => undefined;
 
@@ -179,10 +179,16 @@ class GuiMarkups extends MarkupSession {
     return m;
   }
 
-  override drop(index: number): Markup {
-    const m = super.drop(index);
+  override async remove(n?: number): Promise<string> {
+    const r = await super.remove(n);
     this.onChange();
-    return m;
+    return r;
+  }
+
+  override async undo(): Promise<string> {
+    const r = await super.undo();
+    this.onChange();
+    return r;
   }
 }
 
@@ -236,9 +242,11 @@ export class GuiSession {
     this.markups = new GuiMarkups(data, {
       locatePdf: () => ({ path: this.pdfPath, looked: sourcePdfCandidates(filePath, data, opts.pdf) }),
       target: () => this.explorer.viewTarget(),
-      confirm: (q) => opts.confirm(q),
     });
-    this.markups.onChange = () => opts.emit({ type: "markups" });
+    this.markups.onChange = () => {
+      opts.emit({ type: "markups" });
+      this.pdfChanged();
+    };
   }
 
   get sheets(): Sheet[] {
@@ -263,7 +271,7 @@ export class GuiSession {
     };
   }
 
-  /** The PDF the pane shows: the copy with saved markups when there is one, else the source. */
+  /** The PDF the pane shows: the copy with markups when there is one, else the source. */
   pdfFile(): string | undefined {
     if (!this.pdfPath) return undefined;
     return this.markups.savedCopy() ?? this.pdfPath;
@@ -469,44 +477,25 @@ export class GuiSession {
 
   // ── Markups ──────────────────────────────────────────────
 
-  async markupsInfo(): Promise<{ pending: (Markup & { describe: string })[]; listing: string[] }> {
-    let listing: string[];
+  async markupsInfo(): Promise<{ file?: string; markups: { describe: string; sheetNumber: string; pageIndex: number }[]; error?: string }> {
     try {
-      listing = await this.markups.listing();
+      const markups = (await this.markups.list()).map(({ describe, sheetNumber, pageIndex }) => ({ describe, sheetNumber, pageIndex }));
+      return { file: basename(this.markups.outPath()), markups };
     } catch (err) {
-      listing = [(err as Error).message];
+      return { markups: [], error: (err as Error).message };
     }
-    return { pending: this.markups.pending.map((m) => ({ ...m, describe: this.markups.describe(m) })), listing };
   }
 
-  async markupsAction(action: string, inPlace = false, index?: number): Promise<string> {
-    const m = this.markups;
-    let result: string;
+  /** "undo", or "delete" markup `index` (1-based; every markup when left out). */
+  async markupsAction(action: string, index?: number): Promise<string> {
     switch (action) {
-      case "save":
-        result = await m.save(inPlace);
-        break;
       case "undo":
-        result = await m.undo();
-        break;
-      case "remove":
-        result = await m.remove(inPlace);
-        break;
-      case "drop":
-        result = `Dropped ${m.describe(m.drop(index ?? 0))}`;
-        break;
-      case "clear": {
-        const n = m.pending.length;
-        m.pending.length = 0;
-        result = `Discarded ${n} pending markup${n === 1 ? "" : "s"}.`;
-        break;
-      }
+        return this.markups.undo();
+      case "delete":
+        return this.markups.remove(index);
       default:
         throw new Error(`Unknown markups action "${action}"`);
     }
-    this.opts.emit({ type: "markups" });
-    if (action !== "drop" && action !== "clear") this.pdfChanged();
-    return result;
   }
 
   async addMarkup(req: MarkupRequest): Promise<string> {

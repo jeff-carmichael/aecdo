@@ -179,35 +179,44 @@ test("folder instructions are optional and capped", async () => {
   assert.equal(big.text.length, 20_000);
 });
 
-test("the assistant proposes markups that stay pending for the user to save", async () => {
+test("the assistant's markups are saved at once and it can list and remove them", async () => {
   const { explorer, host, faux, models, out } = setup();
   const added: unknown[] = [];
-  const pending: Markup[] = [];
+  const saved: Markup[] = [];
+  const describe = (m: Markup) => `${m.kind} ${m.sheetNumber}: ${m.text}`;
   host.markups = {
-    pending,
     add: (req) => {
       added.push(req);
       const m: Markup = { id: "aecdo-1", kind: req.kind, pageIndex: 0, sheetNumber: "A101", bbox: [85, 120, 700, 130], text: req.text, label: "item Exterior Wall" };
-      pending.push(m);
+      saved.push(m);
       return Promise.resolve(m);
     },
-    drop: (i) => pending.splice(i - 1, 1)[0],
-    describe: (m) => `${m.kind} ${m.sheetNumber} on ${m.label}: ${m.text}`,
+    describe,
+    lines: () => Promise.resolve(saved.map((m, i) => `${i + 1}. ${describe(m)}`)),
+    remove: (n) => Promise.resolve(`Deleted ${describe(saved.splice(n - 1, 1)[0])}`),
     outPath: () => "/plans/set-markups.pdf",
   };
-  let toolResult = "";
+  const results: string[] = [];
+  const lastResult = (context: { messages: unknown[] }) => {
+    const last = context.messages.at(-1) as { content: { text?: string }[] };
+    results.push(last.content.map((c) => c.text ?? "").join(""));
+  };
   faux.setResponses([
     fauxAssistantMessage(
-      [
-        fauxToolCall("navigate", { command: "A101" }),
-        fauxToolCall("add_markup", { kind: "cloud", text: "Wall type missing" }),
-      ],
+      [fauxToolCall("navigate", { command: "A101" }), fauxToolCall("add_markup", { kind: "cloud", text: "Wall type missing" })],
       { stopReason: "toolUse" }
     ),
     (context) => {
-      const last = context.messages.at(-1) as { content: { text?: string }[] };
-      toolResult = last.content.map((c) => c.text ?? "").join("");
-      return fauxAssistantMessage([fauxText("Added a cloud; save it from the Markups panel.")]);
+      lastResult(context);
+      return fauxAssistantMessage([fauxToolCall("list_markups", {})], { stopReason: "toolUse" });
+    },
+    (context) => {
+      lastResult(context);
+      return fauxAssistantMessage([fauxToolCall("remove_markup", { number: 1 })], { stopReason: "toolUse" });
+    },
+    (context) => {
+      lastResult(context);
+      return fauxAssistantMessage([fauxText("Done.")]);
     },
   ]);
 
@@ -215,10 +224,11 @@ test("the assistant proposes markups that stay pending for the user to save", as
   await session.ask("cloud the exterior wall");
   assert.equal(explorer.view.kind, "sheet");
   assert.deepEqual(added, [{ kind: "cloud", text: "Wall type missing" }]);
-  assert.match(toolResult, /Pending markup 1: cloud A101 on item Exterior Wall/);
-  assert.match(toolResult, /saves from the Markups panel/);
-  assert.match(out.join(""), /Markup 1 pending/);
-  assert.ok(buildTools(host, Type).some((t) => t.name === "remove_markup"));
+  assert.match(results[0], /Added cloud A101: Wall type missing\. Saved to \/plans\/set-markups\.pdf; it shows on the PDF pane now/);
+  assert.equal(results[1], "1. cloud A101: Wall type missing");
+  assert.match(results[2], /^Deleted cloud A101: Wall type missing/);
+  assert.equal(saved.length, 0);
+  assert.match(out.join(""), /✎ Added cloud A101/);
   assert.ok(!buildTools({ ...host, markups: undefined }, Type).some((t) => t.name === "add_markup"));
 });
 

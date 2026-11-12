@@ -96,23 +96,19 @@ Ask the assistant to cloud, call out, or note something, and it adds real PDF ma
 
 You can also add markups yourself: press <kbd>M</kbd> to mark up whatever's selected, or hold <kbd>Shift</kbd> and drag a box on the PDF.
 
-**Nothing changes until you save.** Pending markups show on the PDF pane in pink. Press <kbd>m</kbd> to review them in the Markups panel:
+**Markups are saved as they're added, to a copy** next to your PDF: `plans-markups.pdf` for `plans.pdf`. The PDF pane switches to the copy, so each markup shows right away, and your original stays as it was. There's nothing else to save. Open the copy in Bluebeam or Acrobat when you're done. If the copy is open there on Windows, close it first; the app tells you if the file is locked.
 
-- <kbd>s</kbd> saves them to the PDF (see below), and <kbd>S</kbd> saves them into the original;
-- <kbd>x</kbd> drops the highlighted one;
-- <kbd>u</kbd> takes back the last save;
-- <kbd>r</kbd> removes every markup `aecdo` saved earlier.
+Press <kbd>m</kbd> for the Markups panel, which lists the markups `aecdo` added:
 
-**Saving goes to a copy** next to your PDF, `plans-markups.pdf` for `plans.pdf`. Your original stays as it was. Later saves add to the same copy. To mark up the original instead, press <kbd>S</kbd>. If the PDF is open in Bluebeam or Acrobat on Windows, close it first; the save tells you if the file is locked.
+- <kbd>Enter</kbd> goes to the highlighted one's sheet;
+- <kbd>x</kbd> deletes it, and **Delete all** deletes every one;
+- <kbd>u</kbd> undoes the last add or delete in this session.
 
-**Saves only add to the end of the file.** Every byte of the original stays the same, so a digitally signed or sealed set keeps a valid signature, and undo is exact:
+The assistant can list and delete its markups too, if you ask it to. Deleting takes out only markups `aecdo` added (plus replies people attached to them), and leaves everyone else's alone.
 
-- Undo takes back the last save in this session (or the last remove). If the save created the copy, the copy is deleted. Undo refuses if the file has changed since, for example after someone edited it in Bluebeam.
-- Remove deletes every markup aecdo added, plus replies people attached to them, and leaves everyone else's markups alone. It asks first.
+**Each change only adds to the end of the copy**, so undo is exact. If the copy was made from a digitally signed or sealed set, the original's bytes stay the same inside it. Undoing the first markup deletes the copy. Undo refuses if the file has changed since, for example after someone edited it in Bluebeam.
 
-If you quit with markups still pending, the app asks whether to save them.
-
-Markups go where the drawing data says the item is, so they're only as accurate as its [bounding boxes](data-model.md#bbox-coordinates). Check them on the PDF pane before saving. Encrypted or password-protected PDFs can't be marked up.
+Markups go where the drawing data says the item is, so they're only as accurate as its [bounding boxes](data-model.md#bbox-coordinates). Check them on the PDF pane, and delete any that landed in the wrong place. Encrypted or password-protected PDFs can't be marked up.
 
 ## Project instructions: AGENTS.md
 

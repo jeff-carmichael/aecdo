@@ -33,7 +33,6 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 let finding = false;
 let quitting = false;
 /** @type {any} */ let pdfInfo = null;
-/** @type {any[]} */ let pending = [];
 /** Selected row for each place, so "back" lands where you were. */
 const cursors = new Map();
 let previewTimer = 0;
@@ -178,7 +177,7 @@ async function loadPdf() {
   $("pdf-missing").hidden = info.available;
   $("pdf-stage").hidden = !info.available;
   $("pdf-bar").hidden = !info.available;
-  $("pdf-note").textContent = info.savedCopy ? `with saved markups (${info.name})` : "";
+  $("pdf-note").textContent = info.savedCopy ? `showing ${info.name}, with your markups` : "";
   if (!info.available) {
     showMissingPdf(info);
     return;
@@ -322,7 +321,7 @@ function showPdfFor(s, how) {
   const boxes = [];
   for (const sec of s.sections) for (const r of sec.rows) if (r.box) boxes.push({ ...r.box, label: r.label, command: r.command });
   const target = s.target && s.kind !== "preview" ? s.target : undefined;
-  pdf.setOverlay({ boxes, target, markups: pending });
+  pdf.setOverlay({ boxes, target });
   const row = mainList.selectedRow;
   pdf.setHover(row?.box && !row.heading ? { ...row.box, label: row.label } : undefined);
   if (page === undefined) return;
@@ -510,11 +509,9 @@ function toggleChat() {
 async function refreshMarkups() {
   if (!set) return;
   const info = await api("api/markups");
-  pending = info.pending;
   const badge = $("markups-count");
-  badge.hidden = pending.length === 0;
-  badge.textContent = String(pending.length);
-  pdf.setOverlay({ markups: pending });
+  badge.hidden = info.markups.length === 0;
+  badge.textContent = String(info.markups.length);
   if (modal?.kind === "markups") modal.update?.(info);
 }
 
@@ -538,7 +535,7 @@ function markupDialog(at) {
     try {
       const r = await api("api/markups/add", { kind, text: text.value, ...(at?.bbox ? { bbox: at.bbox, sheet: at.sheet } : {}) });
       closeModal();
-      toast(`${r.message}. Press m to review and save.`);
+      toast(`${r.message}. Press m to see your markups or undo.`);
     } catch (err) {
       toast(/** @type {Error} */ (err).message, "warn");
     }
@@ -579,21 +576,21 @@ function markupsPanel() {
   const body = document.createElement("div");
   body.className = "markups-panel";
   let selected = 0;
-  /** @type {any} */
-  let info = { pending, listing: [] };
+  /** @type {{ file?: string, markups: { describe: string, sheetNumber: string }[], error?: string }} */
+  let info = { markups: [] };
   const draw = () => {
-    const rows = info.pending
-      .map((/** @type {any} */ m, /** @type {number} */ i) => `<li class="${i === selected ? "selected" : ""}" data-i="${i}"><span class="n">${i + 1}</span> ${esc(m.describe)}</li>`)
+    const n = info.markups.length;
+    const rows = info.markups
+      .map((m, i) => `<li class="${i === selected ? "selected" : ""}" data-i="${i}"><span class="n">${i + 1}</span> ${esc(m.describe)}</li>`)
       .join("");
-    const saved = info.listing.filter((/** @type {string} */ l) => !/^(Pending|No pending)/.test(l) && !/^\s+\d+\./.test(l));
-    body.innerHTML = `${rows ? `<h3>Pending, not saved yet</h3><ol class="pending">${rows}</ol>` : `<p class="dim">No pending markups. Ask the AI to cloud or call out something, press M on a selection, or Shift+drag on the PDF.</p>`}
-${saved.length ? `<h3>Saved</h3><pre class="saved">${esc(saved.join("\n"))}</pre>` : ""}
+    const where = info.file ? `Markups are saved as they're added, to <strong>${esc(info.file)}</strong> next to your PDF. The original PDF isn't changed.` : esc(info.error ?? "");
+    body.innerHTML = `<p class="dim">${where}</p>
+${rows ? `<ol>${rows}</ol>` : `<p>No markups yet. Ask the AI to cloud or call out something, press <kbd>M</kbd> on a selection, or <kbd>Shift</kbd>+drag on the PDF.</p>`}
 <div class="actions">
-<button data-a="save" class="primary"${info.pending.length ? "" : " disabled"}><kbd>s</kbd> Save to a copy</button>
-<button data-a="save-in-place"${info.pending.length ? "" : " disabled"}><kbd>S</kbd> Save into the PDF</button>
-<button data-a="drop"${info.pending.length ? "" : " disabled"}><kbd>x</kbd> Drop selected</button>
-<button data-a="undo"><kbd>u</kbd> Undo last save</button>
-<button data-a="remove"><kbd>r</kbd> Remove saved</button>
+<button data-a="undo"><kbd>u</kbd> Undo</button>
+<button data-a="delete"${n ? "" : " disabled"}><kbd>x</kbd> Delete</button>
+<button data-a="delete-all"${n ? "" : " disabled"}>Delete all</button>
+<button data-a="go" class="primary"${n ? "" : " disabled"}>Go to it <kbd>Enter</kbd></button>
 </div>`;
     body.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", () => void act(/** @type {HTMLElement} */ (b).dataset.a ?? "")));
     body.querySelectorAll("li[data-i]").forEach((li) =>
@@ -604,17 +601,15 @@ ${saved.length ? `<h3>Saved</h3><pre class="saved">${esc(saved.join("\n"))}</pre
     );
   };
   const act = async (/** @type {string} */ a) => {
-    const map = /** @type {Record<string, any>} */ ({
-      save: { action: "save" },
-      "save-in-place": { action: "save", inPlace: true },
-      drop: { action: "drop", index: selected + 1 },
-      undo: { action: "undo" },
-      remove: { action: "remove" },
-    });
-    if (!map[a]) return;
-    if (a === "save-in-place" && !(await ask("Save the markups into the original PDF? A copy is safer; you can undo either."))) return;
+    const m = info.markups[selected];
+    if (a === "go") {
+      if (!m) return;
+      closeModal();
+      return openSheet(m.sheetNumber);
+    }
+    if (a !== "undo" && !m) return;
     try {
-      const r = await api("api/markups", map[a]);
+      const r = await api("api/markups", a === "undo" ? { action: "undo" } : { action: "delete", ...(a === "delete" ? { index: selected + 1 } : {}) });
       toast(r.message);
     } catch (err) {
       toast(/** @type {Error} */ (err).message, "warn");
@@ -626,18 +621,16 @@ ${saved.length ? `<h3>Saved</h3><pre class="saved">${esc(saved.join("\n"))}</pre
     body,
     update: (/** @type {any} */ next) => {
       info = next;
-      selected = Math.min(selected, Math.max(0, info.pending.length - 1));
+      selected = Math.min(selected, Math.max(0, info.markups.length - 1));
       draw();
     },
     keys: (e) => {
       const k = e.key;
-      if (k === "ArrowDown" || k === "j") selected = Math.min(info.pending.length - 1, selected + 1);
+      if (k === "ArrowDown" || k === "j") selected = Math.min(info.markups.length - 1, selected + 1);
       else if (k === "ArrowUp" || k === "k") selected = Math.max(0, selected - 1);
-      else if (k === "s") void act("save");
-      else if (k === "S") void act("save-in-place");
-      else if (k === "x" || k === "Delete" || k === "Backspace") void act("drop");
+      else if (k === "Enter") void act("go");
+      else if (k === "x" || k === "Delete" || k === "Backspace") void act("delete");
       else if (k === "u") void act("undo");
-      else if (k === "r") void act("remove");
       else return false;
       draw();
       return true;
@@ -1134,38 +1127,9 @@ async function openSet(path) {
 }
 
 async function quit() {
-  if (pending.length) {
-    const body = document.createElement("div");
-    body.innerHTML = `<p>${pending.length} markup${pending.length === 1 ? " isn't" : "s aren't"} saved yet.</p>
-<div class="actions"><button data-cancel>Cancel <kbd>Esc</kbd></button><button data-discard>Quit without saving <kbd>d</kbd></button><button data-save class="primary">Save and quit <kbd>s</kbd></button></div>`;
-    const go = (/** @type {boolean} */ save) => {
-      closeModal();
-      void doQuit(save);
-    };
-    body.querySelector("[data-cancel]")?.addEventListener("click", () => closeModal());
-    body.querySelector("[data-discard]")?.addEventListener("click", () => go(false));
-    body.querySelector("[data-save]")?.addEventListener("click", () => go(true));
-    openModal({
-      kind: "quit",
-      title: "Quit aecdo?",
-      body,
-      keys: (e) => {
-        if (e.key === "s" || e.key === "Enter") go(true);
-        else if (e.key === "d") go(false);
-        else return false;
-        return true;
-      },
-    });
-    return;
-  }
-  await doQuit(false);
-}
-
-/** @param {boolean} save */
-async function doQuit(save) {
   quitting = true;
   try {
-    await api("api/quit", { save });
+    await api("api/quit", {});
   } catch {
     // already gone
   }

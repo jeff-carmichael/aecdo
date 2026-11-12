@@ -38,18 +38,19 @@ export interface AssistantHost {
   confirm(question: string): Promise<boolean>;
   /** Shows the current page of the source PDF with the selection outlined. */
   showPage?(): Promise<string>;
-  /** Pending PDF markups; the user reviews and saves them in the app. */
+  /** PDF markups, written to a copy of the PDF as they're added. */
   markups?: AssistantMarkups;
   /** Called when a tool starts, so the screen can show what the assistant is doing. */
   onTool?(name: string, args: unknown): void;
 }
 
 export interface AssistantMarkups {
-  readonly pending: Markup[];
   add(req: { kind: MarkupKind; text: string; bbox?: BBox; sheet?: string; at?: [number, number] }): Promise<Markup>;
-  drop(index: number): Markup;
   describe(m: Markup): string;
-  outPath(inPlace?: boolean): string;
+  /** The markups, numbered from 1. */
+  lines(): Promise<string[]>;
+  remove(n: number): Promise<string>;
+  outPath(): string;
 }
 
 export const DEFAULT_NOTES_FILE = "notes.md";
@@ -97,7 +98,7 @@ export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" |
   const sheetCount = host.data.sheets?.length ?? 0;
   const where = `the aecdo app, a desktop viewer for construction drawing sets that always shows the current PDF page next to the extracted data`;
   const showPage = `show_page zooms the PDF pane, which is always visible, to the open drawing, layer, item, table, note, or image, outlined in red. Use it when the user asks to see, show, or find something on the drawing: navigate to it first (open the item for a red box around it), then call show_page. You can't see the page yourself.`;
-  const saving = `Markups stay pending until the user saves them from the Markups panel (press m), which writes them to a copy of the PDF; tell the user that after adding them. Pending markups show on the PDF pane right away.`;
+  const saving = `Each markup is saved right away to a copy of the PDF next to the original (the original is never changed) and shows on the PDF pane at once; the user can undo or delete markups in the Markups panel (press m).`;
   const otherCommands = `AI models and API keys are set up in the app's Settings (press "," or click Settings). Other aecdo commands (such as "aecdo update") can't run inside the app. When you suggest one, tell the user to run it in a terminal.`;
   const style = `Answer in short paragraphs or simple lists. **bold**, \`code\` and "- " lists are shown formatted, and sheet numbers become links; avoid tables and headings.`;
   return `You are ${info.label}, working inside ${where}.
@@ -112,7 +113,7 @@ You can move around with the navigate tool, using the same commands the user typ
 Use list_sheets and read_sheet to look at other sheets without moving the user.
 ${host.showPage ? `${showPage}
 ` : ""}
-${host.markups ? `add_markup proposes a markup on the source PDF, the kind people draw in Bluebeam or Acrobat: "cloud" around a problem area, "callout" (a text box with a leader arrow pointing at it), or "note" (a sticky-note icon holding longer text). By default it marks the current selection (navigate to the item first, as for show_page); or pass a bbox in the same units as the data, plus the sheet. Write the text as a short review comment a reviewer would leave, e.g. "Door 209B is not in the door schedule (A601)." ${saving} Use list_markups and remove_markup to review or take back pending ones. Only add markups when the user asks for them.
+${host.markups ? `add_markup adds a markup to the PDF, the kind people draw in Bluebeam or Acrobat: "cloud" around a problem area, "callout" (a text box with a leader arrow pointing at it), or "note" (a sticky-note icon holding longer text). By default it marks the current selection (navigate to the item first, as for show_page); or pass a bbox in the same units as the data, plus the sheet. Write the text as a short review comment a reviewer would leave, e.g. "Door 209B is not in the door schedule (A601)." ${saving} Use list_markups and remove_markup to review or take markups back. Only add markups when the user asks for them.
 ` : ""}
 You can write files in the current folder (${host.cwd}):
 - append_note adds Markdown to ${DEFAULT_NOTES_FILE} (or another .md file). Use it when the user asks you to note, record or remember something.
@@ -379,7 +380,7 @@ function markupTools(host: AssistantHost, markups: AssistantMarkups, T: typeof i
       name: "add_markup",
       label: "Add markup",
       description:
-        "Propose a markup on the source PDF: a cloud, a callout, or a sticky note. It stays pending until the user saves it. Marks the current selection unless bbox (and sheet) are given. Returns the pending markup's number.",
+        "Add a markup to the PDF: a cloud, a callout, or a sticky note. It's saved at once to a copy of the PDF and shows on the PDF pane. Marks the current selection unless bbox (and sheet) are given.",
       parameters: T.Object({
         kind: T.Union(MARKUP_KINDS.map((k) => T.Literal(k))),
         text: T.String({ description: "The comment, as a reviewer would write it" }),
@@ -390,29 +391,27 @@ function markupTools(host: AssistantHost, markups: AssistantMarkups, T: typeof i
       executionMode: "sequential",
       execute: async (_id, params: { kind: MarkupKind; text: string; bbox?: BBox; sheet?: string; at?: [number, number] }) => {
         const m = await markups.add(params);
-        const index = markups.pending.length;
-        host.print(`  ✎ Markup ${index} pending: ${markups.describe(m)}`);
-        return text(`Pending markup ${index}: ${markups.describe(m)}. ${index} pending in total. Nothing is written until the user saves from the Markups panel (writes ${markups.outPath()}); they show on the PDF pane now.`);
+        host.print(`  ✎ Added ${markups.describe(m)}`);
+        return text(`Added ${markups.describe(m)}. Saved to ${markups.outPath()}; it shows on the PDF pane now.`);
       },
     }),
     defineTool({
       name: "list_markups",
       label: "List markups",
-      description: "List the pending markups, numbered.",
+      description: "List aecdo's markups on this PDF, numbered.",
       parameters: T.Object({}),
-      execute: () =>
-        text(markups.pending.length ? markups.pending.map((m, i) => `${i + 1}. ${markups.describe(m)}`).join("\n") : "No pending markups."),
+      execute: async () => text((await markups.lines()).join("\n")),
     }),
     defineTool({
       name: "remove_markup",
       label: "Remove markup",
-      description: "Drop a pending markup by its number from list_markups. Saved markups can only be removed by the user.",
+      description: "Delete a markup by its number from list_markups. Only remove markups the user asked to take back.",
       parameters: T.Object({ number: T.Number() }),
       executionMode: "sequential",
-      execute: (_id, params: { number: number }) => {
-        const m = markups.drop(params.number);
-        host.print(`  ✎ Dropped pending markup: ${markups.describe(m)}`);
-        return text(`Dropped: ${markups.describe(m)}. Pending markups are renumbered.`);
+      execute: async (_id, params: { number: number }) => {
+        const r = await markups.remove(params.number);
+        host.print(`  ✎ ${r}`);
+        return text(`${r}. The others are renumbered.`);
       },
     }),
   ];

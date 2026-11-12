@@ -43,14 +43,14 @@ export class PdfView {
     this.view = { s: 1, tx: 0, ty: 0 };
     /** @type {Map<number, { page: any, canvas: HTMLCanvasElement, scale: number }>} */
     this.cache = new Map();
+    /** @type {any} PDF.js loading task of the open document; destroying it frees the document */
+    this.loading = undefined;
     /** @type {Box[]} */
     this.boxes = [];
     /** @type {Box | undefined} */
     this.target = undefined;
     /** @type {Box | undefined} */
     this.hover = undefined;
-    /** @type {any[]} */
-    this.markups = [];
     this.renderToken = 0;
     /** @type {any} */
     this.baseTask = undefined;
@@ -95,7 +95,7 @@ export class PdfView {
   async open(url, key) {
     if (this.docKey === key && this.doc) return;
     const pdfjs = await loadPdfjs();
-    const old = this.doc;
+    const old = this.loading;
     this.docKey = key;
     this.cache.clear();
     const root = new URL("../pdfjs/", import.meta.url).href;
@@ -111,9 +111,10 @@ export class PdfView {
       isEvalSupported: false,
       enableXfa: false,
     });
+    this.loading = task;
     this.doc = await task.promise;
-    old?.destroy();
-    // Same page in the new file (e.g. after saving markups): stay where the view was.
+    void old?.destroy();
+    // Same page in the new file (e.g. after adding a markup): stay where the view was.
     const index = this.pageIndex;
     const view = this.view;
     this.pageIndex = -1;
@@ -420,12 +421,11 @@ export class PdfView {
   // ── Boxes ──────────────────────────────────────────────
 
   /**
-   * @param {{ boxes?: Box[], target?: Box, markups?: any[] }} o
+   * @param {{ boxes?: Box[], target?: Box }} o
    */
   setOverlay(o) {
     if (o.boxes) this.boxes = o.boxes;
     if ("target" in o) this.target = o.target;
-    if (o.markups) this.markups = o.markups;
     this.drawOverlay();
   }
 
@@ -460,13 +460,6 @@ export class PdfView {
         t.textContent = b.label;
         r.append(t);
       }
-    }
-    for (const m of this.markups) {
-      if (m.pageIndex !== page) continue;
-      const r = rect(m.bbox, `markup markup-${m.kind}`);
-      const t = document.createElementNS(SVG, "title");
-      t.textContent = `Pending ${m.kind}: ${m.text}`;
-      r.append(t);
     }
     if (this.target?.bbox && this.target.pageIndex === page) rect(this.target.bbox, "target");
     if (this.hover?.bbox && this.hover.pageIndex === page && this.hover.id !== this.target?.id) rect(this.hover.bbox, "hover");

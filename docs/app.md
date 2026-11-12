@@ -65,7 +65,7 @@ Pick a sheet, open a drawing, open a layer, open an item: the app works the way 
 | <kbd>t</kbd> | Start another chat; <kbd>[</kbd> <kbd>]</kbd> switch chats |
 | <kbd>c</kbd> | Show or hide the chat |
 | <kbd>M</kbd> | Mark up what's selected |
-| <kbd>m</kbd> | Review and save markups |
+| <kbd>m</kbd> | List markups: go to one, undo, delete |
 | <kbd>d</kbd> | Show ids and coordinates |
 | <kbd>o</kbd> | Open another drawing set |
 | <kbd>,</kbd> | Settings: AI models and DrawingBot API credentials |
@@ -127,9 +127,7 @@ When you go to the chat, the keys still switch chats until you start typing: <kb
 
 ## Markups
 
-Ask the AI to cloud something, press <kbd>M</kbd> on whatever's selected, or hold <kbd>Shift</kbd> and drag a box on the PDF. Pending markups show on the page in pink. Press <kbd>m</kbd> to review them: <kbd>s</kbd> saves them to `<name>-markups.pdf`, <kbd>S</kbd> into the original PDF, <kbd>x</kbd> drops one, <kbd>u</kbd> takes back the last save. Once saved, the PDF pane shows the copy with your markups. See [Marking up the PDF](assistant.md#marking-up-the-pdf).
-
-If you quit with markups still pending, the app asks whether to save them.
+Ask the AI to cloud something, press <kbd>M</kbd> on whatever's selected, or hold <kbd>Shift</kbd> and drag a box on the PDF. Each markup is saved as soon as it's added, to `<name>-markups.pdf` next to your PDF, and shows on the PDF pane right away. There's no save step, and your original PDF isn't changed. Press <kbd>m</kbd> to list them: <kbd>Enter</kbd> goes to one, <kbd>x</kbd> deletes it, <kbd>u</kbd> undoes the last add or delete. See [Marking up the PDF](assistant.md#marking-up-the-pdf).
 
 ## From the terminal
 

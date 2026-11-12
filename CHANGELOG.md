@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- App markups are simpler: each markup (from the AI, <kbd>M</kbd>, or Shift+drag) is saved as soon as it's added, to `<name>-markups.pdf` next to the PDF, and the PDF pane shows it right away as the real cloud, callout, or note. There's no pending stage or save step, and no option to write into the original PDF; the Markups panel (`m`) lists the markups with go to, undo, and delete, and the assistant's `list_markups`/`remove_markup` work on the saved ones. Quitting no longer asks about unsaved markups.
+- Fixed: the PDF pane showed "No PDF to show" after the PDF it had open changed (for example after saving markups), since PDF.js 6 documents can't be destroyed directly.
+
 ## [0.6.2] - 2026-11-12
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.
