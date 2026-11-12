@@ -46,7 +46,7 @@ You should work to keep the codebase clean at all times. Merge repeated code and
 - `install.sh` — end-user installer for the standalone binary (`curl … | sh`)
 - `install.ps1` — Windows installer (`irm … | iex`): installs to `%LOCALAPPDATA%\Programs\aecdo`, adds it to the user PATH; downloads via PowerShell so SmartScreen doesn't block the unsigned exe
 - `.github/workflows/consistency.yml` — PR checks (build + test, lint, diagram, changelog)
-- `.github/workflows/release.yml` — builds and publishes binaries when a `v*` tag is pushed
+- `.github/workflows/release.yml` — builds and publishes binaries when a `v*` tag is pushed; Windows builds on `windows-latest` (Bun's `--windows-icon` etc. only work there); a manual run builds without publishing
 - `eslint.config.js` — ESLint flat config
 
 ## Data model

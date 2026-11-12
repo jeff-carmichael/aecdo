@@ -198,7 +198,7 @@ The getting-started guide in `docs/` is a small [Jekyll](https://jekyllrb.com/) 
 1. In a PR, bump the version in `package.json` (`npm version <x.y.z> --no-git-tag-version`) and move the `[Unreleased]` entries in `CHANGELOG.md` under the new version
 2. After it merges, tag `main` and push the tag: `git tag v<x.y.z> && git push origin v<x.y.z>`
 
-The tag triggers `.github/workflows/release.yml`, which checks that the tag matches `package.json`, builds binaries for all platforms, and publishes the GitHub Release with `checksums.txt`. Don't create the release by hand — the workflow will fail if it already exists.
+The tag triggers `.github/workflows/release.yml`, which checks that the tag matches `package.json`, builds binaries for all platforms (Windows on a Windows runner, so `aecdo.exe` gets its icon and file details; macOS on macOS for codesigning), and publishes the GitHub Release with `checksums.txt`. Don't create the release by hand — the workflow will fail if it already exists. To try the builds without releasing, run the workflow by hand (**Actions → Release → Run workflow**): it builds and smoke-tests every binary and keeps them as the run's artifacts, but publishes nothing.
 
 ### Package vs. schema versions
 
