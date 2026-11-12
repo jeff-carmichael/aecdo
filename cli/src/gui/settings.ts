@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AVAILABLE_REGIONS, DEFAULT_REGION, getConfigDir, saveConfig } from "../lib/config.js";
+import { AVAILABLE_REGIONS, DEFAULT_REGION, getConfigDir, processingAvailable, saveConfig } from "../lib/config.js";
 import {
   ASSISTANTS,
   APP_NAME,
@@ -57,6 +57,8 @@ export interface SettingsInfo {
     path: string;
   };
   api: {
+    /** False while processing PDFs is coming soon: Settings says so instead of asking for credentials. */
+    available: boolean;
     configured: boolean;
     /** The client id with all but its last four characters hidden. */
     clientId?: string;
@@ -88,7 +90,7 @@ export class GuiSettings {
 
   constructor(
     private interaction: AuthInteraction,
-    private opts: { llmPath?: string; configDir?: string } = {}
+    private opts: { llmPath?: string; configDir?: string; processing?: boolean } = {}
   ) {
     this.store = new FileCredentialStore(opts.llmPath);
   }
@@ -111,6 +113,12 @@ export class GuiSettings {
     } catch {
       return undefined;
     }
+  }
+
+  /** Whether DrawingBot API credentials are saved. */
+  async apiConfigured(): Promise<boolean> {
+    const api = await this.savedApi();
+    return Boolean(api?.clientId && api.clientSecret);
   }
 
   async info(): Promise<SettingsInfo> {
@@ -141,6 +149,7 @@ export class GuiSettings {
         path,
       },
       api: {
+        available: this.opts.processing ?? processingAvailable(),
         configured: Boolean(api?.clientId && api.clientSecret),
         ...(api?.clientId ? { clientId: api.clientId.slice(-4).padStart(api.clientId.length, "•") } : {}),
         region: api?.region ?? DEFAULT_REGION,

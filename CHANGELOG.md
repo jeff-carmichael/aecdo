@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### CLI
 - The app opens like a desktop app: `aecdo shortcut` adds it to the Start menu (Windows), `~/Applications` (macOS), or the Linux app menu, with its own icon, and `install.sh`/`install.ps1` run it (`AECDO_SHORTCUT=0` skips it). Opened from its icon, the app starts in the folder you used last (your home folder the first time), with no terminal or console window.
 - App home screen: **Open folder…** (`o`) shows the system folder picker (zenity or kdialog on Linux) and switches the folder the app and its AI chats work in; **Recent folders** lists the folders you used before, and the path box takes a folder as well as a `.jsonld` file.
+- The app can turn PDFs into drawing sets without the terminal (hidden until the DrawingBot API launches; `AECDO_PROCESSING=1` turns it on to try it). The home screen lists **PDFs to process**, the PDFs in the folder with no `.jsonld` next to them; picking one asks first, since the PDF is uploaded, shows progress next to it, saves `<name>.jsonld` next to the PDF like `aecdo process`, and opens it. Until then, Settings says processing is coming soon instead of asking for API credentials, and typing a `.pdf` in the home screen's path box says so instead of failing to read it as JSON.
+- The AI assistant no longer tells the model that every set came from DrawingBot, since `aecdo` opens AECDO files from any source.
 - The Windows release is built on Windows, so `aecdo.exe` has the app icon (taskbar, Explorer) and its version and name in Properties, and is smoke-tested like the macOS and Linux builds. The release workflow can also be run by hand to build every binary without publishing.
 
 ## [0.6.1] - 2026-11-11

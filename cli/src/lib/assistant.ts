@@ -102,7 +102,7 @@ export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" |
   const style = `Answer in short paragraphs or simple lists. **bold**, \`code\` and "- " lists are shown formatted, and sheet numbers become links; avoid tables and headings.`;
   return `You are ${info.label}, working inside ${where}.
 
-The open file is ${basename(host.filePath)} (${sheetCount} sheets), extracted from a PDF drawing set by AEC DrawingBot.
+The open file is ${basename(host.filePath)} (${sheetCount} sheets), data extracted from a PDF drawing set.
 Its data follows the AEC Drawing Ontology: DrawingSet → Sheet → Drawing (plan, section, elevation, detail) → Layer → Item.
 Items are "tag" (annotations, symbols), "thing" (physical elements) or "area" (regions); their "data" object holds whatever was extracted.
 Sheets also hold tables (pipe-delimited rows), notes and images. bbox values are [xmin, ymin, xmax, ymax] on the sheet in PDF points (72 per inch) from the top-left corner of the page, y down.

@@ -86,3 +86,11 @@ export async function saveConfig(
   const content = JSON.stringify({ clientId, clientSecret, region }, null, 2) + "\n";
   await writeFile(configPath, content, { encoding: "utf-8", mode: 0o600 });
 }
+
+/**
+ * Whether the app offers to process PDFs. Off until the DrawingBot API launches, so the app
+ * shows it as coming soon; AECDO_PROCESSING=1 turns it on to try it.
+ */
+export function processingAvailable(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.AECDO_PROCESSING === "1";
+}
