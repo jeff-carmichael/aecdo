@@ -2,8 +2,10 @@ import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { basename, join, resolve } from "node:path";
 import { homedir } from "node:os";
-import { getConfigDir } from "../lib/config.js";
-import { listJsonld } from "../lib/files.js";
+import { getConfigDir, processingAvailable } from "../lib/config.js";
+import { listJsonld, listPdfs } from "../lib/files.js";
+import { defaultResultPath, runJob, JobFailedError, type JobOptions } from "../commands/process.js";
+import { statusLine } from "../lib/progress.js";
 import { isValid } from "../commands/validate.js";
 import { openWithDefaultApp } from "../lib/open.js";
 import { chooseFolder } from "../lib/folder-dialog.js";
@@ -31,6 +33,10 @@ export interface GuiAppOptions {
   chdir?: boolean;
   /** Shows the system's folder picker; tests replace it. */
   chooseFolder?: (start: string) => Promise<string | null | undefined>;
+  /** Whether the app offers to process PDFs (default: off until the DrawingBot API launches). */
+  processing?: boolean;
+  /** Uploads a PDF and waits for its JSON-LD; tests replace it. */
+  runJob?: (path: string, opts: JobOptions) => Promise<{ content: string }>;
 }
 
 /** What `~/.aecdo/gui.json` remembers. */
@@ -39,9 +45,20 @@ interface Remembered {
   folders: string[];
 }
 
+/** A PDF in the current folder with no drawing set next to it yet. */
+export interface HomePdf {
+  name: string;
+  /** The latest progress while it's being processed. */
+  status?: string;
+}
+
 export interface HomeInfo {
   cwd: string;
   files: string[];
+  /** Empty while processing PDFs is coming soon. */
+  pdfs: HomePdf[];
+  /** Whether DrawingBot API credentials are saved, so a PDF can be processed. */
+  canProcess: boolean;
   recent: string[];
   /** Recently used folders, other than the current one. */
   folders: string[];
@@ -74,6 +91,8 @@ export class GuiApp {
   private prompts = new Map<string, { resolve: (value: string) => void; reject: (err: Error) => void }>();
   readonly settings: GuiSettings;
   private confirmSeq = 0;
+  /** PDFs being processed, by full path, with their latest progress. */
+  private jobs = new Map<string, string>();
   private usedPdfOption = false;
   private quitWith!: (reason: string) => void;
   readonly quitting: Promise<string>;
@@ -83,7 +102,11 @@ export class GuiApp {
   constructor(private opts: GuiAppOptions) {
     this.cwd = opts.cwd;
     this.quitting = new Promise((res) => (this.quitWith = res));
-    this.settings = new GuiSettings(this.interaction(), { llmPath: opts.llmPath, configDir: opts.configDir });
+    this.settings = new GuiSettings(this.interaction(), { llmPath: opts.llmPath, configDir: opts.configDir, processing: opts.processing });
+  }
+
+  get processing(): boolean {
+    return this.opts.processing ?? processingAvailable();
   }
 
   /** How sign-ins ask their questions and show links: as dialogs in the app. */
@@ -206,6 +229,13 @@ export class GuiApp {
 
   async open(path: string): Promise<BootInfo> {
     const full = this.fullPath(path);
+    if (/\.pdf$/i.test(full)) {
+      throw new Error(
+        this.processing
+          ? `${basename(full)} is a PDF. Pick it under "PDFs to process" to turn it into a drawing set.`
+          : `${basename(full)} is a PDF. Open its .jsonld drawing set instead; turning PDFs into drawing sets in the app is coming soon.`
+      );
+    }
     const data = await loadDrawingSet(full);
     if (!Array.isArray(data.sheets)) throw new Error(`${basename(full)} has no sheets to show.`);
     this.session?.stopAll();
@@ -310,7 +340,61 @@ export class GuiApp {
       // an unreadable folder lists nothing
     }
     const saved = await this.remembered();
-    return { cwd: this.cwd, files, recent: saved.recent, folders: saved.folders.filter((f) => f !== this.cwd) };
+    return {
+      cwd: this.cwd,
+      files,
+      pdfs: await this.pdfsToProcess(files),
+      canProcess: this.processing && (await this.settings.apiConfigured()),
+      recent: saved.recent,
+      folders: saved.folders.filter((f) => f !== this.cwd),
+    };
+  }
+
+  /** PDFs in the current folder without a .jsonld of the same name, and ones being processed. */
+  private async pdfsToProcess(sets: string[]): Promise<HomePdf[]> {
+    if (!this.processing) return [];
+    let names: string[] = [];
+    try {
+      names = await listPdfs(this.cwd);
+    } catch {
+      return [];
+    }
+    const done = new Set(sets.map((f) => f.toLowerCase()));
+    return names
+      .map((name) => ({ name, status: this.jobs.get(join(this.cwd, name)) }))
+      .filter((p) => p.status !== undefined || !done.has(basename(defaultResultPath(p.name)).toLowerCase()))
+      .map((p) => (p.status === undefined ? { name: p.name } : p));
+  }
+
+  /**
+   * Starts turning a PDF in the current folder into a drawing set, saved next to it as
+   * `<name>.jsonld` like `aecdo process`. Progress comes as "process" events; the page asks
+   * first, since the PDF is uploaded.
+   */
+  async process(name: string): Promise<void> {
+    if (!this.processing) throw new Error("Turning PDFs into drawing sets is coming soon.");
+    if (!(await this.settings.apiConfigured())) throw new Error("Add your DrawingBot API credentials in Settings first.");
+    const pdf = this.fullPath(name);
+    if (!/\.pdf$/i.test(pdf) || !(await stat(pdf).catch(() => undefined))?.isFile()) throw new Error(`${basename(pdf)} isn't a PDF in this folder.`);
+    if (this.jobs.has(pdf)) throw new Error(`${basename(pdf)} is already being processed.`);
+    const file = basename(pdf);
+    const update = (status: string) => {
+      this.jobs.set(pdf, status);
+      this.emit({ type: "process", file, status });
+    };
+    update("Uploading");
+    void (this.opts.runJob ?? runJob)(pdf, { onStatus: (s) => update(statusLine(s).replace(/^Status: /, "")) })
+      .then(async ({ content }) => {
+        const out = defaultResultPath(pdf);
+        await writeFile(out, content + "\n", "utf-8");
+        this.jobs.delete(pdf);
+        this.emit({ type: "process", file, done: out });
+      })
+      .catch((err: Error) => {
+        this.jobs.delete(pdf);
+        const text = err instanceof JobFailedError ? err.lines.map((l) => l.trim()).join("; ") : err.message;
+        this.emit({ type: "process", file, error: `Couldn't process ${file}: ${text}` });
+      });
   }
 
   quit(reason: string): void {

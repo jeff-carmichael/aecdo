@@ -127,7 +127,8 @@ export type GuiEvent =
   | { type: "prompt"; id: string; kind: "text" | "secret" | "select"; message: string; placeholder?: string; options?: { id: string; label: string; description?: string }[] }
   | { type: "prompt-cancel"; id: string }
   | { type: "auth"; text: string; url?: string; code?: string }
-  | { type: "settings" };
+  | { type: "settings" }
+  | { type: "process"; file: string; status?: string; done?: string; error?: string };
 
 export interface GuiSessionOptions {
   pdf?: string;

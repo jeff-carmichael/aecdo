@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { copyFileSync, mkdtempSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
@@ -110,7 +110,7 @@ test("the app opens other folders, remembers them, and starts in the last one", 
 
     let picked: string | null | undefined = dir;
     const picker = new GuiApp({ cwd: other, settingsPath: join(dir, "gui.json"), chooseFolder: () => Promise.resolve(picked) });
-    assert.deepEqual(await picker.pickFolder(), { cwd: dir, files: ["sample-drawing-package-1and2family.jsonld"], recent: [], folders: [other] });
+    assert.deepEqual(await picker.pickFolder(), { cwd: dir, files: ["sample-drawing-package-1and2family.jsonld"], pdfs: [], canProcess: false, recent: [], folders: [other] });
     picked = null;
     assert.equal(await picker.pickFolder(), "cancelled");
     picked = undefined;
@@ -121,6 +121,65 @@ test("the app opens other folders, remembers them, and starts in the last one", 
   } finally {
     await server.close();
   }
+});
+
+test("PDFs stay hidden on the home screen while processing is coming soon", async () => {
+  const { app, server, url, dir } = await start(false);
+  try {
+    copyFileSync(new URL("sample-drawing-package-1and2family.pdf", examples), join(dir, "new plans.pdf"));
+    const home = await json<{ home: HomeInfo }>(`${url}api/boot`);
+    assert.deepEqual(home.data.home.pdfs, []);
+    assert.equal(home.data.home.canProcess, false);
+    const opened = await json<{ error: string }>(`${url}api/open`, { path: "new plans.pdf" });
+    assert.equal(opened.status, 400);
+    assert.match(opened.data.error, /coming soon/);
+    assert.equal((await json(`${url}api/process`, { name: "new plans.pdf" })).status, 400);
+    assert.equal((await app.settings.info()).api.available, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("the app processes a PDF on the home screen and saves the set next to it", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "aecdo-gui-process-"));
+  for (const f of ["sample-drawing-package-1and2family.jsonld", "sample-drawing-package-1and2family.pdf"]) copyFileSync(new URL(f, examples), join(dir, f));
+  copyFileSync(new URL("sample-drawing-package-1and2family.pdf", examples), join(dir, "new plans.pdf"));
+  let finish!: () => void;
+  const ran: string[] = [];
+  const app = new GuiApp({
+    cwd: dir,
+    settingsPath: join(dir, "gui.json"),
+    configDir: dir,
+    processing: true,
+    runJob: async (path, opts) => {
+      ran.push(path);
+      opts.onStatus?.({ jobId: "j1", fileName: "new plans.pdf", globalStatus: "Processing", totalPages: 7, pages: [{ page: "1", status: "Done" }] });
+      await new Promise<void>((res) => (finish = res));
+      return { content: '{"sheets":[]}' };
+    },
+  });
+  const events: unknown[] = [];
+  app.subscribe((e) => events.push(e));
+
+  let home = await app.home();
+  assert.deepEqual(home.pdfs, [{ name: "new plans.pdf" }], "a PDF with a set next to it isn't listed");
+  assert.equal(home.canProcess, false);
+  await assert.rejects(app.process("new plans.pdf"), /credentials in Settings/);
+
+  await app.settings.saveApi("client-1234", "secret", "us-west-2");
+  assert.equal((await app.home()).canProcess, true);
+  await assert.rejects(app.process("missing.pdf"), /isn't a PDF in this folder/);
+  await app.process("new plans.pdf");
+  await assert.rejects(app.process("new plans.pdf"), /already being processed/);
+  assert.deepEqual(ran, [join(dir, "new plans.pdf")]);
+  home = await app.home();
+  assert.deepEqual(home.pdfs, [{ name: "new plans.pdf", status: "Processing, 1/7 pages done" }]);
+
+  finish();
+  await new Promise((res) => setTimeout(res, 50));
+  assert.equal(readFileSync(join(dir, "new plans.jsonld"), "utf-8"), '{"sheets":[]}\n');
+  assert.deepEqual(events.at(-1), { type: "process", file: "new plans.pdf", done: join(dir, "new plans.jsonld") });
+  assert.deepEqual((await app.home()).pdfs, []);
 });
 
 test("events reach the page, and questions wait for its answer", async () => {

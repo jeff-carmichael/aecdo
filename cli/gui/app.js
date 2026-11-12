@@ -839,12 +839,12 @@ ${models}
       : `<p class="warn">The AI chat needs Node.js 22.19 or newer. Use the standalone aecdo, or update Node.js.</p>`;
     body.innerHTML = `${auth}<h3>AI models</h3>${aiPart}
 <h3>DrawingBot API</h3>
-<p class="dim">For <code>aecdo process</code>, which turns a PDF into a drawing set. ${info.api.configured ? "Set up." : "Not set up."} Saved in <code>${esc(info.api.path)}</code>.</p>
+${info.api.available ? `<p class="dim">Turns PDFs into drawing sets: pick one under “PDFs to process” on the home screen. ${info.api.configured ? "Set up." : "Not set up."} Saved in <code>${esc(info.api.path)}</code>.</p>
 <form class="settings-form" data-form="api">
 <label>Client ID <input name="clientId" placeholder="${esc(info.api.clientId ?? "")}" autocomplete="off" spellcheck="false"${info.api.configured ? "" : " required"}></label>
 <label>Client Secret <input name="clientSecret" type="password" placeholder="${info.api.configured ? "leave blank to keep the saved one" : ""}" autocomplete="off"${info.api.configured ? "" : " required"}></label>
 <label>Region <select name="region">${info.api.regions.map((/** @type {string} */ r) => `<option${r === info.api.region ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
-<div class="actions"><button class="primary">Save</button></div></form>
+<div class="actions"><button class="primary">Save</button></div></form>` : `<p class="dim">Turning PDFs into drawing sets is coming soon.</p>`}
 <div class="actions"><button data-close>Done <kbd>Esc</kbd></button></div>`;
     body.querySelectorAll("button").forEach((b) => (b.disabled = busy && !b.hasAttribute("data-close")));
     void loadModelChoices();
@@ -1026,22 +1026,46 @@ function showHome(home) {
   body.className = "home";
   const recent = /** @type {string[]} */ (home.recent);
   const here = /** @type {string[]} */ (home.files).filter((f) => !recent.includes(f));
-  /** @type {{ kind: "file" | "folder", path: string, heading?: string }[]} */
+  /** @type {{ name: string, status?: string }[]} */
+  const pdfs = home.pdfs;
+  /** @type {{ kind: "file" | "folder" | "pdf", path: string, heading?: string }[]} */
   const items = [
     ...recent.map((path, i) => ({ kind: /** @type {const} */ ("file"), path, heading: i === 0 ? "Recent" : undefined })),
     ...here.map((path, i) => ({ kind: /** @type {const} */ ("file"), path, heading: i === 0 ? `In ${home.cwd}` : undefined })),
+    ...pdfs.map((p, i) => ({ kind: /** @type {const} */ ("pdf"), path: p.name, heading: i === 0 ? "PDFs to process" : undefined })),
     ...(/** @type {string[]} */ (home.folders)).map((path, i) => ({ kind: /** @type {const} */ ("folder"), path, heading: i === 0 ? "Recent folders" : undefined })),
   ];
   let selected = 0;
   const choose = (/** @type {number} */ i) => {
     const item = items[i];
-    if (item) void openSet(item.path);
+    if (item?.kind === "pdf") void processPdf(item.path);
+    else if (item) void openSet(item.path);
+  };
+  const processPdf = async (/** @type {string} */ name) => {
+    if (pdfs.find((p) => p.name === name)?.status) return toast(`${name} is already being processed.`);
+    if (!home.canProcess) {
+      toast("To process PDFs, add your DrawingBot API credentials in Settings.", "warn");
+      return void settingsModal();
+    }
+    const json = name.replace(/\.pdf$/i, ".jsonld");
+    if (!(await ask(`Process ${name}? It's uploaded to the DrawingBot API, and the drawing set is saved next to it as ${json}.`))) return void showHome(home);
+    try {
+      await api("api/process", { name });
+      showHome(await api("api/home"));
+    } catch (err) {
+      toast(/** @type {Error} */ (err).message, "warn");
+      showHome(home);
+    }
   };
   const draw = () => {
+    const status = (/** @type {{ kind: string, path: string }} */ item) => {
+      const s = item.kind === "pdf" ? pdfs.find((p) => p.name === item.path)?.status : undefined;
+      return s ? ` <span class="dim">${esc(s)}</span>` : "";
+    };
     const list = items
-      .map((item, i) => `${item.heading ? `</ul><h3>${esc(item.heading)}</h3><ul class="files">` : ""}<li class="${item.kind}${i === selected ? " selected" : ""}" data-i="${i}">${esc(item.path)}</li>`)
+      .map((item, i) => `${item.heading ? `</ul><h3>${esc(item.heading)}</h3><ul class="files">` : ""}<li class="${item.kind}${i === selected ? " selected" : ""}" data-i="${i}">${esc(item.path)}${status(item)}</li>`)
       .join("");
-    const empty = here.length ? "" : `<p>There are no .jsonld drawing sets in ${esc(home.cwd)}. Open another folder, run <code>aecdo examples</code> to download the example set, or type a path below.</p>`;
+    const empty = here.length || pdfs.length ? "" : `<p>There are no .jsonld drawing sets in ${esc(home.cwd)}. Open another folder, run <code>aecdo examples</code> to download the example set, or type a path below.</p>`;
     body.innerHTML = `${empty}<ul class="files">${list}</ul>
 <form class="open-path"><input placeholder="Path to a .jsonld file or a folder" autocomplete="off" spellcheck="false"><button class="primary">Open</button></form>
 <div class="actions"><button data-folder>Open folder… <kbd>o</kbd></button><button data-settings>Settings <kbd>,</kbd></button></div>`;
@@ -1072,6 +1096,12 @@ function showHome(home) {
     title: "Open a drawing set",
     body,
     wide: true,
+    update: (/** @type {{ file: string, status?: string }} */ ev) => {
+      const pdf = pdfs.find((p) => p.name === ev.file);
+      if (!pdf) return;
+      pdf.status = ev.status;
+      draw();
+    },
     dismiss: () => set && closeModal(),
     keys: (e) => {
       if (typing(e)) return false;
@@ -1218,6 +1248,9 @@ function listen() {
         if (modal?.kind === "settings") void modal.update?.(undefined);
         if (set) void chat.loadModels();
         break;
+      case "process":
+        onProcess(ev);
+        break;
       case "confirm":
         void ask(ev.question, ev.thread).then((ok) => api("api/confirm", { id: ev.id, ok }));
         break;
@@ -1226,6 +1259,21 @@ function listen() {
   events.onerror = () => {
     if (quitting) events.close();
   };
+}
+
+/**
+ * Progress on a PDF being processed: the home screen shows it next to the PDF, and the finished
+ * set opens unless one is already open.
+ * @param {{ file: string, status?: string, done?: string, error?: string }} ev
+ */
+function onProcess(ev) {
+  if (ev.error) toast(ev.error, "warn");
+  if (ev.done) {
+    if (!set || modal?.kind === "home") void openSet(ev.done);
+    else toast(`${ev.file} is ready: ${ev.done}. Open it from the home screen.`);
+    return;
+  }
+  if (modal?.kind === "home") void modal.update?.(ev);
 }
 
 // ── Keys ─────────────────────────────────────────────────

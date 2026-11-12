@@ -141,6 +141,14 @@ function routes(app: GuiApp): Record<string, Handler> {
         throw new HttpError(400, (err as Error).message);
       }
     },
+    "POST /api/process": async (b) => {
+      try {
+        await app.process(str(b, "name"));
+        return { ok: true };
+      } catch (err) {
+        throw new HttpError(400, (err as Error).message);
+      }
+    },
     "POST /api/folder/pick": async () => {
       const r = await app.pickFolder();
       return typeof r === "string" ? { [r]: true } : { home: r };
