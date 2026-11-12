@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - The AI assistant no longer tells the model that every set came from DrawingBot, since `aecdo` opens AECDO files from any source.
 - The Windows release is built on Windows, so `aecdo.exe` has the app icon (taskbar, Explorer) and its version and name in Properties, and is smoke-tested like the macOS and Linux builds. The release workflow can also be run by hand to build every binary without publishing.
 
+### Docs
+- The README leads with the app: a screenshot, opening it from its icon and **Open folder…**, and a short section for scripts and agents that links to the guide.
+
 ## [0.6.1] - 2026-11-11
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.
