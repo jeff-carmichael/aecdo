@@ -98,6 +98,31 @@ test("with no set open, the app lists the folder's sets and opens one", async ()
   }
 });
 
+test("the app opens other folders, remembers them, and starts in the last one", async () => {
+  const { app, server, url, dir } = await start(false);
+  try {
+    const other = mkdtempSync(join(tmpdir(), "aecdo-gui-folder-"));
+    copyFileSync(new URL("sample-drawing-package-1and2family.jsonld", examples), join(other, "house.jsonld"));
+    const typed = await json<{ home: HomeInfo }>(`${url}api/open`, { path: other });
+    assert.equal(typed.data.home.cwd, other);
+    assert.deepEqual(typed.data.home.files, ["house.jsonld"]);
+    assert.equal(app.cwd, other);
+
+    let picked: string | null | undefined = dir;
+    const picker = new GuiApp({ cwd: other, settingsPath: join(dir, "gui.json"), chooseFolder: () => Promise.resolve(picked) });
+    assert.deepEqual(await picker.pickFolder(), { cwd: dir, files: ["sample-drawing-package-1and2family.jsonld"], recent: [], folders: [other] });
+    picked = null;
+    assert.equal(await picker.pickFolder(), "cancelled");
+    picked = undefined;
+    assert.equal(await picker.pickFolder(), "unavailable");
+    assert.equal(await picker.lastFolder(), dir);
+
+    assert.equal((await json(`${url}api/open`, { path: join(dir, "missing-folder") })).status, 400);
+  } finally {
+    await server.close();
+  }
+});
+
 test("events reach the page, and questions wait for its answer", async () => {
   const { app, server, url } = await start();
   try {

@@ -10,6 +10,6 @@
     // webview-bun ships Bun-style TypeScript; check against the declarations we use instead.
     "paths": { "webview-bun": ["./bin/webview-bun.d.ts"] }
   },
-  "include": ["bin/standalone.ts", "bin/embed-assets.ts", "bin/gui-window.ts"],
+  "include": ["bin/standalone.ts", "bin/embed-assets.ts", "bin/gui-window.ts", "bin/app-launch.ts"],
   "exclude": []
 }

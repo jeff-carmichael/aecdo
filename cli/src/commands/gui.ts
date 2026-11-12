@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { basename } from "node:path";
+import { homedir } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { GuiApp } from "../gui/app.js";
 import { startGuiServer } from "../gui/server.js";
@@ -14,6 +15,13 @@ export interface GuiOptions {
   browser?: boolean;
   /** Open on the Settings screen. */
   settings?: boolean;
+  /** Opened from its icon rather than a terminal: start in the folder used last, else the home folder. */
+  app?: boolean;
+  /**
+   * Only serve the page, for the process that shows the window: print its URL on stdout, then
+   * "connected" once the page loads, and quit when stdin closes.
+   */
+  serveOnly?: boolean;
 }
 
 /** How long the browser version waits for a reloaded page to come back before quitting. */
@@ -28,7 +36,7 @@ export const LINUX_WEBVIEW_HINT =
  */
 function runWindow(command: string[], app: GuiApp, kill: { current?: () => void }): Promise<{ result: "closed" } | { result: "failed"; error: string }> {
   return new Promise((res) => {
-    const child = spawn(command[0], command.slice(1), { stdio: ["ignore", "ignore", "pipe"], env: { ...process.env } });
+    const child = spawn(command[0], command.slice(1), { stdio: ["ignore", "ignore", "pipe"], env: { ...process.env }, windowsHide: true });
     let errors = "";
     child.stderr.on("data", (d: Buffer) => {
       errors = (errors + d.toString("utf-8")).slice(-4000);
@@ -65,10 +73,19 @@ async function offerToSave(app: GuiApp): Promise<void> {
 
 /** `aecdo gui [file]`: the app window, with the PDF beside the data. */
 export async function gui(file: string | undefined, opts: GuiOptions = {}): Promise<void> {
-  const app = new GuiApp({ cwd: process.cwd(), pdf: opts.pdf, schema: opts.schema });
-  const browser = opts.browser || !embedded.windowCommand;
+  const app = new GuiApp({ cwd: process.cwd(), pdf: opts.pdf, schema: opts.schema, chdir: true });
+  if (opts.app) await app.openFolder((await app.lastFolder()) ?? homedir()).catch(() => undefined);
+  const self = embedded.selfCommand;
+  const browser = !opts.serveOnly && (opts.browser || !self);
   let idle: NodeJS.Timeout | undefined;
+  let told = false;
   const server = await startGuiServer(app, {
+    // The window process learns from this that its page loaded (see cli/bin/app-launch.ts).
+    onConnect: () => {
+      if (!opts.serveOnly || told) return;
+      told = true;
+      process.stdout.write("connected\n");
+    },
     onDisconnect: () => {
       if (!browser) return;
       clearTimeout(idle);
@@ -96,11 +113,14 @@ export async function gui(file: string | undefined, opts: GuiOptions = {}): Prom
     throw err;
   }
 
-  if (browser) {
+  if (opts.serveOnly) {
+    process.stdout.write(url + "\n");
+    process.stdin.on("end", () => app.quit("window closed")).resume();
+  } else if (browser) {
     if (!opts.browser) console.error("The app window comes with the standalone aecdo binary, so this opens in your browser instead.");
     openInBrowser();
   } else {
-    void runWindow(embedded.windowCommand!(url), app, kill).then((r) => {
+    void runWindow([...self!, "__gui-window", url], app, kill).then((r) => {
       if (r.result === "closed") return app.quit("window closed");
       const lines = r.error.split("\n").map((l) => l.trim()).filter(Boolean);
       console.error(`Couldn't open the app window: ${lines.find((l) => /error/i.test(l)) ?? lines.at(-1) ?? "it closed right away"}`);

@@ -5,8 +5,8 @@ export interface EmbeddedAssets {
   schema?: Record<string, unknown>;
   /** The app's web files and PDF.js, by the path the app server serves them at (e.g. "pdfjs/pdf.min.mjs"). */
   guiAssets?: Record<string, string>;
-  /** The command that opens the app window on `url` (the binary re-running itself), when webview is bundled. */
-  windowCommand?: (url: string) => string[];
+  /** The command that runs this binary again (with `bun standalone.ts` in development); set when webview is bundled. */
+  selfCommand?: string[];
 }
 
 export const embedded: EmbeddedAssets = {};

@@ -7,6 +7,10 @@ if (process.argv[2] === "__gui-window") {
   const { runWindow } = await import("./gui-window.js");
   runWindow(process.argv[3], process.argv[4]);
   process.exit(0);
+} else if (process.argv[2] === "__app") {
+  const { launchApp } = await import("./app-launch.js");
+  await launchApp();
+  process.exit(0);
 } else {
   await import("./aecdo.js");
 }

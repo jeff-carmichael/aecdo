@@ -73,6 +73,7 @@ aecdo page plans.jsonld A601 --format json --pretty -o a601.json
 | `aecdo gui [file]` | Opens [the app](app.md), on that set if you name one. `--pdf <file>` names the source PDF; `--browser` uses your browser instead of a window. `explore` is the same command, except that without a terminal, or with `--format json`, it prints the sheet list |
 | `aecdo configure` | Opens the app at Settings, for AI models and DrawingBot API credentials |
 | `aecdo examples [folder]` | Downloads the [example drawing sets](install.md#example-drawing-sets) (default `./aecdo-examples`); `--force` replaces files already there |
+| `aecdo shortcut` | Adds the app to the Start menu (Windows), `~/Applications` (macOS), or the app menu (Linux), so it opens from its icon. The installers run it; standalone binary only |
 | `aecdo update` | Updates `aecdo` to the latest release ([Install and update](install.md#updating)) |
 | `aecdo completion [bash\|zsh\|fish]` | Prints a tab-completion script (see below) |
 | `aecdo process <pdf>` | Saves `<pdf>.jsonld` next to the PDF; progress goes to stderr (DrawingBot API, [coming soon](process.md)) |

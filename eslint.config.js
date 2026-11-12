@@ -15,7 +15,7 @@ export default tseslint.config(
   },
   {
     // Bun-only entry files are outside the tsc build; type-check them with their own config.
-    files: ["cli/bin/standalone.ts", "cli/bin/embed-assets.ts", "cli/bin/gui-window.ts", "cli/bin/*.d.ts"],
+    files: ["cli/bin/standalone.ts", "cli/bin/embed-assets.ts", "cli/bin/gui-window.ts", "cli/bin/app-launch.ts", "cli/bin/*.d.ts"],
     languageOptions: {
       parserOptions: {
         projectService: false,

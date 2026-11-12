@@ -15,6 +15,7 @@ import { update, cleanupOldBinary } from "../src/commands/update.js";
 import { completion } from "../src/commands/completion.js";
 import { examples } from "../src/commands/examples.js";
 import { gui } from "../src/commands/gui.js";
+import { shortcut } from "../src/commands/shortcut.js";
 import { canPrompt } from "../src/lib/prompt.js";
 import { embedded } from "../src/lib/embedded.js";
 import { startUpdateNotifier, runUpdateCheckWorker, WORKER_ENV, NO_UPDATE_CHECK_FLAG } from "../src/lib/update-check.js";
@@ -46,6 +47,9 @@ For people:
                       default browser. With no file, pick one in the app
   explore [file]      Same as gui. Without a terminal, or with --format json,
                       it lists the sheets instead
+  shortcut            Add aecdo to the Start menu (Windows), Applications
+                      (macOS), or the app menu (Linux), so the app opens from
+                      its icon like any desktop app. Standalone binary only
   configure           Open the app's Settings: the AI models (Sign in with
                       ChatGPT or OpenRouter, API keys, Amazon Bedrock, a custom
                       endpoint) and the DrawingBot API credentials
@@ -187,6 +191,22 @@ async function main(): Promise<void> {
   if (command === "completion") {
     try {
       completion(rest[0]);
+    } catch (err) {
+      console.error(`Error: ${(err as Error).message}`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  // How the app's icon starts it (see `aecdo shortcut` and cli/bin/app-launch.ts).
+  if (command === "__app" || command === "__app-server") {
+    await gui(undefined, { app: true, serveOnly: command === "__app-server", browser: rest.includes("--browser") });
+    return;
+  }
+
+  if (command === "shortcut") {
+    try {
+      console.log(await shortcut());
     } catch (err) {
       console.error(`Error: ${(err as Error).message}`);
       process.exit(1);

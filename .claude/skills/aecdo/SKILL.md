@@ -93,6 +93,14 @@ aecdo examples [folder]   # default ./aecdo-examples; --force replaces existing 
 
 Downloads `sample-drawing-package-1and2family.{jsonld,pdf}` (a real 7-page permit set with its PDF) from the GitHub tag matching the CLI version (falls back to `main`). Existing files are skipped unless `--force`. The install scripts offer this at the end in a terminal; `AECDO_EXAMPLES=1|0` and `AECDO_EXAMPLES_DIR` answer it ahead of time.
 
+### Add the app to the desktop
+
+```bash
+aecdo shortcut
+```
+
+Adds the app to the Start menu (Windows), `~/Applications/aecdo.app` (macOS), or the Linux app menu (`~/.local/share/applications/aecdo.desktop`), so a person can open it from its icon; it starts in the folder they used last. Standalone binary only. The install scripts run it; `AECDO_SHORTCUT=0` skips that. Only run it when the user asks.
+
 ### Shell tab completion
 
 ```bash

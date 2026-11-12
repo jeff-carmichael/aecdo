@@ -1106,6 +1106,15 @@ button.primary kbd {
   background: var(--select);
 }
 
+.home .files:empty {
+  display: none;
+}
+
+.home li.folder::before {
+  content: "▸ ";
+  color: var(--dim);
+}
+
 .markups-panel .n {
   color: var(--dim);
   margin-right: 6px;

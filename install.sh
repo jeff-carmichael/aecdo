@@ -9,6 +9,8 @@
 #   AECDO_EXAMPLES     1 to download the example drawing set without asking,
 #                      0 to skip them (default: ask when run in a terminal)
 #   AECDO_EXAMPLES_DIR where to put the examples (default: ~/aecdo-examples)
+#   AECDO_SHORTCUT     0 to skip adding the app to Applications (macOS) or the
+#                      app menu (Linux)
 
 set -eu
 
@@ -112,6 +114,18 @@ offer_examples() {
     info "warning: could not download the examples; run \"aecdo examples\" later to try again"
 }
 
+# Puts the app in Applications (macOS) or the app menu (Linux), like any desktop app.
+add_shortcut() {
+  bin=$1
+  case "${AECDO_SHORTCUT:-1}" in 0 | n | N | no | No | NO | false) return 0 ;; esac
+  # Older releases have no `shortcut` command.
+  "$bin" --help 2>/dev/null | grep -q '^  shortcut' || return 0
+  # A Linux machine without a desktop (a server, a container) has no app menu.
+  if [ "$(uname -s)" = Linux ] && [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then return 0; fi
+  "$bin" shortcut --no-update-check ||
+    info "warning: could not add the app shortcut; run \"aecdo shortcut\" later to try again"
+}
+
 main() {
   target=$(detect_target)
   asset="$BIN-$target.tar.gz"
@@ -157,6 +171,7 @@ main() {
     *) info "note: $INSTALL_DIR is not on your PATH" ;;
   esac
 
+  add_shortcut "$INSTALL_DIR/$BIN"
   offer_examples "$INSTALL_DIR/$BIN"
 }
 

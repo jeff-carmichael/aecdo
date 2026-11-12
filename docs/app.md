@@ -8,7 +8,9 @@ The `aecdo` app is how you look through a drawing set. The sheet list is on the 
 
 ## Open a drawing set
 
-Go to the folder with your drawing set and type `aecdo`:
+Click **aecdo** in the Start menu (Windows), Applications, Launchpad, or Spotlight (macOS), or your app menu (Linux). The installer puts it there; if it's missing, run `aecdo shortcut` once. The app opens in the folder you used last, or your home folder the first time.
+
+Or start it from a terminal, in the folder with your drawing set:
 
 ```bash
 cd ~/aecdo-examples
@@ -18,8 +20,10 @@ aecdo
 The app opens on **Open a drawing set**:
 
 - **Recent** lists the sets you opened before, from any folder.
-- **In** followed by the folder name lists the `.jsonld` files in the folder you started from.
-- The box at the bottom takes the path to any `.jsonld` file. Press <kbd>/</kbd> to jump to it.
+- **In** followed by the folder name lists the `.jsonld` files in the folder you're working in.
+- **Recent folders** lists other folders you've worked in. Pick one to switch to it.
+- **Open folder…** (or <kbd>o</kbd>) shows your computer's folder picker, like *Open Folder* in an editor. On Linux this needs `zenity` or `kdialog`; without them, type the folder's path in the box instead.
+- The box at the bottom takes the path to any `.jsonld` file or folder. Press <kbd>/</kbd> to jump to it.
 - **Settings** (or <kbd>,</kbd>) sets up the AI models.
 
 Pick a set with <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>, or click it. Press <kbd>o</kbd> later to come back here and open another set without closing the app.
@@ -30,7 +34,7 @@ To skip this screen, name the file when you start:
 aecdo gui sample-drawing-package-1and2family.jsonld
 ```
 
-(`aecdo explore` does the same.) While the app is open, the terminal waits; closing the window or pressing <kbd>q</kbd> gives it back. The folder you start from matters: it's where the [AI assistant](assistant.md) keeps its notes and spreadsheets and looks for an `AGENTS.md`.
+(`aecdo explore` does the same.) While the app is open, the terminal waits; closing the window or pressing <kbd>q</kbd> gives it back. The folder you work in matters: it's where the [AI assistant](assistant.md) keeps its notes and spreadsheets and looks for an `AGENTS.md`. Started from a terminal, that's the terminal's folder until you open another.
 
 ## What you need
 

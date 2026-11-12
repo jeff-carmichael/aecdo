@@ -8,6 +8,7 @@
 #   AECDO_EXAMPLES     1 to download the example drawing set without asking,
 #                      0 to skip them (default: ask in an interactive window)
 #   AECDO_EXAMPLES_DIR where to put the examples (default: %USERPROFILE%\aecdo-examples)
+#   AECDO_SHORTCUT     0 to skip adding aecdo to the Start menu
 #
 # Files downloaded this way carry no "downloaded from the internet" mark, so
 # Windows SmartScreen does not block the unsigned aecdo.exe.
@@ -39,6 +40,17 @@ function Install-Aecdo {
     & $exe examples $dir --no-update-check
     if ($LASTEXITCODE -ne 0) {
       Write-Warning 'Could not download the examples. Run "aecdo examples" later to try again.'
+    }
+  }
+
+  # Puts the app in the Start menu, like any desktop app.
+  function Add-AecdoShortcut([string]$exe) {
+    if ($env:AECDO_SHORTCUT -match '^(0|n|no|false)$') { return }
+    # Older releases have no `shortcut` command.
+    if (-not (& $exe --help | Select-String -Quiet -Pattern '^  shortcut')) { return }
+    & $exe shortcut --no-update-check
+    if ($LASTEXITCODE -ne 0) {
+      Write-Warning 'Could not add aecdo to the Start menu. Run "aecdo shortcut" later to try again.'
     }
   }
 
@@ -106,6 +118,7 @@ function Install-Aecdo {
   Write-Host "Installed aecdo to $target"
   & $target --version
 
+  Add-AecdoShortcut $target
   Request-AecdoExamples $target
 }
 
