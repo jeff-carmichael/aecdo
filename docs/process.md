@@ -8,7 +8,7 @@ title: Process PDFs
 
 `aecdo` doesn't extract data from PDFs itself. It works with AECDO JSON-LD files from any source. For convenience, it includes a small wrapper for the [DrawingBot](https://aecdrawingbot.com) API, one service that produces AECDO files: `aecdo process` uploads a PDF, waits while it's processed, and saves the result as a `.jsonld` file next to the PDF.
 
-Once the API launches, you won't need the terminal for this either: the app's home screen will list the PDFs in your folder that don't have a drawing set yet, and picking one processes it and opens the result.
+Once the API launches, you won't need the terminal for this either: the app's home screen will list the PDFs in your folder that don't have a drawing set yet, below the sets, and picking one processes it and opens the result.
 
 ## Connect your account
 
