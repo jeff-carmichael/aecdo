@@ -99,13 +99,20 @@ export class MarkupSession {
     return (this.data.sheets ?? []).find((sh) => sh.sheetNumber.toLowerCase() === s || String(sh.pageIndex) === s);
   }
 
-  /** Writes a markup into the copy; throws with a message the assistant can act on when it can't. */
-  async add(req: MarkupRequest): Promise<Markup> {
+  /**
+   * Writes a markup into the copy; throws with a message the assistant can act on when it can't.
+   * Markups land in the order add() was called, each on the selection at the time of its call.
+   */
+  add(req: MarkupRequest): Promise<Markup> {
+    const target = this.deps.target();
+    return this.write(() => this.place(req, target));
+  }
+
+  private async place(req: MarkupRequest, target: ViewTarget | { error: string }): Promise<Markup> {
     if (!MARKUP_KINDS.includes(req.kind)) throw new Error(`kind must be one of ${MARKUP_KINDS.join(", ")}`);
     const text = req.text.trim();
     if (!text) throw new Error("text is required: say what the markup is about");
 
-    const target = this.deps.target();
     let sheet: Sheet | undefined;
     let bbox: BBox;
     let label: string | undefined;
@@ -147,9 +154,7 @@ export class MarkupSession {
       ...(itemId ? { itemId } : {}),
       ...(req.at ? { at: req.at } : {}),
     };
-    await this.write(async () => {
-      this.saves.push(await saveMarkups({ sourcePdf: pdf, outPath: markupCopyPath(pdf), markups: [markup] }));
-    });
+    this.saves.push(await saveMarkups({ sourcePdf: pdf, outPath: markupCopyPath(pdf), markups: [markup] }));
     return markup;
   }
 
