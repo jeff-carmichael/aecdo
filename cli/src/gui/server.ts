@@ -175,7 +175,7 @@ function routes(app: GuiApp): Record<string, Handler> {
     "POST /api/markups": async (b) => {
       const index = typeof b.index === "number" ? b.index : undefined;
       try {
-        return { message: await session(app).markupsAction(str(b, "action"), b.inPlace === true, index) };
+        return { message: await session(app).markupsAction(str(b, "action"), index) };
       } catch (err) {
         if (err instanceof HttpError) throw err;
         throw new HttpError(400, (err as Error).message);
@@ -261,8 +261,7 @@ function routes(app: GuiApp): Record<string, Handler> {
       app.answer(str(b, "id"), b.ok === true);
       return { ok: true };
     },
-    "POST /api/quit": async (b) => {
-      if (b.save === true && app.session?.markups.pending.length) await app.session.markups.save();
+    "POST /api/quit": () => {
       setTimeout(() => app.quit("quit"), 50);
       return { ok: true };
     },

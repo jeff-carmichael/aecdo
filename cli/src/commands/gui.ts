@@ -1,12 +1,9 @@
 import { spawn } from "node:child_process";
-import { basename } from "node:path";
 import { homedir } from "node:os";
-import { createInterface } from "node:readline/promises";
 import { GuiApp } from "../gui/app.js";
 import { startGuiServer } from "../gui/server.js";
 import { embedded } from "../lib/embedded.js";
 import { openWithDefaultApp } from "../lib/open.js";
-import { canPrompt } from "../lib/prompt.js";
 
 export interface GuiOptions {
   pdf?: string;
@@ -49,26 +46,6 @@ function runWindow(command: string[], app: GuiApp, kill: { current?: () => void 
       else res({ result: "closed" });
     });
   });
-}
-
-async function offerToSave(app: GuiApp): Promise<void> {
-  const markups = app.session?.markups;
-  const n = markups?.pending.length ?? 0;
-  if (!markups || n === 0) return;
-  const what = `${n} pending markup${n === 1 ? "" : "s"}`;
-  if (!canPrompt()) {
-    console.error(`${what} not saved.`);
-    return;
-  }
-  const rl = createInterface({ input: process.stdin, output: process.stderr });
-  try {
-    const answer = await rl.question(`Save ${what} to ${basename(markups.outPath())}? [y/N] `);
-    if (/^y(es)?$/i.test(answer.trim())) console.error(await markups.save());
-  } catch (err) {
-    console.error((err as Error).message);
-  } finally {
-    rl.close();
-  }
 }
 
 /** `aecdo gui [file]`: the app window, with the PDF beside the data. */
@@ -139,5 +116,4 @@ export async function gui(file: string | undefined, opts: GuiOptions = {}): Prom
   clearTimeout(idle);
   kill.current?.();
   await server.close();
-  await offerToSave(app);
 }

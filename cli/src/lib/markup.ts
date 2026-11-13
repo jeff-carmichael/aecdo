@@ -564,13 +564,13 @@ export async function undoSave(record: SaveRecord): Promise<void> {
   if (!existsSync(record.path)) throw new Error(`${basename(record.path)} no longer exists.`);
   const bytes = await readFile(record.path);
   if (bytes.length !== record.sizeAfter || sha256(bytes) !== record.sha256) {
-    throw new Error(`${basename(record.path)} has changed since the markups were saved (maybe edited in Bluebeam or Acrobat). Use "markups remove" to take out aecdo's markups instead.`);
+    throw new Error(`${basename(record.path)} has changed since the markups were saved (maybe edited in Bluebeam or Acrobat). Delete the markups from the Markups panel instead.`);
   }
   if (record.sizeBefore === undefined) {
     await rm(record.path);
     return;
   }
-  if (record.rewritten) throw new Error("This save rewrote the file, so it can't be undone exactly. Use \"markups remove\".");
+  if (record.rewritten) throw new Error("This change rewrote the file, so it can't be undone exactly. Delete the markups from the Markups panel instead.");
   await replaceFile(record.path, bytes.subarray(0, record.sizeBefore));
 }
 
@@ -611,7 +611,8 @@ export async function listSavedMarkups(pdfPath: string): Promise<SavedMarkup[]> 
  * Removes every markup aecdo added (and replies people attached to them), leaving everyone else's.
  * Written as an incremental update, like a save.
  */
-export async function removeSavedMarkups(pdfPath: string): Promise<{ removed: number; record?: SaveRecord }> {
+/** Removes aecdo's markups (only those in `names`, when given) and replies attached to them. */
+export async function removeSavedMarkups(pdfPath: string, names?: ReadonlySet<string>): Promise<{ removed: number; record?: SaveRecord }> {
   const base = await readFile(pdfPath);
   let removed = 0;
   const { bytes, rewritten } = await update(
@@ -625,7 +626,8 @@ export async function removeSavedMarkups(pdfPath: string): Promise<{ removed: nu
         const ours = new Set<string>();
         const entries = annots.asArray().map((raw, i) => ({ raw, dict: annots.lookup(i) }));
         for (const { raw, dict } of entries) {
-          if (dict instanceof lib.PDFDict && annotName(lib, dict)?.startsWith(MARKUP_NAME_PREFIX) && raw instanceof lib.PDFRef) ours.add(raw.tag);
+          const name = dict instanceof lib.PDFDict ? annotName(lib, dict) : undefined;
+          if (name?.startsWith(MARKUP_NAME_PREFIX) && (!names || names.has(name)) && raw instanceof lib.PDFRef) ours.add(raw.tag);
         }
         if (ours.size === 0) continue;
         const keep = entries.filter(({ raw, dict }) => {

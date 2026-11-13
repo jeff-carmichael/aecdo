@@ -37,7 +37,7 @@ export const SHORTCUTS = [
       ["c", "show or hide the chat"],
       ["Esc", "stop an answer, stop typing, then leave the chat"],
       ["M", "mark up what's selected"],
-      ["m", "review and save markups"],
+      ["m", "markups: go to, undo, delete"],
     ],
   ],
   [

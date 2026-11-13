@@ -61,7 +61,7 @@ Press <kbd>a</kbd> and try:
 compare the yards in the Building Analysis table with the site plan dimensions, and cloud any that differ
 ```
 
-The assistant proposes clouds, which show on the PDF pane in pink. To keep them, press <kbd>Esc</kbd> to leave the chat, then <kbd>m</kbd> and <kbd>s</kbd>. That writes `sample-drawing-package-1and2family-markups.pdf` next to the original. See [Marking up the PDF](assistant.md#marking-up-the-pdf).
+The clouds show on the PDF pane as soon as the assistant adds them. They're already saved, in `sample-drawing-package-1and2family-markups.pdf` next to the original; press <kbd>m</kbd> to list them, undo, or delete one. See [Marking up the PDF](assistant.md#marking-up-the-pdf).
 
 ## Where the example comes from
 

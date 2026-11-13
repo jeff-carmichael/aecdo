@@ -11,6 +11,7 @@ import {
   undoSave,
   type Markup,
   type MarkupKind,
+  type SavedMarkup,
   type SaveRecord,
 } from "../lib/markup.js";
 import { bboxFitsPage, type BBox } from "../lib/pdf-page.js";
@@ -32,18 +33,18 @@ export interface MarkupDeps {
   locatePdf(): { path?: string; looked: string[] };
   /** What the PDF pane outlines right now. */
   target(): ViewTarget | { error: string };
-  confirm?: (question: string) => Promise<boolean>;
   exists?: (path: string) => boolean;
 }
 
 /**
- * Markups proposed in the app, by the user or the assistant. Nothing touches a PDF until the user
- * saves; saving appends to a copy next to the original unless asked to save in place.
+ * Markups added in the app, by the user or the assistant. Each one is written as it's added to a
+ * copy next to the source PDF (`<name>-markups.pdf`), so the PDF pane can show it right away and
+ * the original is never changed.
  */
 export class MarkupSession {
-  readonly pending: Markup[] = [];
   private saves: SaveRecord[] = [];
   private sizes = new Map<string, { width: number; height: number }[]>();
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(
     private data: DrawingSet,
@@ -62,13 +63,12 @@ export class MarkupSession {
     return pdf.path;
   }
 
-  /** Where saves go: the copy next to the PDF, or the PDF itself. */
-  outPath(inPlace = false): string {
-    const src = this.sourcePdf();
-    return inPlace ? src : markupCopyPath(src);
+  /** The copy that holds the markups. */
+  outPath(): string {
+    return markupCopyPath(this.sourcePdf());
   }
 
-  /** The PDF that already holds saved markups. */
+  /** The copy, once it exists. */
   savedCopy(): string | undefined {
     try {
       const copy = this.outPath();
@@ -78,8 +78,11 @@ export class MarkupSession {
     }
   }
 
-  pendingOn(pageIndex: number): Markup[] {
-    return this.pending.filter((m) => m.pageIndex === pageIndex);
+  /** One change to the copy at a time, so two quick adds can't overwrite each other. */
+  private write<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(fn, fn);
+    this.queue = run.catch(() => undefined);
+    return run;
   }
 
   private async pageSizes(pdf: string) {
@@ -96,13 +99,20 @@ export class MarkupSession {
     return (this.data.sheets ?? []).find((sh) => sh.sheetNumber.toLowerCase() === s || String(sh.pageIndex) === s);
   }
 
-  /** Adds a pending markup; throws with a message the assistant can act on when it can't. */
-  async add(req: MarkupRequest): Promise<Markup> {
+  /**
+   * Writes a markup into the copy; throws with a message the assistant can act on when it can't.
+   * Markups land in the order add() was called, each on the selection at the time of its call.
+   */
+  add(req: MarkupRequest): Promise<Markup> {
+    const target = this.deps.target();
+    return this.write(() => this.place(req, target));
+  }
+
+  private async place(req: MarkupRequest, target: ViewTarget | { error: string }): Promise<Markup> {
     if (!MARKUP_KINDS.includes(req.kind)) throw new Error(`kind must be one of ${MARKUP_KINDS.join(", ")}`);
     const text = req.text.trim();
     if (!text) throw new Error("text is required: say what the markup is about");
 
-    const target = this.deps.target();
     let sheet: Sheet | undefined;
     let bbox: BBox;
     let label: string | undefined;
@@ -144,14 +154,8 @@ export class MarkupSession {
       ...(itemId ? { itemId } : {}),
       ...(req.at ? { at: req.at } : {}),
     };
-    this.pending.push(markup);
+    this.saves.push(await saveMarkups({ sourcePdf: pdf, outPath: markupCopyPath(pdf), markups: [markup] }));
     return markup;
-  }
-
-  drop(index: number): Markup {
-    const [m] = index >= 1 && index <= this.pending.length ? this.pending.splice(index - 1, 1) : [];
-    if (!m) throw new Error(`No pending markup ${index}. There ${this.pending.length === 1 ? "is" : "are"} ${this.pending.length}.`);
-    return m;
   }
 
   describe(m: Markup): string {
@@ -160,64 +164,46 @@ export class MarkupSession {
     return `${m.kind} ${m.sheetNumber}${where}: ${text.length > 70 ? `${text.slice(0, 69)}…` : text}`;
   }
 
-  /** Pending and saved markups, as lines. */
-  async listing(): Promise<string[]> {
-    const lines: string[] = [];
-    if (this.pending.length) {
-      lines.push(`Pending (not saved yet):`);
-      this.pending.forEach((m, i) => lines.push(`  ${i + 1}. ${this.describe(m)}`));
-    } else {
-      lines.push("No pending markups.");
-    }
-    for (const inPlace of [false, true]) {
-      let path: string;
-      try {
-        path = this.outPath(inPlace);
-      } catch {
-        break;
-      }
-      if (!this.exists(path)) continue;
-      const saved = await listSavedMarkups(path);
-      if (inPlace && saved.length === 0) continue;
-      lines.push(`Saved in ${basename(path)}: ${saved.length}`);
-      const sheetFor = (i: number) => (this.data.sheets ?? []).find((s) => s.pageIndex === i)?.sheetNumber ?? `page ${i}`;
-      for (const s of saved.slice(0, 50)) lines.push(`  - ${s.kind} ${sheetFor(s.pageIndex)}: ${s.text.replace(/\s+/g, " ").slice(0, 70)}`);
-      if (saved.length > 50) lines.push(`  … and ${saved.length - 50} more`);
-    }
-    return lines;
+  /** aecdo's markups in the copy, in page order. */
+  async list(): Promise<(SavedMarkup & { sheetNumber: string; describe: string })[]> {
+    const copy = this.savedCopy();
+    if (!copy) return [];
+    return (await listSavedMarkups(copy)).map((m) => {
+      const sheetNumber = (this.data.sheets ?? []).find((s) => s.pageIndex === m.pageIndex)?.sheetNumber ?? `page ${m.pageIndex + 1}`;
+      const text = m.text.replace(/\s+/g, " ");
+      return { ...m, sheetNumber, describe: `${m.kind} ${sheetNumber}: ${text.length > 70 ? `${text.slice(0, 69)}…` : text}` };
+    });
   }
 
-  async save(inPlace = false): Promise<string> {
-    if (this.pending.length === 0) return "No pending markups to save.";
-    const out = this.outPath(inPlace);
-    const record = await saveMarkups({ sourcePdf: this.sourcePdf(), outPath: out, markups: this.pending });
-    this.saves.push(record);
-    this.pending.length = 0;
-    const note = record.rewritten ? " (the PDF's structure needed a full rewrite, so any digital signature in the copy is no longer valid)" : "";
-    return `Saved ${record.count} markup${record.count === 1 ? "" : "s"} to ${out}${note}. Press m, then u, to undo.`;
+  /** The markups as numbered lines, for the assistant. */
+  async lines(): Promise<string[]> {
+    const all = await this.list();
+    if (all.length === 0) return ["No markups yet."];
+    return [`${all.length} in ${basename(this.outPath())}:`, ...all.map((m, i) => `${i + 1}. ${m.describe}`)];
   }
 
+  /** Deletes markup `n` (1-based, as numbered by list()), or all of them when n is undefined. */
+  async remove(n?: number): Promise<string> {
+    return this.write(async () => {
+      const all = await this.list();
+      const copy = this.savedCopy();
+      if (!copy || all.length === 0) return "There are no markups to delete.";
+      const one = n === undefined ? undefined : all[n - 1];
+      if (n !== undefined && !one) throw new Error(`No markup ${n}. There ${all.length === 1 ? "is" : "are"} ${all.length}.`);
+      const { removed, record } = await removeSavedMarkups(copy, one ? new Set([one.name]) : undefined);
+      if (record) this.saves.push(record);
+      return one ? `Deleted ${one.describe}` : `Deleted ${removed} markup${removed === 1 ? "" : "s"}.`;
+    });
+  }
+
+  /** Takes back the last add or delete. */
   async undo(): Promise<string> {
-    const record = this.saves.at(-1);
-    if (!record) return "Nothing to undo in this session.";
-    await undoSave(record);
-    this.saves.pop();
-    return record.sizeBefore === undefined
-      ? `Deleted ${basename(record.path)}, which the last save created.`
-      : `Took back the last change to ${basename(record.path)} (${record.count} markup${record.count === 1 ? "" : "s"}).`;
-  }
-
-  async remove(inPlace = false): Promise<string> {
-    const path = this.outPath(inPlace);
-    if (!this.exists(path)) return `${basename(path)} doesn't exist, so there's nothing to remove.`;
-    const saved = await listSavedMarkups(path);
-    if (saved.length === 0) return `${basename(path)} has no markups from aecdo.`;
-    const ok = await (this.deps.confirm ?? (() => Promise.resolve(false)))(
-      `Remove ${saved.length} aecdo markup${saved.length === 1 ? "" : "s"} from ${basename(path)}? Other people's markups stay. [y/N] `
-    );
-    if (!ok) return "Nothing removed.";
-    const { removed, record } = await removeSavedMarkups(path);
-    if (record) this.saves.push(record);
-    return `Removed ${removed} markup${removed === 1 ? "" : "s"} from ${basename(path)}. Press m, then u, to undo.`;
+    return this.write(async () => {
+      const record = this.saves.at(-1);
+      if (!record) return "Nothing to undo.";
+      await undoSave(record);
+      this.saves.pop();
+      return record.sizeBefore === undefined ? `Undone. ${basename(record.path)} is gone, since that markup was its first.` : "Undone.";
+    });
   }
 }

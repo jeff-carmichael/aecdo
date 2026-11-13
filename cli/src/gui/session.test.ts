@@ -98,26 +98,32 @@ test("big sets come in groups", async () => {
   assert.equal(boot.sheets.filter((x) => x.g === 0).length, 20);
 });
 
-test("markups: added from the selection, listed, dropped, and saved to a copy", async () => {
+test("markups: added from the selection go straight into a copy the pane shows", async () => {
   const dir = mkdtempSync(join(tmpdir(), "aecdo-gui-"));
   copyFileSync(new URL("sample-drawing-package-1and2family.pdf", examples), join(dir, "sample-drawing-package-1and2family.pdf"));
   const { s, events } = session(house, join(dir, "sample-drawing-package-1and2family.jsonld"));
-  assert.equal((await s.pdfInfo()).available, true);
+  const before = await s.pdfInfo();
+  assert.equal(before.available, true);
   s.openSheet("2");
   s.command(["1", "1", "1"]);
   assert.match(await s.addMarkup({ kind: "cloud", text: "Check egress window" }), /^Added cloud/);
   assert.ok(events.some((e) => e.type === "markups"));
-  const info = await s.markupsInfo();
-  assert.equal(info.pending.length, 1);
-  assert.match(info.pending[0].describe, /Check egress window/);
+  assert.ok(events.some((e) => e.type === "pdf"), "the pane reloads");
+  const after = await s.pdfInfo();
+  assert.equal(after.savedCopy, true);
+  assert.ok(after.version > before.version);
+  assert.match(s.pdfFile() ?? "", /-markups\.pdf$/);
 
-  const saved = await s.markupsAction("save");
-  assert.match(saved, /Saved 1 markup/);
-  assert.match(saved, /Press m, then u, to undo\./);
-  assert.match(s.pdfFile() ?? "", /-markups\.pdf$/, "the pane shows the copy with saved markups");
-  assert.ok(events.some((e) => e.type === "pdf"));
-  assert.equal((await s.pdfInfo()).savedCopy, true);
-  assert.match(await s.markupsAction("undo"), /Deleted/);
+  const info = await s.markupsInfo();
+  assert.equal(info.file, "sample-drawing-package-1and2family-markups.pdf");
+  assert.equal(info.markups.length, 1);
+  assert.equal(info.markups[0].sheetNumber, "2");
+  assert.match(info.markups[0].describe, /Check egress window/);
+
+  assert.match(await s.markupsAction("delete", 1), /^Deleted cloud 2/);
+  assert.equal((await s.markupsInfo()).markups.length, 0);
+  assert.equal(await s.markupsAction("undo"), "Undone.");
+  assert.equal((await s.markupsInfo()).markups.length, 1);
   await assert.rejects(s.markupsAction("explode"), /Unknown markups action/);
 });
 
