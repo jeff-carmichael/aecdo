@@ -77,7 +77,7 @@ export async function launchApp(): Promise<void> {
   if (process.platform === "win32" && !process.env[CONSOLE_ENV]) {
     // aecdo.exe is a console program, so Windows gave it a console window (minimized by the
     // shortcut). Let it go, so only the app's window is left. This used to restart the app without
-    // a console instead, but WebView2 can't start in a process started that way.
+    // a console instead, but a process started hidden can't show its window either.
     try {
       const { dlopen } = await import("bun:ffi");
       const kernel32 = dlopen("kernel32.dll", { FreeConsole: { args: [], returns: "i32" } });

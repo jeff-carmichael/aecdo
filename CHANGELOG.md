@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### CLI
-- Fixed: on Windows the app closed right after its icon appeared when opened from the Start menu. It restarted itself without a console to hide that window, and WebView2 can't start in a process started that way; it now lets go of the console instead, and the release build checks that the window opens on Windows.
+- Fixed: on Windows the app window never showed, from the Start menu (the icon appeared, then went away) or from `aecdo gui`. Both started the window process hidden, to keep a console window from showing, and Windows hid the app window with it. The Start menu launch now closes its console instead, and the window is shown even when it was started minimized.
 - Opening the app from its icon writes what happened to `~/.aecdo/app.log` (each step, and any error), so a window that never shows can be diagnosed. A window that can't start now falls back to the browser instead of quitting.
 
 ## [0.6.3] - 2026-11-14
