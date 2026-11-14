@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- Opening the app from its icon writes what happened to `~/.aecdo/app.log` (each step, and any error), so a window that never shows can be diagnosed. On Windows, a window that can't start (no WebView2) now falls back to the browser instead of quitting.
+
 ## [0.6.3] - 2026-11-14
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.

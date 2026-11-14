@@ -77,6 +77,23 @@ jobs:
           cd "$RUNNER_TEMP"
           "$GITHUB_WORKSPACE/$BIN" validate "$GITHUB_WORKSPACE/examples/sample-drawing-package-1and2family.jsonld"
 
+      # Opens the app the way its Start menu shortcut does and checks that the window loaded its page.
+      - name: Smoke test the app window (Windows)
+        if: startsWith(matrix.target, 'windows-')
+        run: |
+          HOME_DIR="$(cygpath -u "$RUNNER_TEMP")/home"
+          mkdir -p "$HOME_DIR"
+          export USERPROFILE="$(cygpath -w "$HOME_DIR")"
+          LOG="$HOME_DIR/.aecdo/app.log"
+          "dist-bin/${{ matrix.target }}/aecdo.exe" __app
+          for _ in $(seq 30); do
+            grep -q "page loaded" "$LOG" 2>/dev/null && break
+            sleep 1
+          done
+          cat "$LOG"
+          taskkill //F //IM aecdo.exe || true
+          grep -q "page loaded" "$LOG"
+
       - name: Package
         run: |
           TARGET=${{ matrix.target }}
