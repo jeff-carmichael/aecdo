@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Fixed: the PDF pane showed "No PDF to show" after the PDF it had open changed (for example after saving markups), since PDF.js 6 documents can't be destroyed directly.
 - Simpler app home screen. The folder you're working in sits at the top with **Open another folder…** (`o`) beside it, and its drawing sets are listed first, with the one you opened last selected. **Recent** merges recent sets from other folders and recent folders into one list, shown by name with a short `~/…` location instead of full paths, and without repeating the sets already listed or ones that were deleted. PDFs to process (when turned on) sit in the same list as the sets. The path box only appears when you press `/` or there's no folder dialog, and the empty-folder message no longer points to a terminal command.
 - Opening a set from another folder (from **Recent**, the path box, or `aecdo gui <file>`) switches the app and its AI chats to that set's folder, so the folder at the top always matches the open set.
+- New app icon: the end profile of a triangular scale ruler in gold, art deco style, on navy, framed by ruler tick marks.
 
 ## [0.6.2] - 2026-11-12
 
