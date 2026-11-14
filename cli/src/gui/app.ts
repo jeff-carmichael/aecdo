@@ -40,10 +40,15 @@ export interface GuiAppOptions {
   runJob?: (path: string, opts: JobOptions) => Promise<{ content: string }>;
 }
 
+/** Light or dark look, or "system" to follow the computer's setting. */
+export type Theme = "system" | "light" | "dark";
+export const THEMES: readonly Theme[] = ["system", "light", "dark"];
+
 /** What `~/.aecdo/gui.json` remembers. */
 interface Remembered {
   recent: string[];
   folders: string[];
+  theme: Theme;
 }
 
 /** A PDF in the current folder with no drawing set next to it yet. */
@@ -283,9 +288,10 @@ export class GuiApp {
     try {
       const saved = JSON.parse(await readFile(this.settingsPath(), "utf-8")) as Partial<Record<keyof Remembered, unknown>>;
       const strings = (v: unknown) => (Array.isArray(v) ? v.filter((p): p is string => typeof p === "string") : []);
-      return { recent: strings(saved.recent), folders: strings(saved.folders) };
+      const theme = THEMES.find((t) => t === saved.theme) ?? "system";
+      return { recent: strings(saved.recent), folders: strings(saved.folders), theme };
     } catch {
-      return { recent: [], folders: [] };
+      return { recent: [], folders: [], theme: "system" };
     }
   }
 
@@ -305,13 +311,24 @@ export class GuiApp {
     try {
       const saved = await this.remembered();
       const bump = (list: string[], item?: string) => (item ? [item, ...list.filter((p) => p !== item)].slice(0, RECENT_LIMIT) : list);
-      const next: Remembered = { recent: bump(saved.recent, used.file), folders: bump(saved.folders, used.folder) };
-      const file = this.settingsPath();
-      await mkdir(join(file, ".."), { recursive: true });
-      await writeFile(file, JSON.stringify(next, null, 2) + "\n");
+      await this.saveRemembered({ ...saved, recent: bump(saved.recent, used.file), folders: bump(saved.folders, used.folder) });
     } catch {
       // remembering recent files is a convenience
     }
+  }
+
+  private async saveRemembered(next: Remembered): Promise<void> {
+    const file = this.settingsPath();
+    await mkdir(join(file, ".."), { recursive: true });
+    await writeFile(file, JSON.stringify(next, null, 2) + "\n");
+  }
+
+  async theme(): Promise<Theme> {
+    return (await this.remembered()).theme;
+  }
+
+  async setTheme(theme: Theme): Promise<void> {
+    await this.saveRemembered({ ...(await this.remembered()), theme });
   }
 
   /** Works in another folder from now on, like "Open Folder" in an editor. */

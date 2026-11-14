@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- Dark mode button in the app: the moon (or sun) at the top right switches between light and dark, on the home screen too. The choice is remembered in `~/.aecdo/gui.json`; Settings → **Look** can go back to **Match the computer**, which is still the default.
+
 ## [0.6.3] - 2026-11-14
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.

@@ -23,6 +23,7 @@ The app opens on **Open a drawing set**, which shows the folder you're working i
 - **Recent** lists sets you opened in other folders, and other folders you've worked in, each with where it is. Opening a set from another folder, or picking a folder, switches the app to that folder.
 - **Open another folder…** (or <kbd>o</kbd>) shows your computer's folder picker, like *Open Folder* in an editor. On Linux this needs `zenity` or `kdialog`; without them, a box appears for the folder's path. Press <kbd>/</kbd> to type a path to any `.jsonld` file or folder yourself.
 - **Settings** (or <kbd>,</kbd>) sets up the AI models.
+- The moon at the top right switches to dark mode (the sun switches back). See [Light and dark](#light-and-dark).
 
 Pick a set with <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>, or click it. Press <kbd>o</kbd> later to come back here and open another set without closing the app.
 
@@ -126,6 +127,10 @@ When you go to the chat, the keys still switch chats until you start typing: <kb
 ## Markups
 
 Ask the AI to cloud something, press <kbd>M</kbd> on whatever's selected, or hold <kbd>Shift</kbd> and drag a box on the PDF. Each markup is saved as soon as it's added, to `<name>-markups.pdf` next to your PDF, and shows on the PDF pane right away. There's no save step, and your original PDF isn't changed. Keep markups for different purposes (code review, coordination, QA) in separate **sets**, each its own copy such as `<name>-markups-qa.pdf`: pick one, or **New set…**, from the menu under the PDF. Press <kbd>m</kbd> to list the set's markups: <kbd>Enter</kbd> goes to one, <kbd>x</kbd> deletes it, <kbd>u</kbd> undoes the last change, and <kbd>h</kbd> shows its history, where you can go back to any earlier step. See [Markup sets](assistant.md#markup-sets).
+
+## Light and dark
+
+The app starts out matching your computer's light or dark setting. Click the moon at the top right for dark mode, or the sun for light; the app remembers your choice next time. To follow the computer again, open Settings (<kbd>,</kbd>) and pick **Match the computer** under **Look**.
 
 ## From the terminal
 

@@ -882,6 +882,55 @@ function helpModal() {
   openModal({ kind: "help", title: "Keyboard shortcuts", body, wide: true, keys: (e) => (e.key === "?" ? (closeModal(), true) : false) });
 }
 
+// ── Light and dark ───────────────────────────────────────
+
+/** @typedef {"system" | "light" | "dark"} Theme */
+
+const THEME_LABELS = { system: "Match the computer", light: "Light", dark: "Dark" };
+/** The dark stylesheet's media for each choice; the server writes the saved one into the page. */
+const DARK_MEDIA = { system: "(prefers-color-scheme: dark)", light: "not all", dark: "all" };
+const darkCss = /** @type {HTMLLinkElement} */ ($("dark-css"));
+const systemDark = matchMedia(DARK_MEDIA.system);
+const MOON = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6.2 1.3a6.8 6.8 0 1 0 8.5 8.5A5.6 5.6 0 0 1 6.2 1.3z"/></svg>`;
+const SUN = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="currentColor"/><path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3 3l1.1 1.1M11.9 11.9 13 13M3 13l1.1-1.1M11.9 4.1 13 3"/></svg>`;
+
+/** @returns {Theme} */
+function theme() {
+  const t = /** @type {Theme | undefined} */ (Object.keys(DARK_MEDIA).find((k) => /** @type {any} */ (DARK_MEDIA)[k] === darkCss.media));
+  return t ?? "system";
+}
+
+function isDark() {
+  return matchMedia(darkCss.media).matches;
+}
+
+function renderThemeButton() {
+  const btn = $("theme-btn");
+  const dark = isDark();
+  btn.innerHTML = dark ? SUN : MOON;
+  btn.setAttribute("aria-pressed", String(dark));
+  btn.setAttribute("aria-label", "Dark mode");
+  btn.title = `${dark ? "Switch to light mode" : "Switch to dark mode"}${theme() === "system" ? " (now matching the computer; Settings can go back to that)" : ""}`;
+}
+
+/** @param {Theme} next */
+async function setTheme(next) {
+  darkCss.media = DARK_MEDIA[next];
+  renderThemeButton();
+  try {
+    await api("api/theme", { theme: next });
+  } catch (err) {
+    toast(`Couldn't save the look: ${/** @type {Error} */ (err).message}`, "warn");
+  }
+}
+
+function toggleTheme() {
+  return setTheme(isDark() ? "light" : "dark");
+}
+
+systemDark.addEventListener("change", renderThemeButton);
+renderThemeButton();
+
 // ── Settings ─────────────────────────────────────────────
 
 const ROUTE_ACTIONS = {
@@ -968,7 +1017,11 @@ ${models}
 <h3>Which model each @name uses</h3>
 <table class="assistants">${ai.assistants.map(assistantRow).join("")}</table>`
       : `<p class="warn">The AI chat needs Node.js 22.19 or newer. Use the standalone aecdo, or update Node.js.</p>`;
-    body.innerHTML = `${auth}<h3>AI models</h3>${aiPart}
+    const themes = /** @type {Theme[]} */ (Object.keys(THEME_LABELS))
+      .map((t) => `<button data-theme="${t}" aria-pressed="${t === theme()}">${THEME_LABELS[t]}</button>`)
+      .join("");
+    body.innerHTML = `${auth}<h3>Look</h3><div class="theme-choice" role="group" aria-label="Light or dark">${themes}</div>
+<h3>AI models</h3>${aiPart}
 <h3>DrawingBot API</h3>
 ${info.api.available ? `<p class="dim">Turns PDFs into drawing sets: pick one on the home screen. ${info.api.configured ? "Set up." : "Not set up."} Saved in <code>${esc(info.api.path)}</code>.</p>
 <form class="settings-form" data-form="api">
@@ -1022,6 +1075,7 @@ ${info.api.available ? `<p class="dim">Turns PDFs into drawing sets: pick one on
     const t = /** @type {HTMLElement} */ (e.target).closest("button");
     if (!t || t.disabled) return;
     if (t.dataset.close !== undefined) return closeSettings();
+    if (t.dataset.theme) return void setTheme(/** @type {Theme} */ (t.dataset.theme)).then(draw);
     if (t.dataset.cancel !== undefined) {
       editing = undefined;
       return draw();
@@ -1610,6 +1664,7 @@ document.addEventListener("keydown", onKey);
 
 $("help-btn").addEventListener("click", helpModal);
 $("settings-btn").addEventListener("click", () => void settingsModal());
+$("theme-btn").addEventListener("click", () => void toggleTheme());
 $("chat-btn").addEventListener("click", toggleChat);
 $("chat-hide").addEventListener("click", toggleChat);
 $("chat-input").addEventListener("focus", renderHints);

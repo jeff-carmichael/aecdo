@@ -7,6 +7,7 @@
 <title>aecdo</title>
 <link rel="icon" href="app/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="app/app.css">
+<link id="dark-css" rel="stylesheet" href="app/dark.css" media="(prefers-color-scheme: dark)">
 <link rel="modulepreload" href="pdfjs/pdf.min.mjs">
 <script type="module" src="app/app.js"></script>
 </head>
@@ -20,6 +21,7 @@
       <button id="markups-btn" class="chip" title="Markups on this PDF (m)">Markups <span id="markups-count" class="badge" hidden></span></button>
       <button id="chat-btn" class="chip" title="Ask AI (a), show or hide the chat (c)">Ask AI</button>
       <button id="settings-btn" class="chip" title="Settings: AI models and API credentials (,)">Settings</button>
+      <button id="theme-btn" class="chip icon-chip" aria-pressed="false"></button>
       <button id="help-btn" class="chip" title="Keyboard shortcuts (?)">?</button>
     </div>
   </header>

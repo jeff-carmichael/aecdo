@@ -277,3 +277,22 @@ test("asset paths stay inside the app's files", () => {
   assert.equal(assetPath("app/secret.txt"), undefined);
   assert.equal(assetPath("../etc/passwd"), undefined);
 });
+
+test("the light or dark choice is saved and written into the page", async () => {
+  const { server, url, dir } = await start(false);
+  const darkMedia = async () => /<link id="dark-css"[^>]*media="([^"]*)"/.exec(await (await fetch(url)).text())?.[1];
+  try {
+    assert.equal(await darkMedia(), "(prefers-color-scheme: dark)");
+    assert.deepEqual((await json(`${url}api/theme`, { theme: "dark" })).data, { theme: "dark" });
+    assert.equal(await darkMedia(), "all");
+    assert.equal(JSON.parse(readFileSync(join(dir, "gui.json"), "utf-8")).theme, "dark");
+    await json(`${url}api/theme`, { theme: "light" });
+    assert.equal(await darkMedia(), "not all");
+    assert.equal((await json(`${url}api/theme`, { theme: "purple" })).status, 400);
+    await json(`${url}api/theme`, { theme: "system" });
+    assert.equal(await darkMedia(), "(prefers-color-scheme: dark)");
+  } finally {
+    await server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
