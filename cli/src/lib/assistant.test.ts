@@ -195,6 +195,7 @@ test("the assistant's markups are saved at once and it can list and remove them"
     lines: () => Promise.resolve(saved.map((m, i) => `${i + 1}. ${describe(m)}`)),
     remove: (n) => Promise.resolve(`Deleted ${describe(saved.splice(n - 1, 1)[0])}`),
     outPath: () => "/plans/set-markups.pdf",
+    useSet: (name) => ({ name, file: "set-markups-qa.pdf", exists: false }),
   };
   const results: string[] = [];
   const lastResult = (context: { messages: unknown[] }) => {

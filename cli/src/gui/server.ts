@@ -173,9 +173,10 @@ function routes(app: GuiApp): Record<string, Handler> {
     },
     "GET /api/markups": () => session(app).markupsInfo(),
     "POST /api/markups": async (b) => {
-      const index = typeof b.index === "number" ? b.index : undefined;
+      const num = (k: string) => (typeof b[k] === "number" ? b[k] : undefined);
       try {
-        return { message: await session(app).markupsAction(str(b, "action"), index) };
+        const opts = { index: num("index"), step: num("step"), ...(typeof b.name === "string" ? { name: b.name } : {}) };
+        return { message: await session(app).markupsAction(str(b, "action"), opts) };
       } catch (err) {
         if (err instanceof HttpError) throw err;
         throw new HttpError(400, (err as Error).message);
@@ -186,7 +187,7 @@ function routes(app: GuiApp): Record<string, Handler> {
       if (!MARKUP_KINDS.includes(kind)) throw new HttpError(400, `kind must be one of ${MARKUP_KINDS.join(", ")}`);
       try {
         return {
-          message: await session(app).addMarkup({ kind, text: str(b, "text"), bbox: bbox(b.bbox), ...(typeof b.sheet === "string" ? { sheet: b.sheet } : {}) }),
+          message: await session(app).addMarkup({ kind, text: str(b, "text"), bbox: bbox(b.bbox), ...(typeof b.sheet === "string" ? { sheet: b.sheet } : {}), ...(typeof b.set === "string" ? { set: b.set } : {}) }),
         };
       } catch (err) {
         if (err instanceof HttpError) throw err;

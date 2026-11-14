@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
-import type { PDFArray, PDFDocument, PDFFont, PDFPage, PDFRef, PDFDict, PDFContext } from "pdf-lib";
+import type { PDFArray, PDFDocument, PDFFont, PDFObject, PDFPage, PDFRef, PDFDict, PDFContext } from "pdf-lib";
 import { bboxToUserSpace, displaySize, type BBox, type Box } from "./pdf-page.js";
 
 type PdfLib = typeof import("pdf-lib");
@@ -25,6 +25,8 @@ export interface Markup {
   itemId?: string;
   /** Where the callout's text box or the note's icon goes (top-left corner); placed automatically when absent. */
   at?: [number, number];
+  /** The markup set's name, kept on the annotation and in its subject; left out for the default set. */
+  set?: string;
 }
 
 export interface SavedMarkup {
@@ -33,21 +35,62 @@ export interface SavedMarkup {
   text: string;
   name: string;
   itemId?: string;
+  set?: string;
 }
 
 export const MARKUP_AUTHOR = "aecdo assistant";
 export const MARKUP_NAME_PREFIX = "aecdo-";
 const ITEM_KEY = "AECDO_Item";
+const SET_KEY = "AECDO_Set";
 const SUBJECTS: Record<MarkupKind, string> = { cloud: "Cloud", callout: "Callout", note: "Note" };
+/** "Code review: Cloud", so Bluebeam's and Acrobat's markup lists can sort and filter by set. */
+const subject = (kind: MarkupKind, set?: string) => (set ? `${set}: ${SUBJECTS[kind]}` : SUBJECTS[kind]);
 
 export function newMarkupId(): string {
   return `${MARKUP_NAME_PREFIX}${randomUUID()}`;
 }
 
-/** `plans.pdf` → `plans-markups.pdf`, next to it. */
-export function markupCopyPath(pdfPath: string): string {
+/** The default set's name; its file is `<name>-markups.pdf`. */
+export const DEFAULT_MARKUP_SET = "Markups";
+
+/** "Code review" → "code-review"; "" for the default set. */
+export function markupSetSlug(name: string): string {
+  const slug = name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return slug === DEFAULT_MARKUP_SET.toLowerCase() ? "" : slug;
+}
+
+/** `plans.pdf` → `plans-markups.pdf`, or `plans-markups-<slug>.pdf` for a named set, next to it. */
+export function markupCopyPath(pdfPath: string, slug = ""): string {
   const ext = extname(pdfPath) || ".pdf";
-  return join(dirname(pdfPath), `${basename(pdfPath, extname(pdfPath))}-markups${ext}`);
+  return join(dirname(pdfPath), `${basename(pdfPath, extname(pdfPath))}-markups${slug ? `-${slug}` : ""}${ext}`);
+}
+
+/** The markup set copies of `pdfPath` in its folder, by slug ("" for the default set). */
+export function markupSetFiles(pdfPath: string): { slug: string; path: string; mtimeMs: number }[] {
+  const dir = dirname(pdfPath);
+  const ext = extname(pdfPath) || ".pdf";
+  const prefix = `${basename(pdfPath, extname(pdfPath))}-markups`.toLowerCase();
+  const out: { slug: string; path: string; mtimeMs: number }[] = [];
+  for (const file of readdirSync(dir)) {
+    const lower = file.toLowerCase();
+    if (!lower.startsWith(prefix) || !lower.endsWith(ext.toLowerCase())) continue;
+    const rest = file.slice(prefix.length, file.length - ext.length);
+    if (rest && (!rest.startsWith("-") || markupSetSlug(rest.slice(1)) !== rest.slice(1))) continue;
+    const path = join(dir, file);
+    try {
+      const st = statSync(path);
+      if (st.isFile()) out.push({ slug: rest.slice(1), path, mtimeMs: st.mtimeMs });
+    } catch {
+      // gone since readdir
+    }
+  }
+  return out;
 }
 
 type Matrix = [number, number, number, number, number, number];
@@ -309,7 +352,7 @@ export function addMarkupAnnotation(lib: PdfLib, doc: PDFDocument, page: PDFPage
     ...built.dict,
   });
   dict.set(PDFName.of("T"), PDFHexString.fromText(MARKUP_AUTHOR));
-  dict.set(PDFName.of("Subj"), PDFHexString.fromText(SUBJECTS[markup.kind]));
+  dict.set(PDFName.of("Subj"), PDFHexString.fromText(subject(markup.kind, markup.set)));
   dict.set(PDFName.of("Contents"), PDFHexString.fromText(markup.text));
   dict.set(PDFName.of("NM"), PDFString.of(markup.id));
   dict.set(PDFName.of("M"), date);
@@ -318,6 +361,7 @@ export function addMarkupAnnotation(lib: PdfLib, doc: PDFDocument, page: PDFPage
   dict.set(PDFName.of("AP"), ctx.obj({ N: ctx.register(ap) }));
   for (const [key, value] of Object.entries(built.strings ?? {})) dict.set(PDFName.of(key), PDFString.of(value));
   if (markup.itemId) dict.set(PDFName.of(ITEM_KEY), PDFString.of(markup.itemId));
+  if (markup.set) dict.set(PDFName.of(SET_KEY), PDFHexString.fromText(markup.set));
   const ref = ctx.register(dict);
 
   let annots = page.node.lookup(PDFName.of("Annots"));
@@ -397,7 +441,15 @@ function objectBytes(obj: { sizeInBytes(): number; copyBytesInto(b: Uint8Array, 
  * Appends changed and new objects to the original bytes as a PDF incremental update, leaving every
  * original byte (and so any digital signature) as it was.
  */
-export function incrementalUpdate(lib: PdfLib, original: Uint8Array, doc: PDFDocument, tail: Tail, firstNew: number, changed: PDFRef[]): Uint8Array {
+export function incrementalUpdate(
+  lib: PdfLib,
+  original: Uint8Array,
+  doc: PDFDocument,
+  tail: Tail,
+  firstNew: number,
+  changed: PDFRef[],
+  note?: RevisionNote
+): Uint8Array {
   const ctx = doc.context;
   const touched = new Set(changed.map((r) => r.objectNumber));
   const objects = ctx
@@ -411,6 +463,11 @@ export function incrementalUpdate(lib: PdfLib, original: Uint8Array, doc: PDFDoc
   if (last !== 0x0a && last !== 0x0d) {
     chunks.push(Buffer.from("\n"));
     offset++;
+  }
+  if (note) {
+    const line = Buffer.from(revisionComment(note), "latin1");
+    chunks.push(line);
+    offset += line.length;
   }
   const entries: { num: number; gen: number; offset: number }[] = [];
   for (const [ref, obj] of objects) {
@@ -459,6 +516,63 @@ export function incrementalUpdate(lib: PdfLib, original: Uint8Array, doc: PDFDoc
   return Buffer.concat([original, ...chunks]);
 }
 
+/** What one change did, written as a PDF comment at the start of its incremental update. */
+export interface RevisionNote {
+  op: "add" | "delete" | "restore" | "rename";
+  /** The set's name after the change. */
+  set: string;
+  text: string;
+  /** ISO time. */
+  time: string;
+}
+
+/** One version of a markup copy: the file's first `end` bytes. */
+export interface HistoryStep extends Partial<RevisionNote> {
+  end: number;
+  /** A save by another program (e.g. Bluebeam), with no note of ours. */
+  outside?: boolean;
+}
+
+const REVISION_TAG = "%aecdo-rev ";
+
+/** A comment line that stays printable ASCII and never contains "%%EOF". */
+function revisionComment(note: RevisionNote): string {
+  const json = JSON.stringify(note).replace(/[^\x20-\x7e]|%/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+  return `${REVISION_TAG}${json}\n`;
+}
+
+function indexesOf(bytes: Buffer, needle: string, from = 0): number[] {
+  const out: number[] = [];
+  for (let i = bytes.indexOf(needle, from, "latin1"); i >= 0; i = bytes.indexOf(needle, i + needle.length, "latin1")) out.push(i);
+  return out;
+}
+
+/**
+ * The versions of a markup copy aecdo wrote, oldest first, read from the notes on its incremental
+ * updates. `start` is where the first one begins (the file before it), undefined when there are none,
+ * e.g. after another program re-saved the whole file.
+ */
+export function markupHistory(data: Uint8Array): { start?: number; steps: HistoryStep[] } {
+  const bytes = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+  const tags = indexesOf(bytes, REVISION_TAG);
+  if (tags.length === 0) return { steps: [] };
+  const steps: HistoryStep[] = [];
+  let t = 0;
+  for (const eof of indexesOf(bytes, "%%EOF", tags[0])) {
+    let note: RevisionNote | undefined;
+    for (; t < tags.length && tags[t] < eof; t++) {
+      const lineEnd = bytes.indexOf("\n", tags[t], "latin1");
+      try {
+        note = JSON.parse(latin1(bytes, tags[t] + REVISION_TAG.length, lineEnd < 0 ? eof : lineEnd)) as RevisionNote;
+      } catch {
+        note = undefined;
+      }
+    }
+    steps.push(note ? { ...note, end: eof + 5 } : { outside: true, end: eof + 5 });
+  }
+  return { start: tags[0], steps };
+}
+
 /** Records how to undo one save. */
 export interface SaveRecord {
   path: string;
@@ -477,6 +591,7 @@ export interface SaveOptions {
   outPath: string;
   markups: Markup[];
   now?: Date;
+  note?: RevisionNote;
 }
 
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -497,13 +612,19 @@ async function replaceFile(path: string, bytes: Uint8Array): Promise<void> {
   }
 }
 
-async function update(path: string, base: Uint8Array, edit: (lib: PdfLib, doc: PDFDocument) => PDFRef[] | Promise<PDFRef[]>, allowRewrite: boolean): Promise<{ bytes: Uint8Array; rewritten: boolean }> {
+async function update(
+  path: string,
+  base: Uint8Array,
+  edit: (lib: PdfLib, doc: PDFDocument) => PDFRef[] | Promise<PDFRef[]>,
+  allowRewrite: boolean,
+  note?: RevisionNote
+): Promise<{ bytes: Uint8Array; rewritten: boolean }> {
   const lib = await import("pdf-lib");
   const doc = await loadPdf(lib, base, path);
   const tail = readTail(base);
   const firstNew = reserveObjectNumbers(doc.context, tail);
   const changed = await edit(lib, doc);
-  const bytes = incrementalUpdate(lib, base, doc, tail, firstNew, changed);
+  const bytes = incrementalUpdate(lib, base, doc, tail, firstNew, changed, note);
   try {
     const check = await lib.PDFDocument.load(bytes, { updateMetadata: false });
     if (check.getPageCount() !== doc.getPageCount()) throw new Error("page count changed");
@@ -546,7 +667,8 @@ export async function saveMarkups(opts: SaveOptions): Promise<SaveRecord> {
       }
       return changed;
     },
-    !inPlace
+    !inPlace,
+    opts.note
   );
   await replaceFile(opts.outPath, bytes);
   return {
@@ -601,18 +723,18 @@ export async function listSavedMarkups(pdfPath: string): Promise<SavedMarkup[]> 
       if (!name?.startsWith(MARKUP_NAME_PREFIX)) continue;
       const subtype = dict.lookup(lib.PDFName.of("Subtype"));
       const kind = subtype instanceof lib.PDFName ? KIND_BY_SUBTYPE[subtype.decodeText()] : undefined;
-      out.push({ pageIndex, kind: kind ?? "other", text: annotText(lib, dict, "Contents") ?? "", name, itemId: annotText(lib, dict, ITEM_KEY) });
+      const set = annotText(lib, dict, SET_KEY);
+      out.push({ pageIndex, kind: kind ?? "other", text: annotText(lib, dict, "Contents") ?? "", name, itemId: annotText(lib, dict, ITEM_KEY), ...(set ? { set } : {}) });
     }
   });
   return out;
 }
 
 /**
- * Removes every markup aecdo added (and replies people attached to them), leaving everyone else's.
- * Written as an incremental update, like a save.
+ * Removes aecdo's markups (only those in `names`, when given) and replies people attached to them,
+ * leaving everyone else's. Written as an incremental update, like a save.
  */
-/** Removes aecdo's markups (only those in `names`, when given) and replies attached to them. */
-export async function removeSavedMarkups(pdfPath: string, names?: ReadonlySet<string>): Promise<{ removed: number; record?: SaveRecord }> {
+export async function removeSavedMarkups(pdfPath: string, names?: ReadonlySet<string>, note?: RevisionNote): Promise<{ removed: number; record?: SaveRecord }> {
   const base = await readFile(pdfPath);
   let removed = 0;
   const { bytes, rewritten } = await update(
@@ -621,13 +743,10 @@ export async function removeSavedMarkups(pdfPath: string, names?: ReadonlySet<st
     (lib, doc) => {
       const changed: PDFRef[] = [];
       for (const page of doc.getPages()) {
-        const annots = page.node.lookup(lib.PDFName.of("Annots"));
-        if (!(annots instanceof lib.PDFArray)) continue;
+        const entries = pageAnnots(lib, page);
         const ours = new Set<string>();
-        const entries = annots.asArray().map((raw, i) => ({ raw, dict: annots.lookup(i) }));
-        for (const { raw, dict } of entries) {
-          const name = dict instanceof lib.PDFDict ? annotName(lib, dict) : undefined;
-          if (name?.startsWith(MARKUP_NAME_PREFIX) && (!names || names.has(name)) && raw instanceof lib.PDFRef) ours.add(raw.tag);
+        for (const { dict, ours: ref } of entries) {
+          if (ref && (!names || names.has(annotName(lib, dict as PDFDict) ?? ""))) ours.add(ref.tag);
         }
         if (ours.size === 0) continue;
         const keep = entries.filter(({ raw, dict }) => {
@@ -637,17 +756,104 @@ export async function removeSavedMarkups(pdfPath: string, names?: ReadonlySet<st
           return !(parent instanceof lib.PDFRef && ours.has(parent.tag));
         });
         removed += entries.length - keep.length;
-        const ref = annotsRef(lib, page);
-        const next = doc.context.obj(keep.map((e) => e.raw));
-        if (ref === page.ref) page.node.set(lib.PDFName.of("Annots"), next);
-        else doc.context.assign(ref, next);
-        changed.push(ref);
+        changed.push(setAnnots(lib, doc, page, keep.map((e) => e.raw)));
       }
       return changed;
     },
-    false
+    false,
+    note
   );
   if (removed === 0) return { removed };
   await replaceFile(pdfPath, bytes);
   return { removed, record: { path: pdfPath, count: removed, sizeBefore: base.length, sizeAfter: bytes.length, sha256: sha256(bytes), rewritten } };
+}
+
+function setAnnots(lib: PdfLib, doc: PDFDocument, page: PDFPage, entries: PDFObject[]): PDFRef {
+  const ref = annotsRef(lib, page);
+  const next = doc.context.obj(entries);
+  if (ref === page.ref) page.node.set(lib.PDFName.of("Annots"), next);
+  else doc.context.assign(ref, next);
+  return ref;
+}
+
+/** Each page's annotations, with the refs of aecdo's own. */
+function pageAnnots(lib: PdfLib, page: PDFPage): { raw: PDFObject; dict: PDFObject | undefined; ours?: PDFRef }[] {
+  const annots = page.node.lookup(lib.PDFName.of("Annots"));
+  if (!(annots instanceof lib.PDFArray)) return [];
+  return annots.asArray().map((raw, i) => {
+    const dict = annots.lookup(i);
+    const name = dict instanceof lib.PDFDict ? annotName(lib, dict) : undefined;
+    return { raw, dict, ...(name?.startsWith(MARKUP_NAME_PREFIX) && raw instanceof lib.PDFRef ? { ours: raw } : {}) };
+  });
+}
+
+/**
+ * Brings back aecdo's markups as they were in the file's first `end` bytes (a step from
+ * markupHistory), as a new incremental update so nothing later is lost. Other people's markups stay.
+ */
+export async function restoreMarkups(pdfPath: string, end: number, note: RevisionNote): Promise<{ count: number; record?: SaveRecord }> {
+  const lib = await import("pdf-lib");
+  const base = await readFile(pdfPath);
+  if (end <= 0 || end > base.length) throw new Error("That version isn't in the file any more.");
+  const past = (await loadPdf(lib, base.subarray(0, end), pdfPath)).getPages().map((p) => pageAnnots(lib, p).flatMap((a) => (a.ours ? [a.ours] : [])));
+  let count = 0;
+  let changes = 0;
+  const { bytes, rewritten } = await update(
+    pdfPath,
+    base,
+    (lib, doc) => {
+      const changed: PDFRef[] = [];
+      doc.getPages().forEach((page, i) => {
+        const want = (past[i] ?? []).filter((ref) => doc.context.lookup(ref));
+        count += want.length;
+        const now = pageAnnots(lib, page);
+        const ours = now.flatMap((a) => (a.ours ? [a.ours.tag] : []));
+        if (ours.length === want.length && want.every((ref, j) => ref.tag === ours[j])) return;
+        const wanted = new Set(want.map((ref) => ref.tag));
+        const dropped = new Set(ours.filter((tag) => !wanted.has(tag)));
+        const keep = now.filter(({ dict, ours }) => {
+          if (ours) return false;
+          if (!(dict instanceof lib.PDFDict)) return true;
+          const parent = dict.get(lib.PDFName.of("IRT")) ?? dict.get(lib.PDFName.of("Parent"));
+          return !(parent instanceof lib.PDFRef && dropped.has(parent.tag));
+        });
+        changed.push(setAnnots(lib, doc, page, [...keep.map((a) => a.raw), ...want]));
+      });
+      changes = changed.length;
+      return changed;
+    },
+    false,
+    note
+  );
+  if (changes === 0) return { count };
+  await replaceFile(pdfPath, bytes);
+  return { count, record: { path: pdfPath, count, sizeBefore: base.length, sizeAfter: bytes.length, sha256: sha256(bytes), rewritten } };
+}
+
+/** Puts the set's new name on aecdo's markups in `pdfPath` (their subject, too), as an incremental update. */
+export async function renameMarkups(pdfPath: string, set: string | undefined, note: RevisionNote): Promise<SaveRecord> {
+  const base = await readFile(pdfPath);
+  const { bytes, rewritten } = await update(
+    pdfPath,
+    base,
+    (lib, doc) => {
+      const changed: PDFRef[] = [];
+      for (const page of doc.getPages()) {
+        for (const { dict, ours } of pageAnnots(lib, page)) {
+          if (!ours || !(dict instanceof lib.PDFDict)) continue;
+          const subtype = dict.lookup(lib.PDFName.of("Subtype"));
+          const kind = subtype instanceof lib.PDFName ? KIND_BY_SUBTYPE[subtype.decodeText()] : undefined;
+          if (kind) dict.set(lib.PDFName.of("Subj"), lib.PDFHexString.fromText(subject(kind, set)));
+          if (set) dict.set(lib.PDFName.of(SET_KEY), lib.PDFHexString.fromText(set));
+          else dict.delete(lib.PDFName.of(SET_KEY));
+          changed.push(ours);
+        }
+      }
+      return changed;
+    },
+    false,
+    note
+  );
+  await replaceFile(pdfPath, bytes);
+  return { path: pdfPath, count: 0, sizeBefore: base.length, sizeAfter: bytes.length, sha256: sha256(bytes), rewritten };
 }

@@ -10,8 +10,13 @@ import {
   displayUpToUser,
   listSavedMarkups,
   markupCopyPath,
+  markupHistory,
+  markupSetFiles,
+  markupSetSlug,
   newMarkupId,
   removeSavedMarkups,
+  renameMarkups,
+  restoreMarkups,
   saveMarkups,
   undoSave,
   type Markup,
@@ -90,6 +95,68 @@ test("display-up drawing space lines up with bbox conversion on every rotation",
 test("names the copy next to the PDF", () => {
   assert.equal(markupCopyPath("/a/Plans Set.pdf"), join("/a", "Plans Set-markups.pdf"));
   assert.equal(markupCopyPath("/a/plans.PDF"), join("/a", "plans-markups.PDF"));
+  assert.equal(markupCopyPath("/a/plans.pdf", "code-review"), join("/a", "plans-markups-code-review.pdf"));
+  assert.equal(markupSetSlug("  Code Review! "), "code-review");
+  assert.equal(markupSetSlug("Coordination – Électrique"), "coordination-electrique");
+  assert.equal(markupSetSlug("markups"), "");
+});
+
+test("finds a PDF's markup sets next to it", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "aecdo-markup-"));
+  try {
+    for (const f of ["plans.pdf", "plans-markups.pdf", "plans-markups-qa.pdf", "plans-markups-Bad Name.pdf", "plans-markups-qa.pdf.aecdo-tmp", "other-markups.pdf"]) {
+      await writeFile(join(dir, f), "x");
+    }
+    assert.deepEqual(markupSetFiles(join(dir, "plans.pdf")).map((f) => f.slug).sort(), ["", "qa"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("each change notes itself in the file; restore brings back an earlier step as a new one", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "aecdo-markup-"));
+  try {
+    const src = join(dir, "plans.pdf");
+    const original = await sourcePdf(src, true, true);
+    const out = join(dir, "plans-markups-qa.pdf");
+    const note = (op: "add" | "delete" | "restore" | "rename", text: string) => ({ op, set: "QA 100%", text, time: "2026-11-14T16:00:00.000Z" });
+    const a = { ...markup("cloud", 0), set: "QA 100%" };
+    const b = markup("note", 1);
+    await saveMarkups({ sourcePdf: src, outPath: out, markups: [a], note: note("add", "Added a") });
+    await saveMarkups({ sourcePdf: src, outPath: out, markups: [b], note: note("add", "Added b") });
+    await removeSavedMarkups(out, undefined, note("delete", "Deleted all"));
+
+    const history = markupHistory(await readFile(out));
+    const start = history.start;
+    let steps = history.steps;
+    assert.equal(start, original.length + (original.at(-1) === 0x0a ? 0 : 1));
+    assert.deepEqual(steps.map((s) => s.text), ["Added a", "Added b", "Deleted all"]);
+    assert.equal(steps[0].set, "QA 100%", "the % survives the comment escaping");
+    assert.equal((await readFile(out)).indexOf("%aecdo-rev"), start);
+
+    const { count } = await restoreMarkups(out, steps[1].end, note("restore", "Went back to step 2"));
+    assert.equal(count, 2);
+    const saved = await listSavedMarkups(out);
+    assert.deepEqual(saved.map((m) => m.name).sort(), [a.id, b.id].sort());
+    assert.equal(saved.find((m) => m.name === a.id)?.set, "QA 100%");
+    const doc = await PDFDocument.load(await readFile(out));
+    const names = doc.getPage(0).node.Annots()!.asArray().map((ref) => doc.context.lookup(ref, PDFDict).get(PDFName.of("NM"))?.toString());
+    assert.ok(names.includes("(someone-else)"), "other people's markups stay");
+
+    // Another program appends a save of its own (here, one that only repeats the last startxref).
+    const bytes = await readFile(out);
+    const last = /startxref\s+(\d+)\s+%%EOF\s*$/.exec(bytes.subarray(bytes.length - 64).toString("latin1"))![1];
+    await writeFile(out, Buffer.concat([bytes, Buffer.from(`startxref\n${last}\n%%EOF\n`)]));
+    await renameMarkups(out, "Final QA", note("rename", "Renamed"));
+    ({ steps } = markupHistory(await readFile(out)));
+    assert.deepEqual(steps.map((s) => s.op ?? (s.outside ? "outside" : "")), ["add", "add", "delete", "restore", "outside", "rename"]);
+    assert.equal((await listSavedMarkups(out)).find((m) => m.name === a.id)?.set, "Final QA");
+
+    assert.equal((await restoreMarkups(out, start, note("restore", "Back to the start"))).count, 0);
+    assert.equal((await listSavedMarkups(out)).length, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 for (const objectStreams of [true, false]) {
