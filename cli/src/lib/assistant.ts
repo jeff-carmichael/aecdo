@@ -45,7 +45,9 @@ export interface AssistantHost {
 }
 
 export interface AssistantMarkups {
-  add(req: { kind: MarkupKind; text: string; bbox?: BBox; sheet?: string; at?: [number, number] }): Promise<Markup>;
+  add(req: { kind: MarkupKind; text: string; bbox?: BBox; sheet?: string; at?: [number, number]; set?: string }): Promise<Markup>;
+  /** Switches to (or starts) the markup set called `name`. */
+  useSet(name: string): { name: string; file: string; exists: boolean };
   describe(m: Markup): string;
   /** The markups, numbered from 1. */
   lines(): Promise<string[]>;
@@ -98,7 +100,7 @@ export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" |
   const sheetCount = host.data.sheets?.length ?? 0;
   const where = `the aecdo app, a desktop viewer for construction drawing sets that always shows the current PDF page next to the extracted data`;
   const showPage = `show_page zooms the PDF pane, which is always visible, to the open drawing, layer, item, table, note, or image, outlined in red. Use it when the user asks to see, show, or find something on the drawing: navigate to it first (open the item for a red box around it), then call show_page. You can't see the page yourself.`;
-  const saving = `Each markup is saved right away to a copy of the PDF next to the original (the original is never changed) and shows on the PDF pane at once; the user can undo or delete markups in the Markups panel (press m).`;
+  const saving = `Each markup is saved right away to a copy of the PDF next to the original (the original is never changed) and shows on the PDF pane at once; the user can undo or delete markups, and go back through their history, in the Markups panel (press m). Markups are kept in sets, one copy per purpose (e.g. "Code review", "Coordination", "QA"); new ones go to the set on the PDF pane. When the user names a purpose or set ("start a QA set", "in the code review markups"), pass it as set (or call use_markup_set first); otherwise leave set out. list_markups says which set is showing and what others exist.`;
   const otherCommands = `AI models and API keys are set up in the app's Settings (press "," or click Settings). Other aecdo commands (such as "aecdo update") can't run inside the app. When you suggest one, tell the user to run it in a terminal.`;
   const style = `Answer in short paragraphs or simple lists. **bold**, \`code\` and "- " lists are shown formatted, and sheet numbers become links; avoid tables and headings.`;
   return `You are ${info.label}, working inside ${where}.
@@ -387,18 +389,31 @@ function markupTools(host: AssistantHost, markups: AssistantMarkups, T: typeof i
         bbox: T.Optional(numbers(4, "[xmin, ymin, xmax, ymax] in PDF points from the page's top-left; defaults to the current selection")),
         sheet: T.Optional(T.String({ description: "Sheet number or page index for bbox; defaults to the current sheet" })),
         at: T.Optional(numbers(2)),
+        set: T.Optional(T.String({ description: "Markup set by name, e.g. \"QA\"; started if new, and shown from then on. Defaults to the set showing" })),
       }),
       executionMode: "sequential",
-      execute: async (_id, params: { kind: MarkupKind; text: string; bbox?: BBox; sheet?: string; at?: [number, number] }) => {
+      execute: async (_id, params: { kind: MarkupKind; text: string; bbox?: BBox; sheet?: string; at?: [number, number]; set?: string }) => {
         const m = await markups.add(params);
         host.print(`  ✎ Added ${markups.describe(m)}`);
         return text(`Added ${markups.describe(m)}. Saved to ${markups.outPath()}; it shows on the PDF pane now.`);
       },
     }),
     defineTool({
+      name: "use_markup_set",
+      label: "Use markup set",
+      description: "Show a markup set (one copy of the PDF per purpose, e.g. Code review, QA) by name, starting it if there isn't one. New markups go to it.",
+      parameters: T.Object({ name: T.String() }),
+      executionMode: "sequential",
+      execute: (_id, params: { name: string }) => {
+        const set = markups.useSet(params.name);
+        host.print(`  ✎ ${set.exists ? "Showing" : "Started"} the ${set.name} markups`);
+        return Promise.resolve(text(set.exists ? `Showing ${set.name} (${set.file}).` : `Started ${set.name}; its copy, ${set.file}, is made with its first markup.`));
+      },
+    }),
+    defineTool({
       name: "list_markups",
       label: "List markups",
-      description: "List aecdo's markups on this PDF, numbered.",
+      description: "List aecdo's markups in the markup set showing, numbered, and the other sets.",
       parameters: T.Object({}),
       execute: async () => text((await markups.lines()).join("\n")),
     }),

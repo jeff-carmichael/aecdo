@@ -177,7 +177,8 @@ async function loadPdf() {
   $("pdf-missing").hidden = info.available;
   $("pdf-stage").hidden = !info.available;
   $("pdf-bar").hidden = !info.available;
-  $("pdf-note").textContent = info.savedCopy ? `showing ${info.name}, with your markups` : "";
+  $("pdf-note").textContent = info.savedCopy ? "" : "original PDF";
+  $("pdf-note").title = info.name ?? "";
   if (!info.available) {
     showMissingPdf(info);
     return;
@@ -506,13 +507,97 @@ function toggleChat() {
 
 // ── Markups ──────────────────────────────────────────────
 
+/**
+ * @typedef {{ slug: string, name: string, file: string, exists: boolean, current: boolean }} MarkupSet
+ * @typedef {{ step: number, text: string, time?: string, current: boolean }} HistoryEntry
+ * @typedef {{ file?: string, set?: string, sets: MarkupSet[], suggested: string[], markups: { describe: string, sheetNumber: string }[], history: HistoryEntry[], historyNote?: string, error?: string }} MarkupsInfo
+ */
+
+/** @type {MarkupsInfo} */
+let markupsInfo = { sets: [], suggested: [], markups: [], history: [] };
+/** The "New set…" option's value; set names are never empty. */
+const NEW_SET = "";
+
 async function refreshMarkups() {
   if (!set) return;
+  /** @type {MarkupsInfo} */
   const info = await api("api/markups");
+  markupsInfo = info;
   const badge = $("markups-count");
   badge.hidden = info.markups.length === 0;
   badge.textContent = String(info.markups.length);
+  const picker = /** @type {HTMLSelectElement} */ ($("markup-set"));
+  fillSetSelect(picker, info, true);
+  picker.title = info.file ? `Markup set: new markups go here, saved to ${info.file}` : "Markup set";
   if (modal?.kind === "markups") modal.update?.(info);
+}
+
+/**
+ * The markup sets as options, the current one selected; suggested sets that don't exist yet are offered too.
+ * @param {HTMLSelectElement} select
+ * @param {MarkupsInfo} info
+ * @param {boolean} withNew  adds "New set…"
+ */
+function fillSetSelect(select, info, withNew) {
+  const names = new Set(info.sets.map((s) => s.name.toLowerCase()));
+  const extra = info.suggested.filter((n) => !names.has(n.toLowerCase()));
+  select.innerHTML = [
+    ...info.sets.map((s) => `<option value="${esc(s.name)}"${s.current ? " selected" : ""}>${esc(s.name)}${s.exists ? "" : " (new)"}</option>`),
+    ...extra.map((n) => `<option value="${esc(n)}">${esc(n)} (new)</option>`),
+    ...(withNew ? [`<option value="${NEW_SET}">New set…</option>`] : []),
+  ].join("");
+  select.hidden = info.sets.length === 0 && !!info.error;
+}
+
+/** @param {string} name */
+async function useSet(name) {
+  try {
+    toast((await api("api/markups", { action: "set", name })).message);
+  } catch (err) {
+    toast(/** @type {Error} */ (err).message, "warn");
+  }
+}
+
+/**
+ * Asks for a set name, with quick picks.
+ * @param {{ title: string, value?: string, picks?: string[], submit: (name: string) => Promise<unknown> }} o
+ */
+function setNameDialog(o) {
+  const body = document.createElement("form");
+  body.className = "markup-form set-name";
+  const picks = (o.picks ?? []).map((n) => `<button type="button" class="chip" data-pick="${esc(n)}">${esc(n)}</button>`).join("");
+  body.innerHTML = `<p class="dim">Each set is its own copy of the PDF, so markups for different purposes stay apart.</p>
+${picks ? `<div class="picks">${picks}</div>` : ""}
+<input name="name" type="text" maxlength="60" placeholder="Set name, e.g. Code review" value="${esc(o.value ?? "")}">
+<div class="actions"><button type="button" data-cancel>Cancel <kbd>Esc</kbd></button><button class="primary">OK <kbd>Enter</kbd></button></div>`;
+  const input = /** @type {HTMLInputElement} */ (body.querySelector("input"));
+  const submit = async (/** @type {string} */ name) => {
+    if (!name.trim()) return input.focus();
+    try {
+      await o.submit(name.trim());
+      closeModal();
+    } catch (err) {
+      toast(/** @type {Error} */ (err).message, "warn");
+    }
+  };
+  body.addEventListener("submit", (e) => {
+    e.preventDefault();
+    void submit(input.value);
+  });
+  body.querySelectorAll("[data-pick]").forEach((b) => b.addEventListener("click", () => void submit(/** @type {HTMLElement} */ (b).dataset.pick ?? "")));
+  body.querySelector("[data-cancel]")?.addEventListener("click", () => closeModal());
+  openModal({ kind: "set-name", title: o.title, body });
+  input.focus();
+  input.select();
+}
+
+function newSetDialog() {
+  const names = new Set(markupsInfo.sets.map((s) => s.name.toLowerCase()));
+  setNameDialog({
+    title: "New markup set",
+    picks: markupsInfo.suggested.filter((n) => !names.has(n.toLowerCase())),
+    submit: async (name) => toast((await api("api/markups", { action: "set", name })).message),
+  });
 }
 
 /** @param {{ bbox?: number[], sheet?: string, label?: string }} [at] */
@@ -527,13 +612,17 @@ function markupDialog(at) {
   body.innerHTML = `<p>On <strong>${esc(target.label ?? "")}</strong></p>
 <div class="kinds">${kinds.map((/** @type {string} */ k, /** @type {number} */ i) => `<label><input type="radio" name="kind" value="${k}"${i === 0 ? " checked" : ""}> <kbd>${i + 1}</kbd> ${k}</label>`).join("")}</div>
 <textarea name="text" rows="3" placeholder="What's the comment? e.g. Door 209B is not in the door schedule (A601)."></textarea>
+<label class="to-set">Adding to <select name="set"></select></label>
 <div class="actions"><button type="button" data-cancel>Cancel <kbd>Esc</kbd></button><button class="primary">Add markup <kbd>Enter</kbd></button></div>`;
   const text = /** @type {HTMLTextAreaElement} */ (body.querySelector("textarea"));
+  const setSelect = /** @type {HTMLSelectElement} */ (body.querySelector("select[name=set]"));
+  fillSetSelect(setSelect, markupsInfo, false);
+  if (!setSelect.options.length) setSelect.innerHTML = `<option value="">Markups</option>`;
   const submit = async () => {
     const kind = /** @type {HTMLInputElement} */ (body.querySelector("input[name=kind]:checked")).value;
     if (!text.value.trim()) return text.focus();
     try {
-      const r = await api("api/markups/add", { kind, text: text.value, ...(at?.bbox ? { bbox: at.bbox, sheet: at.sheet } : {}) });
+      const r = await api("api/markups/add", { kind, text: text.value, ...(setSelect.value ? { set: setSelect.value } : {}), ...(at?.bbox ? { bbox: at.bbox, sheet: at.sheet } : {}) });
       closeModal();
       toast(`${r.message}. Press m to see your markups or undo.`);
     } catch (err) {
@@ -559,7 +648,7 @@ function markupDialog(at) {
     title: "Add a markup",
     body,
     keys: (e) => {
-      if (/^[1-9]$/.test(e.key) && document.activeElement !== text) {
+      if (/^[1-9]$/.test(e.key) && document.activeElement !== text && document.activeElement !== setSelect) {
         const r = /** @type {HTMLInputElement | null} */ (body.querySelectorAll("input[name=kind]")[Number(e.key) - 1]);
         if (r) r.checked = true;
         text.focus();
@@ -571,27 +660,55 @@ function markupDialog(at) {
   text.focus();
 }
 
+/** @param {string} iso */
+function shortTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const today = new Date().toDateString() === d.toDateString();
+  return today ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 function markupsPanel() {
   if (!set) return;
   const body = document.createElement("div");
   body.className = "markups-panel";
   let selected = 0;
-  /** @type {{ file?: string, markups: { describe: string, sheetNumber: string }[], error?: string }} */
-  let info = { markups: [] };
+  let showHistory = false;
+  /** @type {MarkupsInfo} */
+  let info = markupsInfo;
+  const count = () => (showHistory ? info.history.length : info.markups.length);
   const draw = () => {
     const n = info.markups.length;
-    const rows = info.markups
-      .map((m, i) => `<li class="${i === selected ? "selected" : ""}" data-i="${i}"><span class="n">${i + 1}</span> ${esc(m.describe)}</li>`)
-      .join("");
-    const where = info.file ? `Markups are saved as they're added, to <strong>${esc(info.file)}</strong> next to your PDF. The original PDF isn't changed.` : esc(info.error ?? "");
-    body.innerHTML = `<p class="dim">${where}</p>
-${rows ? `<ol>${rows}</ol>` : `<p>No markups yet. Ask the AI to cloud or call out something, press <kbd>M</kbd> on a selection, or <kbd>Shift</kbd>+drag on the PDF.</p>`}
-<div class="actions">
+    const others = info.sets.filter((s) => !s.current).length;
+    const where = info.file
+      ? `<strong>${esc(info.set ?? "")}</strong> markups are saved as they're added, to <strong>${esc(info.file)}</strong> next to your PDF. The original PDF isn't changed.`
+      : esc(info.error ?? "");
+    const head = `<p class="dim">${where}</p>`;
+    let list;
+    if (showHistory) {
+      const rows = info.history
+        .map(
+          (h, i) =>
+            `<li class="${i === selected ? "selected" : ""}${h.current ? " current" : ""}" data-i="${i}"><span class="n">${h.step}</span> ${h.time ? `<span class="time">${esc(shortTime(h.time))}</span> ` : ""}${esc(h.text)}${h.current ? ` <span class="dim">(now)</span>` : ""}</li>`
+        )
+        .join("");
+      list = `${info.historyNote ? `<p>${esc(info.historyNote)}</p>` : ""}${rows ? `<ol>${rows}</ol>` : info.historyNote ? "" : `<p>No changes to this set yet.</p>`}`;
+    } else {
+      const rows = info.markups.map((m, i) => `<li class="${i === selected ? "selected" : ""}" data-i="${i}"><span class="n">${i + 1}</span> ${esc(m.describe)}</li>`).join("");
+      list = rows ? `<ol>${rows}</ol>` : `<p>No markups in this set yet. Ask the AI to cloud or call out something, press <kbd>M</kbd> on a selection, or <kbd>Shift</kbd>+drag on the PDF.</p>`;
+    }
+    const actions = showHistory
+      ? `<button data-a="list"><kbd>h</kbd> Markups</button>
+<button data-a="undo"><kbd>u</kbd> Undo</button>
+<button data-a="restore" class="primary"${count() ? "" : " disabled"}>Go back to here <kbd>Enter</kbd></button>`
+      : `<button data-a="history"><kbd>h</kbd> History</button>
+<button data-a="rename"${info.file ? "" : " disabled"}>Rename set</button>
+<button data-a="new">New set</button>
 <button data-a="undo"><kbd>u</kbd> Undo</button>
 <button data-a="delete"${n ? "" : " disabled"}><kbd>x</kbd> Delete</button>
 <button data-a="delete-all"${n ? "" : " disabled"}>Delete all</button>
-<button data-a="go" class="primary"${n ? "" : " disabled"}>Go to it <kbd>Enter</kbd></button>
-</div>`;
+<button data-a="go" class="primary"${n ? "" : " disabled"}>Go to it <kbd>Enter</kbd></button>`;
+    body.innerHTML = `${head}${others ? `<p class="dim">Switch sets with the menu under the PDF.</p>` : ""}${list}<div class="actions">${actions}</div>`;
     body.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", () => void act(/** @type {HTMLElement} */ (b).dataset.a ?? "")));
     body.querySelectorAll("li[data-i]").forEach((li) =>
       li.addEventListener("click", () => {
@@ -601,16 +718,36 @@ ${rows ? `<ol>${rows}</ol>` : `<p>No markups yet. Ask the AI to cloud or call ou
     );
   };
   const act = async (/** @type {string} */ a) => {
+    if (a === "history" || a === "list") {
+      showHistory = a === "history";
+      selected = 0;
+      return draw();
+    }
+    if (a === "new") return newSetDialog();
+    if (a === "rename") {
+      return setNameDialog({
+        title: `Rename ${info.set ?? "set"}`,
+        value: info.set,
+        submit: async (name) => toast((await api("api/markups", { action: "rename", name })).message),
+      });
+    }
     const m = info.markups[selected];
     if (a === "go") {
       if (!m) return;
       closeModal();
       return openSheet(m.sheetNumber);
     }
-    if (a !== "undo" && !m) return;
+    /** @type {Record<string, unknown> | undefined} */
+    let req;
+    if (a === "undo") req = { action: "undo" };
+    else if (a === "restore") {
+      const h = info.history[selected];
+      if (!h || h.current) return;
+      req = { action: "restore", step: h.step };
+    } else if (m) req = { action: "delete", ...(a === "delete" ? { index: selected + 1 } : {}) };
+    if (!req) return;
     try {
-      const r = await api("api/markups", a === "undo" ? { action: "undo" } : { action: "delete", ...(a === "delete" ? { index: selected + 1 } : {}) });
-      toast(r.message);
+      toast((await api("api/markups", req)).message);
     } catch (err) {
       toast(/** @type {Error} */ (err).message, "warn");
     }
@@ -619,17 +756,18 @@ ${rows ? `<ol>${rows}</ol>` : `<p>No markups yet. Ask the AI to cloud or call ou
     kind: "markups",
     title: "Markups",
     body,
-    update: (/** @type {any} */ next) => {
+    update: (/** @type {MarkupsInfo} */ next) => {
       info = next;
-      selected = Math.min(selected, Math.max(0, info.markups.length - 1));
+      selected = Math.min(selected, Math.max(0, count() - 1));
       draw();
     },
     keys: (e) => {
       const k = e.key;
-      if (k === "ArrowDown" || k === "j") selected = Math.min(info.markups.length - 1, selected + 1);
+      if (k === "ArrowDown" || k === "j") selected = Math.min(count() - 1, selected + 1);
       else if (k === "ArrowUp" || k === "k") selected = Math.max(0, selected - 1);
-      else if (k === "Enter") void act("go");
-      else if (k === "x" || k === "Delete" || k === "Backspace") void act("delete");
+      else if (k === "Enter") void act(showHistory ? "restore" : "go");
+      else if (k === "h") void act(showHistory ? "list" : "history");
+      else if (!showHistory && (k === "x" || k === "Delete" || k === "Backspace")) void act("delete");
       else if (k === "u") void act("undo");
       else return false;
       draw();
@@ -1477,6 +1615,16 @@ $("chat-hide").addEventListener("click", toggleChat);
 $("chat-input").addEventListener("focus", renderHints);
 $("chat-input").addEventListener("blur", renderHints);
 $("markups-btn").addEventListener("click", markupsPanel);
+$("markup-set").addEventListener("change", (e) => {
+  const select = /** @type {HTMLSelectElement} */ (e.target);
+  if (select.value === NEW_SET) {
+    fillSetSelect(select, markupsInfo, true);
+    newSetDialog();
+  } else {
+    void useSet(select.value);
+  }
+  select.blur();
+});
 $("zoom-in").addEventListener("click", () => pdf.zoomBy(1.25));
 $("zoom-out").addEventListener("click", () => pdf.zoomBy(0.8));
 $("zoom-fit").addEventListener("click", () => pdf.fit(true));

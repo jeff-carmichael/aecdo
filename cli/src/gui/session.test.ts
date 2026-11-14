@@ -120,7 +120,7 @@ test("markups: added from the selection go straight into a copy the pane shows",
   assert.equal(info.markups[0].sheetNumber, "2");
   assert.match(info.markups[0].describe, /Check egress window/);
 
-  assert.match(await s.markupsAction("delete", 1), /^Deleted cloud 2/);
+  assert.match(await s.markupsAction("delete", { index: 1 }), /^Deleted cloud 2/);
   assert.equal((await s.markupsInfo()).markups.length, 0);
   assert.equal(await s.markupsAction("undo"), "Undone.");
   assert.equal((await s.markupsInfo()).markups.length, 1);

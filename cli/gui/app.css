@@ -1168,6 +1168,53 @@ button.primary kbd {
   margin-bottom: 14px;
 }
 
+.markups-panel .time {
+  color: var(--dim);
+}
+
+.markups-panel li.current {
+  font-weight: 600;
+}
+
+#markup-set {
+  max-width: 160px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 5px;
+  padding: 1px 4px;
+  font: inherit;
+}
+
+.markup-form .to-set {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.markup-form select,
+.set-name input {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.set-name input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.set-name .picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
 .markups-panel .n {
   color: var(--dim);
   margin-right: 6px;

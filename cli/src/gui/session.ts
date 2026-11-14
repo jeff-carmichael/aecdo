@@ -1,7 +1,7 @@
 import { basename, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { Explorer, PdfLocator, AssistantBridge, findSheetRows, parseMention, notSetUpMessage, sheetEntries, buildRefIndex, groupSheets, SHEET_GROUP_THRESHOLD, type ScreenModel, type ViewTarget, type AssistantOutput } from "../commands/explore.js";
-import { MarkupSession, type MarkupRequest } from "../commands/markups.js";
+import { MarkupSession, SUGGESTED_SETS, type HistoryEntry, type MarkupRequest, type MarkupSet } from "../commands/markups.js";
 import { fieldName, plainValue } from "../commands/page.js";
 import { parseTable } from "../lib/table.js";
 import { findSourcePdf, sourcePdfCandidates, unionBBox, type BBox } from "../lib/pdf-page.js";
@@ -78,8 +78,10 @@ export interface PdfInfo {
   name?: string;
   /** Changes when the file to show changes (a PDF picked, a markup added). */
   version: number;
-  /** True when showing <name>-markups.pdf, the copy that holds the markups. */
+  /** True when showing a markup set's copy (<name>-markups.pdf or <name>-markups-<set>.pdf). */
   savedCopy?: boolean;
+  /** The markup set new markups go to. */
+  markupSet?: string;
   /** Why the PDF wasn't found, and PDFs in the folder to pick from. */
   missing?: string[];
   choices?: string[];
@@ -190,6 +192,36 @@ class GuiMarkups extends MarkupSession {
     this.onChange();
     return r;
   }
+
+  override useSet(name: string): MarkupSet {
+    const before = this.outPath();
+    const set = super.useSet(name);
+    if (this.outPath() !== before) this.onChange();
+    return set;
+  }
+
+  override async renameSet(name: string): Promise<string> {
+    const r = await super.renameSet(name);
+    this.onChange();
+    return r;
+  }
+
+  override async restore(step: number): Promise<string> {
+    const r = await super.restore(step);
+    this.onChange();
+    return r;
+  }
+}
+
+export interface MarkupsInfo {
+  file?: string;
+  set?: string;
+  sets: MarkupSet[];
+  suggested: string[];
+  markups: { describe: string; sheetNumber: string; pageIndex: number }[];
+  history: HistoryEntry[];
+  historyNote?: string;
+  error?: string;
 }
 
 function toolNote(name: string, args: unknown): string {
@@ -208,6 +240,8 @@ function toolNote(name: string, args: unknown): string {
       return `Adding a ${s("kind") || "markup"}`;
     case "list_markups":
       return "Checking markups";
+    case "use_markup_set":
+      return `Switching to the ${s("name")} markups`;
     case "remove_markup":
       return "Removing a markup";
     case "append_note":
@@ -279,7 +313,15 @@ export class GuiSession {
 
   async pdfInfo(): Promise<PdfInfo> {
     const file = this.pdfFile();
-    if (file) return { available: true, name: basename(file), version: this.pdfVersion, ...(file !== this.pdfPath ? { savedCopy: true } : {}) };
+    if (file) {
+      return {
+        available: true,
+        name: basename(file),
+        version: this.pdfVersion,
+        markupSet: this.markups.setName(),
+        ...(file !== this.pdfPath ? { savedCopy: true } : {}),
+      };
+    }
     let choices: string[] = [];
     if (!this.filePath.startsWith("job:")) {
       try {
@@ -297,6 +339,7 @@ export class GuiSession {
     const found = findSourcePdf(sourcePdfCandidates(this.filePath, this.data, path));
     if (!found || !existsSync(found)) throw new Error(`Can't find "${path}".`);
     this.pdfPath = found;
+    this.markups.forgetSets();
     this.pdfVersion++;
     return this.pdfInfo();
   }
@@ -477,22 +520,44 @@ export class GuiSession {
 
   // ── Markups ──────────────────────────────────────────────
 
-  async markupsInfo(): Promise<{ file?: string; markups: { describe: string; sheetNumber: string; pageIndex: number }[]; error?: string }> {
+  async markupsInfo(): Promise<MarkupsInfo> {
+    const empty = { sets: [], suggested: SUGGESTED_SETS, markups: [], history: [] };
     try {
       const markups = (await this.markups.list()).map(({ describe, sheetNumber, pageIndex }) => ({ describe, sheetNumber, pageIndex }));
-      return { file: basename(this.markups.outPath()), markups };
+      const history = await this.markups.history();
+      return {
+        ...empty,
+        file: basename(this.markups.outPath()),
+        set: this.markups.setName(),
+        sets: this.markups.sets(),
+        markups,
+        history: history.steps,
+        ...(history.note ? { historyNote: history.note } : {}),
+      };
     } catch (err) {
-      return { markups: [], error: (err as Error).message };
+      return { ...empty, error: (err as Error).message };
     }
   }
 
-  /** "undo", or "delete" markup `index` (1-based; every markup when left out). */
-  async markupsAction(action: string, index?: number): Promise<string> {
+  /**
+   * "undo"; "delete" markup `index` (1-based; every markup when left out); "set" to switch to (or
+   * start) the set called `name`; "rename" the current set to `name`; "restore" history `step`.
+   */
+  async markupsAction(action: string, opts: { index?: number; name?: string; step?: number } = {}): Promise<string> {
     switch (action) {
       case "undo":
         return this.markups.undo();
       case "delete":
-        return this.markups.remove(index);
+        return this.markups.remove(opts.index);
+      case "set": {
+        const set = this.markups.useSet(opts.name ?? "");
+        return set.exists ? `Showing ${set.name}` : `Started ${set.name}. Markups you add now go to ${set.file}`;
+      }
+      case "rename":
+        return this.markups.renameSet(opts.name ?? "");
+      case "restore":
+        if (opts.step === undefined) throw new Error("Which step?");
+        return this.markups.restore(opts.step);
       default:
         throw new Error(`Unknown markups action "${action}"`);
     }

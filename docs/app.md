@@ -63,7 +63,7 @@ Pick a sheet, open a drawing, open a layer, open an item: the app works the way 
 | <kbd>t</kbd> | Start another chat; <kbd>[</kbd> <kbd>]</kbd> switch chats |
 | <kbd>c</kbd> | Show or hide the chat |
 | <kbd>M</kbd> | Mark up what's selected |
-| <kbd>m</kbd> | List markups: go to one, undo, delete |
+| <kbd>m</kbd> | List markups: go to one, undo, delete; <kbd>h</kbd> for history |
 | <kbd>d</kbd> | Show ids and coordinates |
 | <kbd>o</kbd> | Open another drawing set |
 | <kbd>,</kbd> | Settings: AI models and DrawingBot API credentials |
@@ -125,7 +125,7 @@ When you go to the chat, the keys still switch chats until you start typing: <kb
 
 ## Markups
 
-Ask the AI to cloud something, press <kbd>M</kbd> on whatever's selected, or hold <kbd>Shift</kbd> and drag a box on the PDF. Each markup is saved as soon as it's added, to `<name>-markups.pdf` next to your PDF, and shows on the PDF pane right away. There's no save step, and your original PDF isn't changed. Press <kbd>m</kbd> to list them: <kbd>Enter</kbd> goes to one, <kbd>x</kbd> deletes it, <kbd>u</kbd> undoes the last add or delete. See [Marking up the PDF](assistant.md#marking-up-the-pdf).
+Ask the AI to cloud something, press <kbd>M</kbd> on whatever's selected, or hold <kbd>Shift</kbd> and drag a box on the PDF. Each markup is saved as soon as it's added, to `<name>-markups.pdf` next to your PDF, and shows on the PDF pane right away. There's no save step, and your original PDF isn't changed. Keep markups for different purposes (code review, coordination, QA) in separate **sets**, each its own copy such as `<name>-markups-qa.pdf`: pick one, or **New set…**, from the menu under the PDF. Press <kbd>m</kbd> to list the set's markups: <kbd>Enter</kbd> goes to one, <kbd>x</kbd> deletes it, <kbd>u</kbd> undoes the last change, and <kbd>h</kbd> shows its history, where you can go back to any earlier step. See [Markup sets](assistant.md#markup-sets).
 
 ## From the terminal
 
