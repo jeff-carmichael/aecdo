@@ -33,7 +33,8 @@ export const LINUX_WEBVIEW_HINT =
  */
 function runWindow(command: string[], app: GuiApp, kill: { current?: () => void }): Promise<{ result: "closed" } | { result: "failed"; error: string }> {
   return new Promise((res) => {
-    const child = spawn(command[0], command.slice(1), { stdio: ["ignore", "ignore", "pipe"], env: { ...process.env }, windowsHide: true });
+    // No windowsHide: on Windows it hides the window too. The child shares this terminal's console.
+    const child = spawn(command[0], command.slice(1), { stdio: ["ignore", "ignore", "pipe"], env: { ...process.env } });
     let errors = "";
     child.stderr.on("data", (d: Buffer) => {
       errors = (errors + d.toString("utf-8")).slice(-4000);
