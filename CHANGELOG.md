@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-11-14
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
 - The app's look now echoes its icon: navy and gold instead of teal. Gold marks where you are (the focused pane, the current sheet, headings, the selected file on the home screen, the top edge of dialogs), a faint row of ruler ticks runs under the top bar, and the icon sits beside the set's name. Dark mode uses the icon's deep navy with gold buttons. PDF boxes are outlined in navy blue.
 - Markup sets and history in the app. Keep markups for different purposes apart: each set (for example Code review, Coordination, QA) is its own copy of the PDF, `<name>-markups-<set>.pdf`, with `<name>-markups.pdf` as the first set, "Markups". Pick or start a set from the menu under the PDF or in the add-markup box; the set's name goes on its markups' subject so Bluebeam and Acrobat can filter by it. The Markups panel (`m`) can rename the set, and `h` shows its history (each add, delete, and rename with its time, kept in the copy itself); **Go back to here** brings back an earlier step's markups as a new step, so nothing is lost and undo takes it back. The assistant gets `use_markup_set` and a `set` option on `add_markup`.
