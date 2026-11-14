@@ -1,19 +1,24 @@
 :root {
-  --bg: #f6f7f9;
+  --bg: #f4f3ef;
   --panel: #ffffff;
-  --panel-2: #f0f2f5;
-  --line: #dde1e7;
-  --text: #1c2129;
-  --dim: #677283;
-  --accent: #0b84a5;
-  --accent-soft: #e0f2f7;
-  --select: #d6eef5;
-  --select-strong: #0b84a5;
+  --panel-2: #f0eee8;
+  --line: #e0ddd4;
+  --text: #17223a;
+  --dim: #69718a;
+  --accent: #26467f;
+  --on-accent: #ffffff;
+  --accent-soft: #e5eaf4;
+  --select: #e6ebf5;
+  --select-strong: #26467f;
+  --gold: #b88a30;
+  --gold-hi: #e2c272;
+  --gold-text: #8d6619;
+  --box: #26467f;
   --red: #d42a2a;
   --warn: #a35a00;
   --warn-bg: #fff3e0;
-  --pdf-bg: #c9ced6;
-  --shadow: 0 8px 30px rgba(20, 30, 45, 0.18);
+  --pdf-bg: #cdd1da;
+  --shadow: 0 8px 30px rgba(12, 22, 48, 0.18);
   --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
   color-scheme: light;
@@ -21,21 +26,26 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #14181e;
-    --panel: #1b2027;
-    --panel-2: #222832;
-    --line: #2e3540;
-    --text: #e3e7ed;
-    --dim: #8b95a5;
-    --accent: #3cb6d6;
-    --accent-soft: #163541;
-    --select: #1d3e4b;
-    --select-strong: #3cb6d6;
+    --bg: #0b1328;
+    --panel: #101b34;
+    --panel-2: #15223f;
+    --line: #243250;
+    --text: #e5e8ef;
+    --dim: #8e99b1;
+    --accent: #d4aa52;
+    --on-accent: #0c1630;
+    --accent-soft: #2e2918;
+    --select: #1d2c4e;
+    --select-strong: #d4aa52;
+    --gold: #d4aa52;
+    --gold-hi: #f3dc9a;
+    --gold-text: #dcb662;
+    --box: #2f5aa8;
     --red: #ff5a5a;
     --warn: #ffb35c;
     --warn-bg: #3a2a14;
-    --pdf-bg: #0e1116;
-    --shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    --pdf-bg: #070d1c;
+    --shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
     color-scheme: dark;
   }
 }
@@ -99,13 +109,35 @@ code {
 /* ── Top bar ───────────────────────────────────────── */
 
 #top {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   padding: 6px 12px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   min-height: 40px;
+}
+
+/* Ruler ticks along the bottom edge, a nod to the app icon */
+#top::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  pointer-events: none;
+  opacity: 0.45;
+  background:
+    repeating-linear-gradient(90deg, var(--gold) 0 1px, transparent 1px 50px) bottom / 100% 4px no-repeat,
+    repeating-linear-gradient(90deg, var(--gold) 0 1px, transparent 1px 10px) bottom / 100% 2px no-repeat;
+}
+
+.mark {
+  width: 22px;
+  height: 22px;
+  flex: none;
 }
 
 .set-title {
@@ -208,7 +240,7 @@ code {
   position: absolute;
   inset: 0 0 auto 0;
   height: 2px;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--gold-hi), var(--gold) 50%, color-mix(in srgb, var(--gold) 30%, transparent));
   pointer-events: none;
 }
 
@@ -315,7 +347,7 @@ code {
 
 .vlist .num.current::after {
   content: " ●";
-  color: var(--accent);
+  color: var(--gold);
 }
 
 .vlist .n {
@@ -327,7 +359,7 @@ code {
 
 .group-prefix {
   font-family: var(--mono);
-  color: var(--accent);
+  color: var(--gold-text);
   min-width: 18px;
 }
 
@@ -354,7 +386,7 @@ code {
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--gold-text);
   min-height: 15px;
 }
 
@@ -512,15 +544,15 @@ code {
 }
 
 .pdf-overlay .box {
-  stroke: rgba(11, 132, 165, 0.45);
+  stroke: color-mix(in srgb, var(--box) 45%, transparent);
   stroke-dasharray: 4 3;
   pointer-events: all;
   cursor: pointer;
 }
 
 .pdf-overlay .box:hover {
-  stroke: var(--accent);
-  fill: rgba(11, 132, 165, 0.08);
+  stroke: var(--box);
+  fill: color-mix(in srgb, var(--box) 8%, transparent);
   stroke-dasharray: none;
 }
 
@@ -529,9 +561,9 @@ code {
 }
 
 .pdf-overlay .hover {
-  stroke: #0b84a5;
+  stroke: var(--box);
   stroke-width: 2.5px;
-  fill: rgba(11, 132, 165, 0.12);
+  fill: color-mix(in srgb, var(--box) 12%, transparent);
   pointer-events: none;
 }
 
@@ -749,7 +781,7 @@ button.icon {
 }
 
 .pane.focused .tab.active {
-  border-top: 2px solid var(--accent);
+  border-top: 2px solid var(--gold);
 }
 
 .tab.active {
@@ -798,7 +830,7 @@ button.icon {
 .msg.user {
   margin-left: 18%;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   padding: 7px 11px;
   border-radius: 12px 12px 3px 12px;
   white-space: pre-wrap;
@@ -982,7 +1014,7 @@ button.icon {
 .modal-back {
   position: fixed;
   inset: 0;
-  background: rgba(10, 15, 22, 0.35);
+  background: rgba(8, 14, 32, 0.4);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -993,7 +1025,8 @@ button.icon {
 .modal {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-top: 2px solid var(--gold);
+  border-radius: 14px;
   box-shadow: var(--shadow);
   padding: 18px 20px;
   width: min(520px, 92vw);
@@ -1044,13 +1077,13 @@ button.icon {
 button.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 button.primary kbd {
   background: transparent;
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.5);
+  color: var(--on-accent);
+  border-color: color-mix(in srgb, var(--on-accent) 50%, transparent);
 }
 
 .question {
@@ -1137,6 +1170,7 @@ button.primary kbd {
 .home li.selected,
 .markups-panel li.selected {
   background: var(--select);
+  box-shadow: inset 3px 0 var(--gold);
 }
 
 .home .files:empty {
@@ -1285,7 +1319,7 @@ button.primary kbd {
 .prompt button.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .settings button:disabled {
