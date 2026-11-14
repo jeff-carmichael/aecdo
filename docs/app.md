@@ -10,6 +10,8 @@ The `aecdo` app is how you look through a drawing set. The sheet list is on the 
 
 Click **aecdo** in the Start menu (Windows), Applications, Launchpad, or Spotlight (macOS), or your app menu (Linux). The installer puts it there; if it's missing, run `aecdo shortcut` once. The app opens in the folder you used last, or your home folder the first time.
 
+If the app doesn't open from its icon, look at `~/.aecdo/app.log` (on Windows, `%USERPROFILE%\.aecdo\app.log`): each launch writes there what it did and any error.
+
 Or start it from a terminal, in the folder with your drawing set:
 
 ```bash
