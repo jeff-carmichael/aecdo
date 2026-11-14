@@ -7,7 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### CLI
-- Opening the app from its icon writes what happened to `~/.aecdo/app.log` (each step, and any error), so a window that never shows can be diagnosed. On Windows, a window that can't start (no WebView2) now falls back to the browser instead of quitting.
+- Fixed: on Windows the app closed right after its icon appeared when opened from the Start menu. It restarted itself without a console to hide that window, and WebView2 can't start in a process started that way; it now lets go of the console instead, and the release build checks that the window opens on Windows.
+- Opening the app from its icon writes what happened to `~/.aecdo/app.log` (each step, and any error), so a window that never shows can be diagnosed. A window that can't start now falls back to the browser instead of quitting.
 
 ## [0.6.3] - 2026-11-14
 

@@ -12,7 +12,8 @@ import type { Readable } from "node:stream";
 import { getConfigDir } from "../src/lib/config.js";
 import { embedded } from "../src/lib/embedded.js";
 
-const HIDDEN_ENV = "AECDO_APP_HIDDEN";
+/** Set to 1 to keep the console, so errors show when started from a terminal. */
+const CONSOLE_ENV = "AECDO_APP_CONSOLE";
 export const APP_LOG = join(getConfigDir(), "app.log");
 
 function log(line: string): void {
@@ -64,8 +65,7 @@ async function inBrowser(): Promise<void> {
 
 export async function launchApp(): Promise<void> {
   const self = embedded.selfCommand!;
-  const hidden = process.platform === "win32" && !process.env[HIDDEN_ENV];
-  if (!process.env[HIDDEN_ENV]) startLog();
+  startLog();
   log(`aecdo ${embedded.version ?? ""} __app on ${process.platform}-${process.arch}, ${self.join(" ")}`);
   process.on("uncaughtException", (err) => {
     log(`uncaught: ${describe(err)}`);
@@ -74,14 +74,18 @@ export async function launchApp(): Promise<void> {
   process.on("unhandledRejection", (err) => log(`unhandled rejection: ${describe(err)}`));
   process.on("exit", (code) => log(`exit ${code}`));
 
-  if (hidden) {
+  if (process.platform === "win32" && !process.env[CONSOLE_ENV]) {
     // aecdo.exe is a console program, so Windows gave it a console window (minimized by the
-    // shortcut). Start again without one and let this process, and its console, go.
-    const child = spawn(self[0], [...self.slice(1), "__app"], { stdio: "ignore", detached: true, windowsHide: true, env: { ...process.env, [HIDDEN_ENV]: "1" } });
-    child.on("error", (err) => log(`couldn't restart without a console: ${err.message}`));
-    child.unref();
-    log(`restarted without a console as ${child.pid}`);
-    return;
+    // shortcut). Let it go, so only the app's window is left. This used to restart the app without
+    // a console instead, but WebView2 can't start in a process started that way.
+    try {
+      const { dlopen } = await import("bun:ffi");
+      const kernel32 = dlopen("kernel32.dll", { FreeConsole: { args: [], returns: "i32" } });
+      kernel32.symbols.FreeConsole();
+      kernel32.close();
+    } catch (err) {
+      log(`couldn't close the console: ${describe(err)}`);
+    }
   }
 
   try {
