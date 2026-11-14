@@ -285,7 +285,7 @@ test("the light or dark choice is saved and written into the page", async () => 
     assert.equal(await darkMedia(), "(prefers-color-scheme: dark)");
     assert.deepEqual((await json(`${url}api/theme`, { theme: "dark" })).data, { theme: "dark" });
     assert.equal(await darkMedia(), "all");
-    assert.equal(JSON.parse(readFileSync(join(dir, "gui.json"), "utf-8")).theme, "dark");
+    assert.equal((JSON.parse(readFileSync(join(dir, "gui.json"), "utf-8")) as { theme?: string }).theme, "dark");
     await json(`${url}api/theme`, { theme: "light" });
     assert.equal(await darkMedia(), "not all");
     assert.equal((await json(`${url}api/theme`, { theme: "purple" })).status, 400);
