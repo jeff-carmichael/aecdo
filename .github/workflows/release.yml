@@ -92,6 +92,10 @@ jobs:
           done
           cat "$LOG"
           taskkill //F //IM aecdo.exe || true
+          echo "--- direct window (diagnostic)"
+          ( timeout 15 "dist-bin/${{ matrix.target }}/aecdo.exe" __gui-window https://example.com; echo "exit $?" ) 2>&1 || true
+          echo "--- session"; query session || true; whoami; tasklist //V //FI "IMAGENAME eq explorer.exe" || true
+          reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" //v pv || true
           grep -q "page loaded" "$LOG"
 
       - name: Package
