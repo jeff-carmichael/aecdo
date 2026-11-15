@@ -186,7 +186,7 @@ If a command reads a file at runtime, embed it in `cli/bin/embed-assets.ts` too,
 
 ## The user guide
 
-The getting-started guide in `docs/` is a small [Jekyll](https://jekyllrb.com/) site that GitHub Pages builds straight from the `main` branch's `docs/` folder, so there's no build step or workflow to maintain. Each page is a Markdown file; the sidebar order lives in `nav` in `docs/_config.yml`, and the layout and styles are in `docs/_layouts/default.html` and `docs/assets/style.css`.
+The getting-started guide in `docs/` is a small [Jekyll](https://jekyllrb.com/) site that GitHub Pages builds straight from the `main` branch's `docs/` folder, so there's no build step or workflow to maintain. Each page is a Markdown file; the sidebar order lives in `nav` in `docs/_config.yml`, and the layout and styles are in `docs/_layouts/default.html` and `docs/assets/style.scss` (Sass that Jekyll compiles; colors follow the app's `cli/gui/app.css`).
 
 - Link between pages with relative `.md` links (`[The app](app.md#the-pdf)`); Pages turns them into `.html` links.
 - When a command or option changes, update the page that describes it. The README stays short and links to the guide.

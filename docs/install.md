@@ -4,141 +4,72 @@ title: Install and update
 
 # Install and update
 
-`aecdo` is a single program: the app and its commands in one file, with nothing else to install (on Linux, the app's window also needs [WebKitGTK](app.md#what-you-need)). Pick your operating system below, paste the command into a terminal, and press Enter. Then close the terminal, open a new one, and run `aecdo --version` to check it worked.
+aecdo is one program with nothing else to install. You paste one line into a terminal once; after that, you open the app from its icon.
 
-Never used a terminal? See [You only need a terminal to start it](index.md#you-only-need-a-terminal-to-start-it) for how to open one and paste a command.
+## Windows
+
+Open **PowerShell** (press the Windows key, type `PowerShell`, press Enter), paste this, and press Enter:
+
+```powershell
+irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex
+```
+
+It installs aecdo into your user folder (no administrator rights needed) and adds **aecdo** to the Start menu, where you can open it and pin it to the taskbar. Windows 10 also needs the [Microsoft Edge WebView2 runtime](https://developer.microsoft.com/microsoft-edge/webview2/), which most machines already have.
+
+### "Windows protected your PC"
+
+aecdo isn't code-signed yet, so Windows may warn you about a copy you downloaded **in a web browser**. The PowerShell line above doesn't trigger the warning. If you downloaded `aecdo-windows-x64.zip` from [Releases](https://github.com/jeff-carmichael/aecdo/releases) yourself, click **More info**, then **Run anyway**, or right-click the zip before extracting, choose **Properties**, tick **Unblock**, and click **OK**.
 
 ## macOS and Linux
 
-Open Terminal and run:
+Open Terminal (on a Mac, <kbd>⌘</kbd> <kbd>Space</kbd>, type `Terminal`, press Enter), paste this, and press Enter:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.sh | sh
 ```
 
-The script downloads the latest release for your computer (Apple Silicon or Intel Mac, x64 or ARM Linux), checks it against the release's published SHA-256 checksum, and puts `aecdo` in `/usr/local/bin`. If that folder needs administrator rights, it asks for your password.
+It checks the download, installs aecdo (asking for your password if it needs to), and adds the app to `~/Applications` on macOS (find it with Spotlight or Launchpad, or drag it to the Dock) or to your app menu on Linux.
 
-To change what it installs, set these before `sh`:
+On Linux, the app's window needs GTK 4 and WebKitGTK 6:
 
-| Variable | What it does | Example |
-|----------|--------------|---------|
-| `AECDO_VERSION` | Install a specific release instead of the latest | `v0.6.0` |
-| `AECDO_INSTALL_DIR` | Install somewhere else, such as a folder you own | `$HOME/.local/bin` |
-| `AECDO_EXAMPLES` | `1` downloads the [example drawing sets](#example-drawing-sets) without asking, `0` skips them | `0` |
-| `AECDO_EXAMPLES_DIR` | Where to put the examples | `$HOME/aecdo-examples` |
-| `AECDO_SHORTCUT` | `0` skips adding the app to Applications (macOS) or your app menu (Linux) | `0` |
+| Distribution | Command |
+|--------------|---------|
+| Debian, Ubuntu | `sudo apt install libwebkitgtk-6.0-4` |
+| Fedora | `sudo dnf install webkitgtk6.0` |
+| Arch | `sudo pacman -S webkitgtk-6.0` |
 
-```bash
-curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.sh | AECDO_INSTALL_DIR="$HOME/.local/bin" sh
-```
+Without it, the app opens in your web browser instead. Alpine and other musl-based distributions aren't supported yet.
 
-It also adds **aecdo** to your apps, so you can open it from its icon like any desktop app: `~/Applications/aecdo.app` on macOS (find it with Spotlight or Launchpad, or drag it to the Dock), and your app menu on Linux desktops. See [Use the app](app.md#open-a-drawing-set).
+## The example drawing set
 
-If the script prints `note: … is not on your PATH`, add that folder to your PATH in `~/.zshrc` or `~/.bashrc`.
-
-Alpine and other musl-based Linux distributions aren't supported by the binary yet; [build from source](#build-from-source) instead.
-
-## Windows
-
-Open **PowerShell** or **Windows Terminal** (not Command Prompt) and run:
-
-```powershell
-irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex
-```
-
-This downloads the latest `aecdo-windows-x64.zip`, checks its checksum, puts `aecdo.exe` in `%LOCALAPPDATA%\Programs\aecdo`, and adds that folder to your user PATH. It also adds **aecdo** to the Start menu, so you can open the app from there and pin it to the taskbar. You don't need administrator rights. **Open a new terminal afterwards** so it picks up the new PATH, then run `aecdo --version`.
-
-The same `AECDO_VERSION`, `AECDO_INSTALL_DIR`, `AECDO_EXAMPLES`, `AECDO_EXAMPLES_DIR`, and `AECDO_SHORTCUT` settings work here:
-
-```powershell
-$env:AECDO_VERSION = "v0.6.0"
-irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex
-```
-
-### "Windows protected your PC"
-
-`aecdo.exe` isn't code-signed yet, so Windows SmartScreen may warn you the first time you run a copy you downloaded **in a web browser**. The PowerShell installer above doesn't trigger the warning, because files downloaded by PowerShell aren't marked as coming from the internet. That's the easiest route.
-
-If you'd rather download `aecdo-windows-x64.zip` from [Releases](https://github.com/jeff-carmichael/aecdo/releases) yourself, either:
-
-- When the warning appears, click **More info**, then **Run anyway**. Windows remembers this for that file.
-- Or, **before** extracting, right-click the zip, choose **Properties**, tick **Unblock**, and click **OK**. You can also run `Unblock-File .\aecdo.exe` in PowerShell after extracting.
-
-> Open the app from the Start menu, or start `aecdo` from PowerShell or Windows Terminal, in the folder with your drawings, by typing `aecdo`. If you put `aecdo.exe` somewhere that isn't on your PATH, run it as `.\aecdo.exe` from its folder, or move it to a folder on your PATH.
-
-## Example drawing sets
-
-At the end of the install, both scripts ask whether to download the example drawing set (about 2.5 MB) and which folder to put them in. Press Enter twice to accept the default, `aecdo-examples` in your home folder, or type `n` to skip. You get:
-
-| File | What it is |
-|------|------------|
-| `sample-drawing-package-1and2family.jsonld` and `.pdf` | The City of Vancouver's [sample house permit set](demo.md) with its PDF, for seeing items outlined on the PDF and trying markups |
-
-The question is skipped when there's no one to answer it: in CI, or when the script isn't run from a terminal. Set `AECDO_EXAMPLES=1` or `AECDO_EXAMPLES=0` to decide ahead of time.
-
-You can download them any time, including after an npm install or a build from source:
-
-```bash
-aecdo examples                      # into ./aecdo-examples
-aecdo examples ~/Documents/aecdo    # or a folder of your choice
-```
-
-Files already in the folder are kept; add `--force` to replace them. The files come from the release that matches your `aecdo --version`.
-
-## Build from source
-
-You need [Node.js](https://nodejs.org/) 18 or newer (22.19 or newer for the AI assistant) and Git.
-
-```bash
-git clone https://github.com/jeff-carmichael/aecdo.git
-cd aecdo
-npm install
-npm run build
-npm link          # makes the aecdo command available everywhere
-```
-
-`npm install` also copies the [Claude Code skill](agents.md) into `~/.claude/skills/aecdo/`. It doesn't ask about the examples; run `aecdo examples` to get them.
+At the end, the installer asks whether to download the example set (about 2.5 MB) and where to put it. Press Enter twice for `aecdo-examples` in your home folder. It's the City of Vancouver's [sample house permit set](demo.md), with its PDF. Then open the folder from the app with **Open another folder…**.
 
 ## Updating
+
+To get the newest version, open a terminal and run:
 
 ```bash
 aecdo update
 ```
 
-`aecdo update` downloads the newest release for your computer, checks it against the release's `checksums.txt`, and replaces the program in place. It prints "already the latest version" if there's nothing new.
-
-- On macOS and Linux, if `aecdo` lives in a folder you can't write to (like `/usr/local/bin`), run `sudo aecdo update`.
-- On Windows, the PowerShell installer puts `aecdo` in your user folder, so a normal terminal is fine.
-- If you built from source, `git pull && npm install && npm run build` instead.
-
-> Installed version 0.3.1? It predates `aecdo update`, so reinstall once with the command for your system above. After that, `aecdo update` works.
-
-### Update notices
-
-Once a day, `aecdo` checks [GitHub Releases](https://github.com/jeff-carmichael/aecdo/releases) in the background. When there's a newer version, a short notice suggesting `aecdo update` shows in the terminal when you close the app (or when a command finishes). The check never slows a command down, the notice goes to stderr so it never ends up in piped output, and it's skipped in CI and when output isn't a terminal.
-
-To turn it off, set `NO_UPDATE_CHECK=1` in your environment, or add `--no-update-check` to a command.
+It downloads the newest release, checks it, and replaces the program. On macOS and Linux, if it says permission denied, run `sudo aecdo update`. You can also run the install line again.
 
 ## Uninstalling
 
-1. Delete the program:
-   - macOS/Linux: `sudo rm /usr/local/bin/aecdo` (or wherever you installed it; `which aecdo` tells you).
-   - Windows: delete the folder `%LOCALAPPDATA%\Programs\aecdo`, then remove it from your PATH in **Settings → System → About → Advanced system settings → Environment Variables**.
-2. Delete the app shortcut, if the installer or `aecdo shortcut` added one:
-   - macOS: `~/Applications/aecdo.app`.
-   - Linux: `~/.local/share/applications/aecdo.desktop` and `~/.local/share/icons/hicolor/scalable/apps/aecdo.svg`.
-   - Windows: `aecdo.lnk` in `%APPDATA%\Microsoft\Windows\Start Menu\Programs`.
-3. Delete your settings and saved credentials: the `.aecdo` folder in your home folder (`~/.aecdo`, or `%USERPROFILE%\.aecdo` on Windows).
-4. If you installed the Claude Code skill, delete `~/.claude/skills/aecdo`.
+1. Delete the program: on Windows, the folder `%LOCALAPPDATA%\Programs\aecdo`; on macOS and Linux, `/usr/local/bin/aecdo` (`which aecdo` tells you where it is).
+2. Delete the app icon: `aecdo.lnk` in `%APPDATA%\Microsoft\Windows\Start Menu\Programs` (Windows), `~/Applications/aecdo.app` (macOS), or `~/.local/share/applications/aecdo.desktop` (Linux).
+3. Delete your settings and sign-ins: the `.aecdo` folder in your home folder.
 
 ## What's stored on your computer
 
+Everything aecdo keeps is in the `.aecdo` folder in your home folder (`%USERPROFILE%\.aecdo` on Windows):
+
 | File | What's in it |
 |------|--------------|
-| `~/.aecdo/config.json` | DrawingBot API credentials, if you use [`process`](process.md) (readable only by you) |
-| `~/.aecdo/token.json` | A cached DrawingBot API sign-in token, valid for 4 hours |
-| `~/.aecdo/llm.json` | AI assistant sign-ins, API keys, and model choices (readable only by you) |
-| `~/.aecdo/update-check.json` | When `aecdo` last checked for updates, and what it found |
-| `~/.aecdo/gui.json` | The sets and folders you opened recently in the app |
-| `~/.aecdo/aecdo.ico` | The Start menu icon (Windows only) |
+| `llm.json` | AI sign-ins, API keys, and model choices (readable only by you) |
+| `gui.json` | The sets and folders you opened recently |
+| `app.log` | What each launch of the app did, for [troubleshooting](troubleshooting.md) |
+| `update-check.json` | When aecdo last checked for a newer version |
+| `config.json`, `token.json` | DrawingBot API credentials, once PDF processing is available |
 
+Install options (a specific version, another folder, skipping the examples) and building from source are on [Command line and agents](agents.md#install-options).

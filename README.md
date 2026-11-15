@@ -50,7 +50,7 @@ aecdo summary plans.jsonld                  # what's in the set
 aecdo page plans.jsonld A101 --format json  # one sheet's data
 ```
 
-See [Command line and agents](https://jeff-carmichael.github.io/aecdo/agents.html) for every command, or run `aecdo --help`. Turning PDFs into AECDO files through the [DrawingBot](https://aecdrawingbot.com) API is [coming soon](https://jeff-carmichael.github.io/aecdo/process.html).
+See [Command line and agents](https://jeff-carmichael.github.io/aecdo/agents.html) for every command, or run `aecdo --help`. Turning PDFs into AECDO files through the [DrawingBot](https://aecdrawingbot.com) API is coming soon.
 
 ## Schema
 

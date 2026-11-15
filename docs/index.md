@@ -2,109 +2,58 @@
 title: Getting started
 ---
 
-# Getting started with AECDO
+# Getting started with aecdo
 
-A free tool for looking through, checking, and asking questions about the data in construction drawing sets.
+A free app for looking through, checking, and asking questions about the data in construction drawing sets.
 
-**AECDO** (AEC Drawing Ontology) is an open format for data taken from architecture, engineering, and construction drawings: sheets, plans, sections, details, door tags, rooms, schedules, and notes, each with where it sits on the page. **`aecdo`** is a free, open-source (Apache 2.0) program that opens **any file in this format** (a `.jsonld` file), whichever tool made it.
+![The aecdo app: sheets on the left, a floor plan's rooms in the middle, the PDF on the right with the selected room outlined](assets/app.png){: .shot}
 
-With `aecdo` you can:
+**AECDO** (AEC Drawing Ontology) is an open format for the data in architecture, engineering, and construction drawings: sheets, plans, sections, details, door tags, rooms, schedules, and notes, each with where it sits on the page. **aecdo** is a free, open-source app that opens any drawing set in this format (a `.jsonld` file), whichever tool made it.
 
-- **Look through** a drawing set sheet by sheet in the app, down to single door tags and walls, with the PDF page always beside it and whatever you pick outlined in red.
-- **Ask** an AI model such as Claude or ChatGPT about what you're looking at, in as many chats as you like, and have it take notes, fill in a spreadsheet, or cloud problems on the PDF.
-- **Script it**: plain commands check files against the format and print summaries and sheets for scripts and AI agents such as Claude Code.
-- **Process** PDFs into AECDO files through the [DrawingBot](https://aecdrawingbot.com) API (coming soon).
+In the app you can:
 
-## You only need a terminal to start it
-
-`aecdo` is an app with its own window. You use a **terminal** (a window where you type commands) for just two things: installing it once, and starting it. Everything else happens in the app, with the keyboard or the mouse.
-
-**Open a terminal.**
-
-- **Windows:** press the Windows key, type `Terminal` (or `PowerShell` on older Windows), and press Enter.
-- **macOS:** press <kbd>⌘</kbd> <kbd>Space</kbd>, type `Terminal`, and press Enter.
-- **Linux:** open your Terminal app, often with <kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>T</kbd>.
-
-**Run a command.** Type it (or paste it) and press <kbd>Enter</kbd>. Each grey box on this site holds a command; the button in its corner copies it. To paste into a terminal, use <kbd>Ctrl</kbd> <kbd>V</kbd> on Windows (or right-click), <kbd>⌘</kbd> <kbd>V</kbd> on macOS, or <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>V</kbd> on Linux. Lines in a box that start with `#` are notes for you, not something to type.
-
-**Go to a folder.** A terminal is always "in" one folder. `cd` moves to another one. The app lists the drawing sets in the folder you start it from, and the AI assistant keeps its notes and spreadsheets there, so start it from your project folder:
-
-```bash
-cd Documents
-```
-
-The `~` you'll see in some commands means your home folder (like `C:\Users\you` or `/Users/you`). If you get lost, `cd ~` takes you home.
+- **Look through** a set sheet by sheet, down to single door tags and walls, with the PDF page beside it and whatever you pick outlined.
+- **Ask** an AI model such as Claude or ChatGPT about what you're looking at, and have it save notes and Excel spreadsheets to your folder.
+- **Mark up** the PDF with clouds, callouts, and notes that Bluebeam and Acrobat open as normal markups.
 
 ## Quick start
 
 <ol class="steps">
 <li markdown="1">
-**Install `aecdo`.** On Windows, open Terminal or PowerShell and run:
+**Install aecdo.** Open a terminal (on Windows, press the Windows key, type `PowerShell`, and press Enter; on a Mac, press <kbd>⌘</kbd> <kbd>Space</kbd>, type `Terminal`, and press Enter). Paste the line for your computer and press <kbd>Enter</kbd>. The button in the corner of each box copies it.
+
+Windows:
 
 ```powershell
 irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.ps1 | iex
 ```
 
-On macOS or Linux, open Terminal and run:
+macOS or Linux:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/install.sh | sh
 ```
 
-At the end, it asks whether to download the example drawing sets. Press <kbd>Enter</kbd> twice to say yes and put them in a folder called `aecdo-examples` in your home folder.
-
-**Close the terminal and open a new one**, then check it worked:
-
-```bash
-aecdo --version
-```
-
-It should print a version number like `0.6.0`. If it says the command isn't found, see [Troubleshooting](troubleshooting.md#installing). More options are on [Install and update](install.md).
+At the end, it offers the example drawing set. Press <kbd>Enter</kbd> twice to put it in `aecdo-examples` in your home folder. That's the only time you need the terminal. More on [Install and update](install.md).
 </li>
 <li markdown="1">
-**Open the example drawing set.** Go to the examples folder and open the [Vancouver sample house](demo.md), a real 7-page permit set that comes with its PDF. You don't need an account.
-
-```bash
-cd ~/aecdo-examples
-aecdo
-```
-
-The app opens on **Open a drawing set**, which lists the sets you opened recently and the ones in this folder. Pick **sample-drawing-package-1and2family.jsonld** with <kbd>↓</kbd> and <kbd>Enter</kbd>, or click it. You can also type the path to any `.jsonld` file in the box at the bottom. (If you skipped the examples, run `aecdo examples ~/aecdo-examples` first to download them.) On Linux, the window needs WebKitGTK; see [Use the app](app.md#what-you-need).
+**Open the app** like any other: **aecdo** in the Start menu (Windows), in Applications, Launchpad, or Spotlight (macOS), or in your app menu (Linux).
 </li>
 <li markdown="1">
-**Move around with the arrow keys.** The sheets are listed on the left, and what you open shows in the middle.
-
-- Press <kbd>↓</kbd> to highlight sheet **2 Floor Plans**, then <kbd>Enter</kbd> to open it.
-- <kbd>↑</kbd> <kbd>↓</kbd> move through what's on the sheet.
-- <kbd>Enter</kbd> opens the highlighted thing: a drawing opens its layers (Rooms, Windows, Doors, …), a layer opens its items.
-- <kbd>←</kbd> goes back.
-- <kbd>?</kbd> lists every key, and <kbd>q</kbd> quits.
-
-The bottom of the window always shows the keys that work. [Use the app](app.md) explains it in detail, and the [demo walkthrough](demo.md) takes you through the set, including a few numbers in it that don't agree.
+**Open the example.** Click **Open another folder…** (or press <kbd>o</kbd>), choose `aecdo-examples` in your home folder, and pick **sample-drawing-package-1and2family**. It's the [Vancouver sample house](demo.md), a real 7-page permit set with its PDF.
 </li>
 <li markdown="1">
-**See it on the page.** The app shows the PDF page next to the data, with what you pick outlined in red. For your own sets, keep the original PDF in the same folder with the same name (`plans.pdf` beside `plans.jsonld`).
+**Move around** with the arrow keys or the mouse. <kbd>↓</kbd> to sheet **2 Floor Plans**, <kbd>Enter</kbd> to open it, <kbd>Enter</kbd> again to open a drawing's layers and items, <kbd>←</kbd> to go back. What you pick is outlined on the PDF. Press <kbd>?</kbd> for every key. See [Use the app](app.md).
 </li>
 <li markdown="1">
-**Optional: add an AI assistant.** In the app, press <kbd>,</kbd> to open **Settings** and pick a way to connect: **Sign in with ChatGPT**, or paste an API key. Then press <kbd>Esc</kbd>, press <kbd>a</kbd>, type a question such as `which rooms on this floor have windows?`, and press <kbd>Enter</kbd>. See [AI assistant](assistant.md).
+**Optional: add an AI assistant.** Press <kbd>,</kbd> for **Settings** and **Sign in with ChatGPT** or paste an API key. Then press <kbd>a</kbd> and ask something like `which rooms on this floor have windows?`. See [AI assistant](assistant.md).
 </li>
 </ol>
 
-> **Which version do I have?** This guide describes the latest version. Run `aecdo --version` to check yours, and `aecdo update` to get the latest.
-
-## What's in this guide
-
-| Page | What you'll learn |
-|------|-------------------|
-| [Install and update](install.md) | Installing on Windows, macOS, and Linux, the "Windows protected your PC" warning, updating, and uninstalling |
-| [Use the app](app.md) | Opening a set, moving around, the PDF pane, AI chats, and markups |
-| [AI assistant](assistant.md) | Setting up Claude, ChatGPT, or another model, what the assistant can do, and marking up PDFs |
-| [Demo walkthrough](demo.md) | A guided tour of the Vancouver sample house permit set |
-| [Data model and bbox](data-model.md) | How the data is organized, what the coordinates mean, and how to make your own files |
-| [Command line and agents](agents.md) | Every command, for scripts, Claude Code, and other AI agents |
-| [Process PDFs](process.md) | Turning PDFs into AECDO files with the DrawingBot API (coming soon) |
-| [Troubleshooting](troubleshooting.md) | Fixes for common problems |
+For your own drawings, keep each set's PDF beside it with the same name (`plans.pdf` next to `plans.jsonld`), and open the folder they're in.
 
 ## Getting help
 
-In the app, press <kbd>?</kbd> for every key. For the commands, see [Command line and agents](agents.md) or type `aecdo --help`. Found a bug or have an idea? [Open an issue](https://github.com/jeff-carmichael/aecdo/issues). Want to contribute? Read [CONTRIBUTING.md](https://github.com/jeff-carmichael/aecdo/blob/main/CONTRIBUTING.md).
+In the app, press <kbd>?</kbd> for every key. The [Troubleshooting](troubleshooting.md) page covers common problems. Found a bug or have an idea? [Open an issue](https://github.com/jeff-carmichael/aecdo/issues).
+
+Using aecdo from scripts or an AI coding agent such as Claude Code? See [Command line and agents](agents.md).
