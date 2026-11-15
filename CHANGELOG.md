@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### CLI
+- Dark mode button in the app: the moon (or sun) at the top right switches between light and dark, on the home screen too. The choice is remembered in `~/.aecdo/gui.json`; Settings → **Look** can go back to **Match the computer**, which is still the default.
 - Fixed: on Windows the app window never showed, from the Start menu (the icon appeared, then went away) or from `aecdo gui`. Both started the window process hidden, to keep a console window from showing, and Windows hid the app window with it. The Start menu launch now closes its console instead, and the window is shown even when it was started minimized.
 - Opening the app from its icon writes what happened to `~/.aecdo/app.log` (each step, and any error), so a window that never shows can be diagnosed. A window that can't start now falls back to the browser instead of quitting.
 

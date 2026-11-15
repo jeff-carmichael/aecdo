@@ -16,6 +16,7 @@ The first screen, **Open a drawing set**, shows the folder you're working in:
 - **Recent** lists sets and folders you've used elsewhere.
 - **Open another folder…** (or <kbd>o</kbd>) shows your computer's folder picker, like *Open Folder* in an editor. <kbd>/</kbd> lets you type a path instead.
 - **Settings** (or <kbd>,</kbd>) sets up the AI models.
+- The moon at the top right switches to dark mode (the sun switches back). See [Light and dark](#light-and-dark).
 
 Pick a set with <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>, or click it. Press <kbd>o</kbd> any time to come back here and open another set.
 
@@ -71,6 +72,10 @@ Press <kbd>a</kbd> to ask about what you're looking at. The assistant can move a
 ## Markups
 
 Press <kbd>M</kbd> on whatever's selected, hold <kbd>Shift</kbd> and drag a box on the PDF, or ask the AI to cloud something. Markups are saved as you add them, to a copy of the PDF, and your original isn't changed. See [Mark up the PDF](markups.md).
+
+## Light and dark
+
+The app starts out matching your computer's light or dark setting. Click the moon at the top right for dark mode, or the sun for light; the app remembers your choice next time. To follow the computer again, open Settings (<kbd>,</kbd>) and pick **Match the computer** under **Look**.
 
 ## Turning PDFs into drawing sets
 

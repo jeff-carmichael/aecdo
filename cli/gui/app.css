@@ -24,32 +24,6 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b1328;
-    --panel: #101b34;
-    --panel-2: #15223f;
-    --line: #243250;
-    --text: #e5e8ef;
-    --dim: #8e99b1;
-    --accent: #d4aa52;
-    --on-accent: #0c1630;
-    --accent-soft: #2e2918;
-    --select: #1d2c4e;
-    --select-strong: #d4aa52;
-    --gold: #d4aa52;
-    --gold-hi: #f3dc9a;
-    --gold-text: #dcb662;
-    --box: #2f5aa8;
-    --red: #ff5a5a;
-    --warn: #ffb35c;
-    --warn-bg: #3a2a14;
-    --pdf-bg: #070d1c;
-    --shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
-    color-scheme: dark;
-  }
-}
-
 [hidden] {
   display: none !important;
 }
@@ -199,6 +173,12 @@ code {
 
 .chip:hover {
   border-color: var(--accent);
+}
+
+.icon-chip {
+  display: inline-grid;
+  place-items: center;
+  padding: 3px 8px;
 }
 
 .badge {
@@ -1271,6 +1251,10 @@ button.primary kbd {
   visibility: hidden;
 }
 
+.no-set #top #theme-btn {
+  visibility: visible;
+}
+
 .closed {
   display: grid;
   place-items: center;
@@ -1320,6 +1304,17 @@ button.primary kbd {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
+}
+
+.theme-choice {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.settings .theme-choice button[aria-pressed="true"] {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 1px var(--gold);
+  color: var(--gold-text);
 }
 
 .settings button:disabled {

@@ -3,6 +3,7 @@
 
 import app_index_html from "../gui/index.html" with { type: "file" };
 import app_app_css from "../gui/app.css" with { type: "file" };
+import app_dark_css from "../gui/dark.css" with { type: "file" };
 import app_app_js from "../gui/app.js" with { type: "file" };
 import app_pdf_view_js from "../gui/pdf-view.js" with { type: "file" };
 import app_chat_js from "../gui/chat.js" with { type: "file" };
@@ -34,6 +35,7 @@ import wasm_qcms_bg_wasm from "pdfjs-dist/wasm/qcms_bg.wasm" with { type: "file"
 export const guiAssets = {
   "app/index.html": app_index_html,
   "app/app.css": app_app_css,
+  "app/dark.css": app_dark_css,
   "app/app.js": app_app_js,
   "app/pdf-view.js": app_pdf_view_js,
   "app/chat.js": app_chat_js,

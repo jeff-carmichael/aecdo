@@ -1,0 +1,25 @@
+/* Dark mode. index.html links this with media="(prefers-color-scheme: dark)" to follow the
+   system; the server and the theme button set the media to "all" or "not all" for a fixed choice. */
+:root {
+  --bg: #0b1328;
+  --panel: #101b34;
+  --panel-2: #15223f;
+  --line: #243250;
+  --text: #e5e8ef;
+  --dim: #8e99b1;
+  --accent: #d4aa52;
+  --on-accent: #0c1630;
+  --accent-soft: #2e2918;
+  --select: #1d2c4e;
+  --select-strong: #d4aa52;
+  --gold: #d4aa52;
+  --gold-hi: #f3dc9a;
+  --gold-text: #dcb662;
+  --box: #2f5aa8;
+  --red: #ff5a5a;
+  --warn: #ffb35c;
+  --warn-bg: #3a2a14;
+  --pdf-bg: #070d1c;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
