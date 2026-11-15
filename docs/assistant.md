@@ -29,7 +29,7 @@ Each model has a name you can use in the chat: `@claude`, `@chatgpt`, `@gemini`,
 | **Custom endpoint** | the ones you list | A base URL and token for an OpenAI- or Anthropic-compatible API, such as a company gateway, LiteLLM, Azure, vLLM, or Ollama | Up to whoever runs it |
 | **OpenRouter** | all six | *Sign in with OpenRouter*, or an [OpenRouter API key](https://openrouter.ai/settings/keys) | Billed per use from your OpenRouter credits |
 
-In the app, press <kbd>,</kbd> (or click **Settings** at the top) to open **Settings**. Running `aecdo configure` in a terminal opens the app straight to it. Under **AI models**, each way to connect has its buttons. Most people want one of the first two: **Sign in with ChatGPT** if you pay for ChatGPT Plus or Pro, or an **API key** for Anthropic to use Claude. All the choices:
+In the app, press <kbd>,</kbd> (or click **Settings** at the top) to open **Settings**. Under **AI models**, each way to connect has its buttons. Most people want one of the first two: **Sign in with ChatGPT** if you pay for ChatGPT Plus or Pro, or an **API key** for Anthropic to use Claude. All the choices:
 
 - **Sign in with ChatGPT** (uses your ChatGPT plan) opens your browser to sign in. You can cap how much `aecdo` may use in ChatGPT's settings.
 - **API key** (OpenAI, Anthropic, or OpenRouter) asks you to paste the key. It isn't shown as you type.
@@ -44,11 +44,9 @@ When a sign-in needs to ask something (which AWS sign-in to use, or a code to pa
 
 Settings shows which way each `@name` will use. When more than one is set up and you haven't picked, it goes straight to the maker first (Anthropic or OpenAI), then Amazon Bedrock, then your custom endpoint, then OpenRouter. The first answer in a session also says which way it went, e.g. `Claude via Amazon Bedrock (global.anthropic.claude-sonnet-5-5)`.
 
-> **Why no "Sign in with Claude"?** Anthropic doesn't allow third-party tools to use Claude Pro or Max subscriptions, so `@claude` needs an API key, Bedrock, OpenRouter, or your own endpoint. If you have a Claude subscription, you can use [Claude Code](agents.md) with `aecdo` instead.
+> **Why no "Sign in with Claude"?** Anthropic doesn't allow third-party tools to use Claude Pro or Max subscriptions, so `@claude` needs an API key, Bedrock, OpenRouter, or your own endpoint. If you have a Claude subscription, an AI coding agent like Claude Code can work with your drawing sets instead; see [Command line and agents](agents.md).
 
-Sign-ins, keys, and model choices are saved in `~/.aecdo/llm.json`, readable only by you. You can also set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENROUTER_API_KEY` in your environment instead. To send more headers to a custom endpoint, add them under `custom.headers` in that file, e.g. `"headers": { "x-team": "drawings" }`.
-
-The assistant works with the installed `aecdo` program. If you [built from source](install.md#build-from-source), it needs Node.js 22.19 or newer.
+Sign-ins, keys, and model choices are saved in `~/.aecdo/llm.json`, readable only by you. To send more headers to a custom endpoint, add them under `custom.headers` in that file, e.g. `"headers": { "x-team": "drawings" }`.
 
 ## Asking questions
 
@@ -70,7 +68,7 @@ In the app, press <kbd>a</kbd>. The chat opens on the right: type your question 
 | **Move around** the set for you, so your view changes as it works | "go to the second floor plan door tags" |
 | **Read** any sheet without moving your view | "what does the general structural notes sheet say about concrete strength?" |
 | **Show you the page** zoomed to something outlined in red | "show me door 105A", "where's the book drop detail?" |
-| **Mark up the PDF** with clouds, callouts, and sticky notes that Bluebeam and Acrobat open as normal markups (you review and save them) | "cloud every door that's missing from the door schedule" |
+| **[Mark up the PDF](markups.md)** with clouds, callouts, and sticky notes that Bluebeam and Acrobat open as normal markups | "cloud every door that's missing from the door schedule" |
 | **Take notes** by adding Markdown to `notes.md` (or another `.md` file you name) in the current folder | "note the doors that are missing from the schedule" |
 | **Fill in a spreadsheet** (`.xlsx`, `.csv`, or `.tsv`) in the current folder | "add every door on A101 to doors.xlsx" |
 
@@ -78,54 +76,15 @@ The assistant zooms the PDF **for you**; it doesn't see the page itself. It work
 
 ### Spreadsheets
 
-The assistant looks for spreadsheets in the folder you started the app from. If one already fits the task, it works in that file's layout (for example, your office's RFI log template), filling the columns you already have. Otherwise it creates a new one.
+The assistant looks for spreadsheets in the app's current folder. If one already fits the task, it works in that file's layout (for example, your office's RFI log template), filling the columns you already have. Otherwise it creates a new one.
 
 - **It asks first.** Before its first change to a spreadsheet that already existed, the app asks whether to allow the assistant to edit it.
 - **Excel files are edited in place.** Formatting, formulas, column widths, and other tabs stay as they were.
 - **Formula cells are never overwritten.**
 
-## Marking up the PDF
-
-Ask the assistant to cloud, call out, or note something, and it adds real PDF markups to the drawing set: the same annotations you'd draw in Bluebeam Revu or Acrobat, so they show in the Markups list (author "aecdo assistant") and people can move, edit, reply to, or delete them.
-
-| Markup | Looks like | Good for |
-|--------|-----------|----------|
-| `cloud` | a red revision cloud around the item | flagging a problem area |
-| `callout` | a text box with an arrow pointing at the item | a short comment on the sheet |
-| `note` | a sticky-note icon that opens to show the text | longer explanations that shouldn't cover the drawing |
-
-You can also add markups yourself: press <kbd>M</kbd> to mark up whatever's selected, or hold <kbd>Shift</kbd> and drag a box on the PDF.
-
-**Markups are saved as they're added, to a copy** next to your PDF: `plans-markups.pdf` for `plans.pdf`. The PDF pane switches to the copy, so each markup shows right away, and your original stays as it was. There's nothing else to save. Open the copy in Bluebeam or Acrobat when you're done. If the copy is open there on Windows, close it first; the app tells you if the file is locked.
-
-### Markup sets
-
-Keep markups for different purposes apart in **sets**, such as code review, coordination, and QA. Each set is its own copy of the PDF: `plans-markups-code-review.pdf`, `plans-markups-qa.pdf`, and so on, with `plans-markups.pdf` as the first set, called "Markups". Pick the set from the menu under the PDF; the pane shows that copy, and new markups go to it. **New set…** offers Code review, Coordination, and QA, or type any name. The add-markup box (<kbd>M</kbd>) also says which set it's adding to, and lets you pick another.
-
-The set's name goes on each of its markups as their subject ("Code review: Cloud"), so the Markups list in Bluebeam or Acrobat can sort and filter by it. The app opens the set you changed last. To have the assistant use a set, name it: "start a QA set and cloud the missing doors".
-
-Press <kbd>m</kbd> for the Markups panel, which lists the markups `aecdo` added to the set showing:
-
-- <kbd>Enter</kbd> goes to the highlighted one's sheet;
-- <kbd>x</kbd> deletes it, and **Delete all** deletes every one;
-- <kbd>u</kbd> undoes the set's last change in this session;
-- **Rename set** renames it, file and all, and **New set** starts another.
-
-### History
-
-Press <kbd>h</kbd> in the Markups panel for the set's history: each add, delete, and rename with its time, newest first, down to the PDF before any markups. Pick a step and press <kbd>Enter</kbd> (**Go back to here**) to bring back the markups as they were then. Going back is itself a new step, so the later ones stay in the history and <kbd>u</kbd> takes it back.
-
-The history is kept in the copy itself, so it's there next time you open the set. If someone saves the copy in Bluebeam or Acrobat, their save shows as "Edited in another program", and going back never removes their markups. If a program re-saves the whole file instead, the history up to then is gone, and it starts again with the next change.
-
-The assistant can list and delete its markups too, if you ask it to. Deleting takes out only markups `aecdo` added (plus replies people attached to them), and leaves everyone else's alone.
-
-**Each change only adds to the end of the copy**, so undo is exact. If the copy was made from a digitally signed or sealed set, the original's bytes stay the same inside it. Undoing a set's first markup deletes its copy. Undo refuses if the file has changed since, for example after someone edited it in Bluebeam.
-
-Markups go where the drawing data says the item is, so they're only as accurate as its [bounding boxes](data-model.md#bbox-coordinates). Check them on the PDF pane, and delete any that landed in the wrong place. Encrypted or password-protected PDFs can't be marked up.
-
 ## Project instructions: AGENTS.md
 
-To give the assistant standing instructions for a project, put a file named `AGENTS.md` in the folder you start the app from. Write it in plain language, as you'd brief a new team member:
+To give the assistant standing instructions for a project, put a file named `AGENTS.md` in the folder with your drawing set. Write it in plain language, as you'd brief a new team member:
 
 ```markdown
 # Maple Grove Library CDs
@@ -144,12 +103,12 @@ How it works:
 - Up to 20,000 characters are read.
 - It adds to what the assistant does; it can't give it access to more than its usual tools and folder.
 
-`AGENTS.md` is a common convention, so the same file also guides other AI coding tools, like [Claude Code](agents.md), when they work in that folder.
+`AGENTS.md` is a common convention, so the same file also guides AI coding tools like Claude Code when they work in that folder.
 
 ## Privacy and safety
 
 - **What's sent:** your questions, plus the parts of the drawing set the assistant needs (the current view and any sheets it reads), go to whichever way that `@name` uses: OpenAI, Anthropic, Amazon Bedrock in your AWS account, your custom endpoint, or OpenRouter and on to the company that runs the model (OpenRouter's privacy settings control which providers may receive them). Your PDF itself isn't sent.
-- **File access** is limited to the folder you started the app from. There it can only read and write spreadsheets and add to Markdown notes. It can't run commands or reach other folders.
+- **File access** is limited to the app's current folder. There it can only read and write spreadsheets and add to Markdown notes. It can't run commands or reach other folders.
 - **Nothing is sent** unless you ask a question in the chat.
 
 The assistant is built on the open-source [pi](https://github.com/earendil-works/pi) libraries (`pi-ai` and `pi-agent-core`).

@@ -1,5 +1,5 @@
 title: AECDO Guide
-description: Install the open-source aecdo app and explore, check, and ask an AI assistant about structured data from construction drawings.
+description: Install the free aecdo app to look through, check, mark up, and ask an AI assistant about data from construction drawings.
 repository: jeff-carmichael/aecdo
 
 # Shows the "DrawingBot API isn't available yet" notice on every page.
@@ -37,13 +37,15 @@ nav:
     url: /app.html
   - title: AI assistant
     url: /assistant.html
+  - title: Mark up the PDF
+    url: /markups.html
   - title: Demo walkthrough
     url: /demo.html
-  - title: Data model and bbox
-    url: /data-model.html
-  - title: Command line and agents
-    url: /agents.html
-  - title: Process PDFs (soon)
-    url: /process.html
   - title: Troubleshooting
     url: /troubleshooting.html
+  - title: Data model and bbox
+    url: /data-model.html
+    minor: true
+  - title: Command line and agents
+    url: /agents.html
+    minor: true
