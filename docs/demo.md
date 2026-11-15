@@ -4,37 +4,19 @@ title: Demo walkthrough
 
 # Demo walkthrough: Vancouver sample house
 
-`aecdo` comes with an example drawing set you can explore right away, with no account: the City of Vancouver's [sample drawing package for one and two family dwelling applications](https://vancouver.ca/files/cov/sample-drawing-package-1and2family.pdf), a 7-page permit set for a house with a secondary suite and a detached garage, together with its AECDO data. Because the PDF comes with it, the app outlines what you pick on the page, and you can try markups. The PDF has no text layer, so its data was written by hand from the drawings: 7 sheets, 33 drawings (site plan, floor plans, FSR overlay, elevations, sections, details, and the garage), about 300 items, the building analysis and R-value tables, and the general notes, each with its position on the page.
+aecdo comes with an example drawing set you can explore right away, with no account: the City of Vancouver's [sample drawing package for one and two family dwelling applications](https://vancouver.ca/files/cov/sample-drawing-package-1and2family.pdf), a 7-page permit set for a house with a secondary suite and a detached garage, together with its AECDO data. Because the PDF comes with it, the app outlines what you pick on the page, and you can try markups. The PDF has no text layer, so its data was written by hand from the drawings: 7 sheets, 33 drawings (site plan, floor plans, FSR overlay, elevations, sections, details, and the garage), about 300 items, the building analysis and R-value tables, and the general notes, each with its position on the page.
 
 ## Get the example
 
-If you said yes when the installer offered the examples, the two files are already in the `aecdo-examples` folder in your home folder. Go there in your terminal and open the set:
-
-```bash
-cd ~/aecdo-examples
-aecdo gui sample-drawing-package-1and2family.jsonld
-```
-
-If that says the folder doesn't exist, download the example first with `aecdo examples ~/aecdo-examples`.
+If you said yes when the installer offered the examples, they're in the `aecdo-examples` folder in your home folder. In the app, click **Open another folder…** (or press <kbd>o</kbd>), choose that folder, and pick **sample-drawing-package-1and2family**.
 
 <details markdown="1">
-<summary>Downloading the two files by hand</summary>
+<summary>Don't have the folder?</summary>
 
-Download both into the same folder, keeping their names, so the app finds the PDF next to the data. macOS and Linux:
+Download both files into one folder, keeping their names, so the app finds the PDF next to the data:
 
-```bash
-mkdir vancouver && cd vancouver
-curl -sSLO https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/sample-drawing-package-1and2family.jsonld
-curl -sSLO https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/sample-drawing-package-1and2family.pdf
-```
-
-Windows PowerShell:
-
-```powershell
-mkdir vancouver; cd vancouver
-irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/sample-drawing-package-1and2family.jsonld -OutFile sample-drawing-package-1and2family.jsonld
-irm https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/sample-drawing-package-1and2family.pdf -OutFile sample-drawing-package-1and2family.pdf
-```
+- [sample-drawing-package-1and2family.jsonld](https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/sample-drawing-package-1and2family.jsonld) (right-click, **Save link as…**)
+- [sample-drawing-package-1and2family.pdf](https://raw.githubusercontent.com/jeff-carmichael/aecdo/main/examples/sample-drawing-package-1and2family.pdf)
 
 </details>
 
@@ -61,7 +43,7 @@ Press <kbd>a</kbd> and try:
 compare the yards in the Building Analysis table with the site plan dimensions, and cloud any that differ
 ```
 
-The clouds show on the PDF pane as soon as the assistant adds them. They're already saved, in `sample-drawing-package-1and2family-markups.pdf` next to the original; press <kbd>m</kbd> to list them, undo, or delete one. See [Marking up the PDF](assistant.md#marking-up-the-pdf).
+The clouds show on the PDF pane as soon as the assistant adds them. They're already saved, in `sample-drawing-package-1and2family-markups.pdf` next to the original; press <kbd>m</kbd> to list them, undo, or delete one. See [Mark up the PDF](markups.md).
 
 ## Where the example comes from
 

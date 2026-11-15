@@ -4,141 +4,79 @@ title: Use the app
 
 # Use the app
 
-The `aecdo` app is how you look through a drawing set. The sheet list is on the left, what you've opened is in the middle, and the PDF page is always on the right, with whatever you've picked outlined in red. Everything works from the keyboard, and you can keep several AI chats going at once.
+The sheet list is on the left, what you've opened is in the middle, and the PDF page is on the right, with whatever you've picked outlined. Everything works with the keyboard or the mouse.
 
 ## Open a drawing set
 
-Click **aecdo** in the Start menu (Windows), Applications, Launchpad, or Spotlight (macOS), or your app menu (Linux). The installer puts it there; if it's missing, run `aecdo shortcut` once. The app opens in the folder you used last, or your home folder the first time.
+Open **aecdo** from the Start menu (Windows), Applications, Launchpad, or Spotlight (macOS), or your app menu (Linux). It opens in the folder you used last.
 
-Or start it from a terminal, in the folder with your drawing set:
+The first screen, **Open a drawing set**, shows the folder you're working in:
 
-```bash
-cd ~/aecdo-examples
-aecdo
-```
-
-The app opens on **Open a drawing set**, which shows the folder you're working in at the top:
-
-- First come the drawing sets (`.jsonld` files) in that folder. The one you opened last is already selected.
-- **Recent** lists sets you opened in other folders, and other folders you've worked in, each with where it is. Opening a set from another folder, or picking a folder, switches the app to that folder.
-- **Open another folder…** (or <kbd>o</kbd>) shows your computer's folder picker, like *Open Folder* in an editor. On Linux this needs `zenity` or `kdialog`; without them, a box appears for the folder's path. Press <kbd>/</kbd> to type a path to any `.jsonld` file or folder yourself.
+- The drawing sets (`.jsonld` files) in that folder come first, with the one you opened last already selected.
+- **Recent** lists sets and folders you've used elsewhere.
+- **Open another folder…** (or <kbd>o</kbd>) shows your computer's folder picker, like *Open Folder* in an editor. <kbd>/</kbd> lets you type a path instead.
 - **Settings** (or <kbd>,</kbd>) sets up the AI models.
 - The moon at the top right switches to dark mode (the sun switches back). See [Light and dark](#light-and-dark).
 
-Pick a set with <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>, or click it. Press <kbd>o</kbd> later to come back here and open another set without closing the app.
+Pick a set with <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>, or click it. Press <kbd>o</kbd> any time to come back here and open another set.
 
-To skip this screen, name the file when you start:
-
-```bash
-aecdo gui sample-drawing-package-1and2family.jsonld
-```
-
-(`aecdo explore` does the same.) While the app is open, the terminal waits; closing the window or pressing <kbd>q</kbd> gives it back. The folder you work in matters: it's where the [AI assistant](assistant.md) keeps its notes and spreadsheets and looks for an `AGENTS.md`. Started from a terminal, that's the terminal's folder; opening a set from another folder switches to the set's folder.
-
-## What you need
-
-The window comes with the standalone `aecdo` program ([Install and update](install.md)):
-
-- **macOS**: nothing else.
-- **Windows 11**: nothing else. Windows 10 needs the [Microsoft Edge WebView2 runtime](https://developer.microsoft.com/microsoft-edge/webview2/), which most machines already have.
-- **Linux**: GTK 4 and WebKitGTK 6. On Debian or Ubuntu: `sudo apt install libwebkitgtk-6.0-4`. Fedora: `sudo dnf install webkitgtk6.0`. Arch: `sudo pacman -S webkitgtk-6.0`.
-
-If the window can't open, `aecdo` says why and opens the app in your default browser instead. With an npm install it always opens in the browser, and `--browser` asks for the browser on purpose. The page is served only to your own computer, at an address with a random secret in it. Closing the tab (or pressing <kbd>Ctrl</kbd> <kbd>C</kbd> in the terminal) quits.
+The folder matters: it's where the [AI assistant](assistant.md) keeps its notes and spreadsheets, and where it looks for an `AGENTS.md`. Opening a set from another folder switches to that folder.
 
 ## Moving around
 
-Pick a sheet, open a drawing, open a layer, open an item: the app works the way you'd flip through the set. Press <kbd>?</kbd> in the app for every key.
+Pick a sheet, open a drawing, open a layer, open an item: it works the way you'd flip through the set. Press <kbd>?</kbd> in the app for every key.
 
 | Key | What it does |
 | --- | --- |
-| <kbd>↑</kbd> <kbd>↓</kbd> (or <kbd>j</kbd> <kbd>k</kbd>) | Move in the list. The row you're on is outlined on the PDF as you go. |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move in the list. The row you're on is outlined on the PDF as you go. |
 | <kbd>Enter</kbd> or <kbd>→</kbd> | Open it |
-| <kbd>←</kbd> or <kbd>Backspace</kbd> | Go back to where you just were, even after following a link |
+| <kbd>←</kbd> | Go back to where you just were, even after following a link |
 | <kbd>u</kbd> | Go up a level |
-| <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> … | Pick a row by its number |
 | <kbd>/</kbd> | Find a sheet |
 | <kbd>Tab</kbd> | Switch between the sheet list, the contents, and the PDF |
 | <kbd>z</kbd> / <kbd>f</kbd> | Zoom to what's selected / fit the page |
-| <kbd>+</kbd> <kbd>−</kbd>, <kbd>Shift</kbd> + arrows | Zoom, pan |
-| <kbd>a</kbd> | Go to the AI chat, then type your question |
-| <kbd>t</kbd> | Start another chat; <kbd>[</kbd> <kbd>]</kbd> switch chats |
-| <kbd>c</kbd> | Show or hide the chat |
-| <kbd>M</kbd> | Mark up what's selected |
-| <kbd>m</kbd> | List markups: go to one, undo, delete; <kbd>h</kbd> for history |
-| <kbd>d</kbd> | Show ids and coordinates |
+| <kbd>a</kbd> | Ask the AI |
+| <kbd>M</kbd> / <kbd>m</kbd> | Mark up what's selected / list markups |
 | <kbd>o</kbd> | Open another drawing set |
-| <kbd>,</kbd> | Settings: AI models and DrawingBot API credentials |
+| <kbd>,</kbd> | Settings |
 | <kbd>q</kbd> | Quit |
 
 The mouse works too: click rows, click a box on the PDF to open it, scroll or pinch to zoom, drag to pan, double-click to zoom in.
-
-While the sheet list has focus, moving through it previews each sheet: its contents in the middle and its page on the right. <kbd>Enter</kbd> opens it.
 
 What you see in the middle:
 
 - **A sheet** lists its drawings, tables (schedules), notes, and images.
 - **A drawing** lists its layers (Walls, Doors, Door Tags, …), then **Links to other drawings**: the sections, elevations, and details it calls out.
 - **A layer** lists its items.
-- **An item** shows what was read from the drawing as a list of fields, like `Mark 105A`. Which fields appear depends on the tool that made the file. The line under the name says what kind of item it is: an **Element** (a physical thing, like a wall or door), a **Tag** (an annotation, like a door tag), or an **Area** (a room or zone). Below the fields, **Related** lists things it links to, such as the door schedule.
+- **An item** shows what was read from the drawing, like `Mark 105A`. It's an **Element** (a physical thing, like a wall or door), a **Tag** (an annotation, like a door tag), or an **Area** (a room or zone). **Related** lists things it links to, such as the door schedule.
 - **A table** shows the schedule as a grid.
 
-### Following links
+Rows under **Links to other drawings** and **Related** jump there when you open them. <kbd>←</kbd> brings you back.
 
-Rows under **Links to other drawings** and **Related** are links: open one to jump there. A door tag might link to the door schedule on A601 and to the door itself. <kbd>←</kbd> brings you back to where the link was, so you can follow its other links. <kbd>u</kbd> goes up a level where you landed instead (from the schedule to its sheet, for example).
+To find a sheet, press <kbd>/</kbd> and type the start of its number (`a1` lists the A1xx sheets) or of words in its title (`fl pl` finds the floor plans). Sets with more than 25 sheets are grouped by discipline (General, Architectural, Structural, …).
 
-### Find a sheet
-
-Press <kbd>/</kbd> and start typing: the start of a sheet number (`a` lists the A sheets, `a1` the A1xx ones) or the start of words in a title (`fl pl` finds the Floor Plan sheets). <kbd>Enter</kbd> opens the sheet; <kbd>Esc</kbd> stops searching.
-
-### Large sets
-
-When a set has more than 25 sheets, the sheet list is grouped by discipline letter (G General, A Architectural, S Structural, and so on). <kbd>/</kbd> searches every sheet.
-
-### Ids and coordinates
-
-Press <kbd>d</kbd> to also show ids, item types, and each thing's `bbox` (where it sits on the page, in PDF points). See [Data model and bbox](data-model.md).
+Press <kbd>d</kbd> to also show ids and coordinates. See [Data model and bbox](data-model.md).
 
 ## The PDF
 
-PDF.js draws the page inside the app. It loads only the parts of the PDF it needs, so a 1,000-page set opens as fast as a small one, and the last few pages you looked at come back instantly. Zooming and panning move the page you already have; a sharper copy of what's on screen follows a moment later.
+The page draws inside the app, and only the parts it needs load, so a 1,000-page set opens as fast as a small one. Boxes from the data are drawn on top: dashed for everything in the list you're in, blue for the row you're on, red for what's open. Click a box to open it.
 
-Boxes from the data are drawn on top: dashed for everything in the list you're in, blue for the row you're on, red for what's open. Click any box to open it.
+The app looks for the PDF beside the drawing set with the same name (`plans.pdf` next to `plans.jsonld`), and for the file name stored in the set. If it can't find it, the PDF pane says where it looked and lists the PDFs in that folder to pick from.
 
-### Finding the PDF
-
-The app needs the original PDF. The easiest setup is to keep it in the same folder as the `.jsonld`, with the same name: `plans.pdf` next to `plans.jsonld`. That's also where [`aecdo process`](process.md) saves its results. It also looks for the PDF file name stored inside the drawing set.
-
-If it can't find the PDF, the PDF pane says where it looked and lists the PDFs in that folder to pick from. You can also name it when you start:
-
-```bash
-aecdo gui plans.jsonld --pdf "Issued for Permit.pdf"
-```
-
-If the box lands in the wrong place, the file's coordinates may not be in PDF points from the top-left. See [bbox coordinates](data-model.md#bbox-coordinates).
+If boxes land in the wrong place, the set's coordinates may not be in the expected units. See [bbox coordinates](data-model.md#bbox-coordinates).
 
 ## AI chats
 
-<kbd>a</kbd> opens the chat on the right. Ask about what you're looking at in plain words; the assistant sees the place you have open, can move around the set (the app follows), zoom the PDF to things, propose markups, write notes, and fill in a spreadsheet in the current folder. Set it up once in Settings (<kbd>,</kbd>). When it writes a note or a spreadsheet, the chat links to the file so you can open it. See [AI assistant](assistant.md).
-
-Each chat is its own conversation, so you can check doors in one and ask about the structure in another. <kbd>t</kbd> (or <kbd>Ctrl</kbd>+<kbd>T</kbd>) starts a chat, the tabs at the top switch between them, and each one can use a different model. Chats last until you close the app.
-
-When you go to the chat, the keys still switch chats until you start typing: <kbd>[</kbd> <kbd>]</kbd> move between the tabs, <kbd>↑</kbd> <kbd>↓</kbd> scroll, and <kbd>Delete</kbd> closes the chat you're in. Any other key starts your question. <kbd>Esc</kbd> stops typing, and <kbd>Esc</kbd> again leaves the chat. Each tab has a × to close it, and **Hide** (or <kbd>c</kbd>, or the **Hide AI** button at the top) puts the chat away.
+Press <kbd>a</kbd> to ask about what you're looking at. The assistant can move around the set (the app follows), zoom the PDF to things, mark it up, write notes, and fill in a spreadsheet. <kbd>t</kbd> starts another chat, each with its own conversation and model; the tabs at the top switch between them. <kbd>Esc</kbd> leaves the chat. See [AI assistant](assistant.md).
 
 ## Markups
 
-Ask the AI to cloud something, press <kbd>M</kbd> on whatever's selected, or hold <kbd>Shift</kbd> and drag a box on the PDF. Each markup is saved as soon as it's added, to `<name>-markups.pdf` next to your PDF, and shows on the PDF pane right away. There's no save step, and your original PDF isn't changed. Keep markups for different purposes (code review, coordination, QA) in separate **sets**, each its own copy such as `<name>-markups-qa.pdf`: pick one, or **New set…**, from the menu under the PDF. Press <kbd>m</kbd> to list the set's markups: <kbd>Enter</kbd> goes to one, <kbd>x</kbd> deletes it, <kbd>u</kbd> undoes the last change, and <kbd>h</kbd> shows its history, where you can go back to any earlier step. See [Markup sets](assistant.md#markup-sets).
+Press <kbd>M</kbd> on whatever's selected, hold <kbd>Shift</kbd> and drag a box on the PDF, or ask the AI to cloud something. Markups are saved as you add them, to a copy of the PDF, and your original isn't changed. See [Mark up the PDF](markups.md).
 
 ## Light and dark
 
 The app starts out matching your computer's light or dark setting. Click the moon at the top right for dark mode, or the sun for light; the app remembers your choice next time. To follow the computer again, open Settings (<kbd>,</kbd>) and pick **Match the computer** under **Look**.
 
-## From the terminal
+## Turning PDFs into drawing sets
 
-The same data is available as plain commands that print and exit, for a quick count or for scripts and AI agents:
-
-```bash
-aecdo summary plans.jsonld          # counts of sheets, drawings, items, tables, notes, images
-aecdo page plans.jsonld A101        # everything on one sheet
-```
-
-See [Command line and agents](agents.md) for every command.
+Coming soon: the home screen will list PDFs in your folder that don't have a drawing set yet, and picking one will turn it into one through the [DrawingBot](https://aecdrawingbot.com) service. Until then, aecdo opens sets made by any tool.

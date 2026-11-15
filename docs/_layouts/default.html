@@ -5,13 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
   <meta name="description" content="{{ page.description | default: site.description }}">
+  <link rel="icon" href="{{ '/assets/icon-256.png' | relative_url }}" type="image/png">
   <link rel="stylesheet" href="{{ '/assets/style.css' | relative_url }}">
+  <script>
+    try {
+      const t = localStorage.getItem("theme");
+      if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+    } catch {}
+  </script>
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="{{ '/' | relative_url }}">AECDO <span>Guide</span></a>
-    <button class="menu-toggle" aria-expanded="false" aria-controls="sidenav">Menu</button>
-    <a class="gh" href="https://github.com/{{ site.repository }}">GitHub</a>
+    <a class="brand" href="{{ '/' | relative_url }}"><img src="{{ '/assets/icon-256.png' | relative_url }}" alt="">aecdo <span>Guide</span></a>
+    <div class="top-links">
+      <a class="gh" href="https://github.com/{{ site.repository }}">GitHub</a>
+      <button class="chip theme-toggle" type="button" title="Switch light or dark"><span aria-hidden="true">☾</span></button>
+      <button class="chip menu-toggle" type="button" aria-expanded="false" aria-controls="sidenav">Menu</button>
+    </div>
   </header>
   <div class="shell">
     <nav id="sidenav" class="sidenav" aria-label="Guide pages">
@@ -19,7 +29,7 @@
         {% for item in site.nav %}
         {% assign item_url = item.url | relative_url %}
         {% assign page_url = page.url | relative_url %}
-        <li><a href="{{ item_url }}"{% if item_url == page_url %} aria-current="page"{% endif %}>{{ item.title }}</a></li>
+        <li{% if item.minor %}{% unless shown_minor %} class="minor"{% assign shown_minor = true %}{% endunless %}{% endif %}><a href="{{ item_url }}"{% if item_url == page_url %} aria-current="page"{% endif %}>{{ item.title }}</a></li>
         {% endfor %}
       </ol>
       <p class="sidenav-foot"><a href="https://github.com/{{ site.repository }}/releases">Releases</a> · <a href="https://github.com/{{ site.repository }}/blob/main/CHANGELOG.md">Changelog</a></p>
@@ -27,8 +37,7 @@
     <main class="content">
       {% if site.api_notice %}
       <div class="notice" role="note">
-        <strong>The DrawingBot API isn't available yet.</strong>
-        <code>aecdo process</code>, <code>upload</code>, <code>status</code>, <code>download</code>, and <code>configure</code> will work once it launches. Everything else in <code>aecdo</code> works today with any JSON-LD file that matches the AECDO schema.
+        <strong>Turning PDFs into drawing sets is coming soon.</strong> Everything else works today with any drawing set (<code>.jsonld</code> file) in the AECDO format.
       </div>
       {% endif %}
       {{ content }}
@@ -50,6 +59,19 @@
     </main>
   </div>
   <script>
+    const root = document.documentElement;
+    const themeBtn = document.querySelector(".theme-toggle");
+    const isDark = () => root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    const showTheme = () => {
+      themeBtn.firstElementChild.textContent = isDark() ? "☀" : "☾";
+      themeBtn.setAttribute("aria-label", isDark() ? "Switch to light" : "Switch to dark");
+    };
+    showTheme();
+    themeBtn.addEventListener("click", () => {
+      root.dataset.theme = isDark() ? "light" : "dark";
+      try { localStorage.setItem("theme", root.dataset.theme); } catch {}
+      showTheme();
+    });
     document.querySelector(".menu-toggle").addEventListener("click", (e) => {
       const open = document.body.classList.toggle("nav-open");
       e.currentTarget.setAttribute("aria-expanded", String(open));
@@ -78,7 +100,8 @@
   {% if page.mermaid %}
   <script type="module">
     import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
-    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+    const t = document.documentElement.dataset.theme;
+    const dark = t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
     for (const code of document.querySelectorAll("code.language-mermaid, div.language-mermaid code")) {
       const div = document.createElement("div");
       div.className = "mermaid";
