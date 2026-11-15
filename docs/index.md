@@ -13,7 +13,7 @@ A free app for looking through, checking, and asking questions about the data in
 In the app you can:
 
 - **Look through** a set sheet by sheet, down to single door tags and walls, with the PDF page beside it and whatever you pick outlined.
-- **Ask** an AI model such as Claude or ChatGPT about what you're looking at, and have it take notes or fill in a spreadsheet.
+- **Ask** an AI model such as Claude or ChatGPT about what you're looking at, and have it save notes and Excel spreadsheets to your folder.
 - **Mark up** the PDF with clouds, callouts, and notes that Bluebeam and Acrobat open as normal markups.
 
 ## Quick start

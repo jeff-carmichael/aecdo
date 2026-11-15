@@ -69,18 +69,45 @@ In the app, press <kbd>a</kbd>. The chat opens on the right: type your question 
 | **Read** any sheet without moving your view | "what does the general structural notes sheet say about concrete strength?" |
 | **Show you the page** zoomed to something outlined in red | "show me door 105A", "where's the book drop detail?" |
 | **[Mark up the PDF](markups.md)** with clouds, callouts, and sticky notes that Bluebeam and Acrobat open as normal markups | "cloud every door that's missing from the door schedule" |
-| **Take notes** by adding Markdown to `notes.md` (or another `.md` file you name) in the current folder | "note the doors that are missing from the schedule" |
-| **Fill in a spreadsheet** (`.xlsx`, `.csv`, or `.tsv`) in the current folder | "add every door on A101 to doors.xlsx" |
+| **[Write notes](#files-it-writes)** to a Markdown (`.md`) file in the current folder | "note the doors that are missing from the schedule" |
+| **[Make or fill in a spreadsheet](#files-it-writes)** (Excel `.xlsx`, `.csv`, or `.tsv`) in the current folder | "add every door on A101 to doors.xlsx" |
 
 The assistant zooms the PDF **for you**; it doesn't see the page itself. It works from the extracted data.
 
-### Spreadsheets
+## Files it writes
 
-The assistant looks for spreadsheets in the app's current folder. If one already fits the task, it works in that file's layout (for example, your office's RFI log template), filling the columns you already have. Otherwise it creates a new one.
+The assistant can save its work as files on your computer, in the app's current folder (the one shown at the top of the home screen, usually the folder with your drawing set). Nothing is uploaded; the files are yours to open, edit, and share like any other.
 
-- **It asks first.** Before its first change to a spreadsheet that already existed, the app asks whether to allow the assistant to edit it.
-- **Excel files are edited in place.** Formatting, formulas, column widths, and other tabs stay as they were.
-- **Formula cells are never overwritten.**
+When it writes a file, the chat shows a link to it. Click the link to open the file in Excel, your text editor, or whatever opens that kind of file on your computer.
+
+### Notes (Markdown)
+
+Ask it to note, record, or write something up, and it adds Markdown to `notes.md`, creating it the first time. Name another file to keep notes apart:
+
+```
+note the doors that are missing from the schedule
+write a summary of the site plan issues to site-review.md
+```
+
+It only adds to the end of a notes file, so earlier notes are never changed or removed. Markdown is plain text with `#` headings and `-` lists; it opens in any text editor, and in Word, Notion, Obsidian, or VS Code with formatting.
+
+### Spreadsheets (Excel, CSV)
+
+Ask for a table of things and it makes a spreadsheet, or fills in one you already have:
+
+```
+make doors.xlsx with every door on the floor plans: mark, room, width, and fire rating
+add the side yard mismatches to rfi-log.xlsx
+```
+
+- **New files.** It creates `.xlsx` (Excel), `.csv`, or `.tsv` files with a header row. It never replaces a file that's already there.
+- **Your files.** If a spreadsheet in the folder already fits the task, such as your office's RFI log template, it fills in the columns you already have, adding rows after the last one or setting single cells.
+- **It asks first.** Before its first change to a spreadsheet it didn't make, the app asks whether to allow it.
+- **Excel files are edited in place.** Formatting, formulas, column widths, and other tabs stay as they were, and cells holding formulas are never overwritten.
+
+### What it can't touch
+
+It can only write `.md` notes and `.xlsx`, `.csv`, or `.tsv` spreadsheets, and only inside the current folder (subfolders are fine). It can't delete files, change other kinds of files, or reach other folders. To have it work somewhere else, open that folder with **Open another folder…**. The [PDF markups](markups.md) it adds go to a copy of the PDF, never the original.
 
 ## Project instructions: AGENTS.md
 

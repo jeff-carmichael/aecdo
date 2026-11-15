@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Opening the app from its icon writes what happened to `~/.aecdo/app.log` (each step, and any error), so a window that never shows can be diagnosed. A window that can't start now falls back to the browser instead of quitting.
 
 ### Docs
-- The user guide now matches the app's look (navy, gold for the page you're on, ruler ticks under the top bar, the app icon) and has a light/dark switch. It's written for people using the app: install once, open from the icon, Open folder. The command line is on one page, Command line and agents, which now also holds the install options and building from source. Markups have their own page, and the Process PDFs page is gone until the DrawingBot API launches.
+- The user guide now matches the app's look (navy, gold for the page you're on, ruler ticks under the top bar, the app icon) and has a light/dark switch. It's written for people using the app: install once, open from the icon, Open folder. The command line is on one page, Command line and agents, which now also holds the install options and building from source. Markups have their own page, the AI assistant page explains the notes and spreadsheets it can save to your folder, and the Process PDFs page is gone until the DrawingBot API launches.
 
 ## [0.6.3] - 2026-11-14
 
