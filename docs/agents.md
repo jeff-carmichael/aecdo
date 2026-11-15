@@ -65,7 +65,7 @@ Set before running the installer, e.g. `… | AECDO_EXAMPLES=0 sh`:
 
 | Variable | What it does |
 |----------|--------------|
-| `AECDO_VERSION` | Install a specific release, e.g. `v0.6.3` |
+| `AECDO_VERSION` | Install a specific release, e.g. `v0.6.4` |
 | `AECDO_INSTALL_DIR` | Install somewhere else, e.g. `$HOME/.local/bin` |
 | `AECDO_EXAMPLES` | `1` gets the examples without asking, `0` skips them |
 | `AECDO_EXAMPLES_DIR` | Where to put the example set |
