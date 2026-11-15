@@ -4,138 +4,62 @@ title: AI assistant
 
 # AI assistant
 
-In the [app](app.md), you can ask an AI model such as Claude or ChatGPT about the drawing set. It sees what you have open, can move around the set for you, zoom the PDF to things, take notes, fill in spreadsheets, and cloud problems on the PDF.
-
-Press <kbd>a</kbd> in the app, type a question, and press <kbd>Enter</kbd>:
+Ask Claude, ChatGPT, or another model about the drawing set. Press <kbd>a</kbd>, type, and press <kbd>Enter</kbd>:
 
 ```
 which rooms on this floor don't have a door tag?
-compare the door schedule to the door tags on A101 and A102
 show me door 105A
+add every door on A101 to doors.xlsx
 ```
 
-First you need to connect `aecdo` to a model, once.
+It knows what you have open, so "this floor" or "these doors" work.
 
 ## Set it up
 
-Each model has a name you can use in the chat: `@claude`, `@chatgpt`, `@gemini`, `@grok`, `@deepseek`, and `@kimi`. You choose how `aecdo` reaches it: straight from the company that makes it, through Amazon Bedrock, through your own endpoint, or through OpenRouter. Set up any one of these and the models it offers work right away:
+Press <kbd>,</kbd> for **Settings**, then under **AI models**:
 
-| Way to connect | Models | How | Cost |
-|----------------|--------|-----|------|
-| **ChatGPT plan** | `@chatgpt` | *Sign in with ChatGPT* (Plus or Pro plan) | Counts against your plan's usage |
-| **OpenAI API** | `@chatgpt` | An [OpenAI API key](https://platform.openai.com/api-keys) | Billed per use by OpenAI |
-| **Anthropic API** | `@claude` | An [Anthropic API key](https://console.anthropic.com/) | Billed per use by Anthropic |
-| **Amazon Bedrock** | `@claude`, `@chatgpt`, `@grok`, `@deepseek`, `@kimi` | A Bedrock API key, an AWS profile, or the AWS credentials already on your computer | Billed by AWS |
-| **Custom endpoint** | the ones you list | A base URL and token for an OpenAI- or Anthropic-compatible API, such as a company gateway, LiteLLM, Azure, vLLM, or Ollama | Up to whoever runs it |
-| **OpenRouter** | all six | *Sign in with OpenRouter*, or an [OpenRouter API key](https://openrouter.ai/settings/keys) | Billed per use from your OpenRouter credits |
+- **Sign in with ChatGPT** uses your ChatGPT Plus or Pro plan.
+- **API key** for [Anthropic](https://console.anthropic.com/) (Claude), [OpenAI](https://platform.openai.com/api-keys), or [OpenRouter](https://openrouter.ai/settings/keys) (all models). Billed per use.
+- **Amazon Bedrock** or a **custom endpoint** (a company gateway, Azure, Ollama, …) for teams.
 
-In the app, press <kbd>,</kbd> (or click **Settings** at the top) to open **Settings**. Under **AI models**, each way to connect has its buttons. Most people want one of the first two: **Sign in with ChatGPT** if you pay for ChatGPT Plus or Pro, or an **API key** for Anthropic to use Claude. All the choices:
+There's no "Sign in with Claude": Anthropic doesn't allow Claude plans in other apps. Use an API key, or [Claude Code](agents.md).
 
-- **Sign in with ChatGPT** (uses your ChatGPT plan) opens your browser to sign in. You can cap how much `aecdo` may use in ChatGPT's settings.
-- **API key** (OpenAI, Anthropic, or OpenRouter) asks you to paste the key. It isn't shown as you type.
-- **Amazon Bedrock → Set up** asks for the AWS region, then how to sign in to AWS: a Bedrock API key, an AWS profile name, or the credentials you already use with the AWS CLI (including SSO). Your AWS account needs access to the models you use; turn them on in the Bedrock console.
-- **Custom endpoint → Set up** asks for a name (like `Company gateway`), the base URL, whether it speaks the OpenAI (Chat Completions) or Anthropic (Messages) API, a token (sent as `Authorization: Bearer <token>`), and the model id it uses for each `@name` it serves, e.g. `@claude` → the model name your endpoint uses for Claude. Leave the others blank.
-- **Sign in with OpenRouter** opens your browser; OpenRouter then creates an API key for `aecdo`, which you can see and revoke in your OpenRouter account.
-- **Remove** forgets a sign-in, key, Bedrock setup, or custom endpoint.
+## Chats
 
-When a sign-in needs to ask something (which AWS sign-in to use, or a code to paste), the app asks in a small dialog, and links to finish signing in show at the top of Settings.
-
-**Which model each @name uses** lists every `@name`. Once one is set up, pick which way it goes (when more than one is set up) and which model it uses there. The defaults are Claude Sonnet 5.5 and GPT-5.5, and the latest Gemini Pro, Grok, DeepSeek, and Kimi models. Bedrock and OpenRouter list only that family's models. The assistant needs a model that supports tool calls to navigate and read sheets. Changes apply to the open chats right away.
-
-Settings shows which way each `@name` will use. When more than one is set up and you haven't picked, it goes straight to the maker first (Anthropic or OpenAI), then Amazon Bedrock, then your custom endpoint, then OpenRouter. The first answer in a session also says which way it went, e.g. `Claude via Amazon Bedrock (global.anthropic.claude-sonnet-5-5)`.
-
-> **Why no "Sign in with Claude"?** Anthropic doesn't allow third-party tools to use Claude Pro or Max subscriptions, so `@claude` needs an API key, Bedrock, OpenRouter, or your own endpoint. If you have a Claude subscription, an AI coding agent like Claude Code can work with your drawing sets instead; see [Command line and agents](agents.md).
-
-Sign-ins, keys, and model choices are saved in `~/.aecdo/llm.json`, readable only by you. To send more headers to a custom endpoint, add them under `custom.headers` in that file, e.g. `"headers": { "x-team": "drawings" }`.
-
-## Asking questions
-
-In the app, press <kbd>a</kbd>. The chat opens on the right: type your question in plain words and press <kbd>Enter</kbd>. The answer appears as it's written, and the drawings and the PDF stay on screen beside it.
-
-- **Which model answers** is shown in the chat. It's the first one you set up. To switch the chat you're in, type just the name, like `@gemini`, or pick from the list under the input. Starting a question with a name, like `@chatgpt which rooms have carpet?`, switches too. <kbd>Tab</kbd> completes a name.
-- **Ask about what's on screen.** The assistant knows what you have open (a sheet, a drawing, a layer, an item, a table), so "this floor", "these doors", or "this layer" mean what you're looking at. It also knows the last few places you visited and the link you followed to get here, so after jumping from a door tag to the door schedule you can ask "is the door I came from in this schedule?".
-- **Several chats.** <kbd>t</kbd> (or <kbd>Ctrl</kbd>+<kbd>T</kbd>) starts another chat, and the tabs switch between them: click one, or press <kbd>[</kbd> <kbd>]</kbd> before you start typing. The × on a tab closes it, and **Hide** puts the chat away. Each chat is its own conversation with its own model, and they can work at the same time. Chats last until you close the app.
-- **When it moves around** (for example, "show me door 105A"), the app follows, and the chat says where it went. When it writes a note or a spreadsheet, the chat links to the file: click the link to open it in Excel, your text editor, or whatever opens that kind of file on your computer.
-- **When it asks first** (for example, before changing a spreadsheet), the app shows the question with Yes and No buttons.
-- Sheet numbers in answers are links. <kbd>Esc</kbd> stops an answer partway through, or leaves the chat so the arrow keys move around the set again.
-
-**"Claude isn't set up yet"?** That model isn't connected. Press <kbd>,</kbd> to open Settings and set it up, then ask again.
+- Type `@claude`, `@chatgpt`, `@gemini`, `@grok`, `@deepseek`, or `@kimi` to switch models.
+- <kbd>t</kbd> starts another chat. Each has its own model and history.
+- <kbd>Esc</kbd> stops an answer or leaves the chat.
+- Chats end when you close the app.
 
 ## What it can do
 
-| It can | For example |
-|--------|-------------|
-| **Move around** the set for you, so your view changes as it works | "go to the second floor plan door tags" |
-| **Read** any sheet without moving your view | "what does the general structural notes sheet say about concrete strength?" |
-| **Show you the page** zoomed to something outlined in red | "show me door 105A", "where's the book drop detail?" |
-| **[Mark up the PDF](markups.md)** with clouds, callouts, and sticky notes that Bluebeam and Acrobat open as normal markups | "cloud every door that's missing from the door schedule" |
-| **[Write notes](#files-it-writes)** to a Markdown (`.md`) file in the current folder | "note the doors that are missing from the schedule" |
-| **[Make or fill in a spreadsheet](#files-it-writes)** (Excel `.xlsx`, `.csv`, or `.tsv`) in the current folder | "add every door on A101 to doors.xlsx" |
+- **Move around** the set. The app follows.
+- **Show you** something on the PDF.
+- **[Mark up the PDF](markups.md)** with clouds, callouts, and notes.
+- **Write notes and spreadsheets** to your folder.
 
-The assistant zooms the PDF **for you**; it doesn't see the page itself. It works from the extracted data.
+It reads the extracted data, not the PDF image.
 
 ## Files it writes
 
-The assistant can save its work as files on your computer, in the app's current folder (the one shown at the top of the home screen, usually the folder with your drawing set). Nothing is uploaded; the files are yours to open, edit, and share like any other.
+Files go in the app's current folder. The chat links to each one, so you can open it.
 
-When it writes a file, the chat shows a link to it. Click the link to open the file in Excel, your text editor, or whatever opens that kind of file on your computer.
+- **Notes:** "note the missing doors" adds to `notes.md`. Name another `.md` file to use that instead. It only adds; it never changes earlier notes.
+- **Spreadsheets:** "make doors.xlsx with every door" creates a new `.xlsx`, `.csv`, or `.tsv`. It can also fill in one you have, like an RFI log. It asks before changing your file, and keeps its formatting and formulas.
 
-### Notes (Markdown)
+It can't delete files, touch other file types, or reach other folders.
 
-Ask it to note, record, or write something up, and it adds Markdown to `notes.md`, creating it the first time. Name another file to keep notes apart:
+## AGENTS.md
 
-```
-note the doors that are missing from the schedule
-write a summary of the site plan issues to site-review.md
-```
-
-It only adds to the end of a notes file, so earlier notes are never changed or removed. Markdown is plain text with `#` headings and `-` lists; it opens in any text editor, and in Word, Notion, Obsidian, or VS Code with formatting.
-
-### Spreadsheets (Excel, CSV)
-
-Ask for a table of things and it makes a spreadsheet, or fills in one you already have:
-
-```
-make doors.xlsx with every door on the floor plans: mark, room, width, and fire rating
-add the side yard mismatches to rfi-log.xlsx
-```
-
-- **New files.** It creates `.xlsx` (Excel), `.csv`, or `.tsv` files with a header row. It never replaces a file that's already there.
-- **Your files.** If a spreadsheet in the folder already fits the task, such as your office's RFI log template, it fills in the columns you already have, adding rows after the last one or setting single cells.
-- **It asks first.** Before its first change to a spreadsheet it didn't make, the app asks whether to allow it.
-- **Excel files are edited in place.** Formatting, formulas, column widths, and other tabs stay as they were, and cells holding formulas are never overwritten.
-
-### What it can't touch
-
-It can only write `.md` notes and `.xlsx`, `.csv`, or `.tsv` spreadsheets, and only inside the current folder (subfolders are fine). It can't delete files, change other kinds of files, or reach other folders. To have it work somewhere else, open that folder with **Open another folder…**. The [PDF markups](markups.md) it adds go to a copy of the PDF, never the original.
-
-## Project instructions: AGENTS.md
-
-To give the assistant standing instructions for a project, put a file named `AGENTS.md` in the folder with your drawing set. Write it in plain language, as you'd brief a new team member:
+Put an `AGENTS.md` in your folder to give the assistant standing instructions:
 
 ```markdown
-# Maple Grove Library CDs
-
-- Log every coordination issue as a row in rfi-log.xlsx (columns: Sheet, Item, Issue, Suggested fix).
-- Check door hardware sets against the Hardware Sets table on A601.
-- Room numbers on the floor plans must match the Room Finish Schedule on A701.
-- Use our office terms: "RCP" for reflected ceiling plan, "GWB" for gypsum board.
-- Keep answers short; list issues as bullets with the sheet number first.
+- Log every issue as a row in rfi-log.xlsx (Sheet, Item, Issue).
+- Keep answers short, sheet number first.
 ```
 
-How it works:
+Restart the app after editing it.
 
-- It's read the first time you ask an assistant something in a session, and the assistant prints **`Using AGENTS.md from this folder`**. If you edit it, restart the app to pick up the changes.
-- Any capitalization works (`AGENTS.md`, `agents.md`).
-- Up to 20,000 characters are read.
-- It adds to what the assistant does; it can't give it access to more than its usual tools and folder.
+## Privacy
 
-`AGENTS.md` is a common convention, so the same file also guides AI coding tools like Claude Code when they work in that folder.
-
-## Privacy and safety
-
-- **What's sent:** your questions, plus the parts of the drawing set the assistant needs (the current view and any sheets it reads), go to whichever way that `@name` uses: OpenAI, Anthropic, Amazon Bedrock in your AWS account, your custom endpoint, or OpenRouter and on to the company that runs the model (OpenRouter's privacy settings control which providers may receive them). Your PDF itself isn't sent.
-- **File access** is limited to the app's current folder. There it can only read and write spreadsheets and add to Markdown notes. It can't run commands or reach other folders.
-- **Nothing is sent** unless you ask a question in the chat.
-
-The assistant is built on the open-source [pi](https://github.com/earendil-works/pi) libraries (`pi-ai` and `pi-agent-core`).
+Your questions and the parts of the set it reads go to the model you chose. The PDF isn't sent. Nothing is sent until you ask.

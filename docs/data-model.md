@@ -5,17 +5,11 @@ mermaid: true
 
 # Data model and bbox coordinates
 
-An AECDO file is a [JSON-LD](https://json-ld.org/) document: ordinary JSON with a few `@`-prefixed fields that make it linked data. You can read it with any JSON tool. This page explains how it's organized, so you can make sense of what the app shows you or work with the files in your own code.
-
-The current schema is **v0.3.0**:
-
-- [`aecdo.schema.json`](https://github.com/jeff-carmichael/aecdo/blob/main/ontology/v0.3.0/aecdo.schema.json), the JSON Schema that `aecdo validate` checks against
-- [`context.jsonld`](https://github.com/jeff-carmichael/aecdo/blob/main/ontology/v0.3.0/context.jsonld), the JSON-LD context
-- [`sample-drawing-package-1and2family.jsonld`](https://github.com/jeff-carmichael/aecdo/blob/main/examples/sample-drawing-package-1and2family.jsonld), a complete example that goes with its [PDF](https://github.com/jeff-carmichael/aecdo/blob/main/examples/sample-drawing-package-1and2family.pdf)
+For developers. An AECDO file is [JSON-LD](https://json-ld.org/): plain JSON with a few `@` fields. Schema **v0.3.0**: [JSON Schema](https://github.com/jeff-carmichael/aecdo/blob/main/ontology/v0.3.0/aecdo.schema.json), [context](https://github.com/jeff-carmichael/aecdo/blob/main/ontology/v0.3.0/context.jsonld), [full example](https://github.com/jeff-carmichael/aecdo/blob/main/examples/sample-drawing-package-1and2family.jsonld).
 
 ## How it's organized
 
-A **DrawingSet** (one PDF) contains **Sheets** (pages). Each sheet contains **Drawings**, plus **Tables**, **Notes**, and **Images**. Each drawing contains **Layers**, and each layer contains **Items**. Drawings and items can point to other drawings, like a section cut on a plan pointing to the section.
+DrawingSet → Sheet → Drawing → Layer → Item, plus Tables, Notes, and Images on each sheet. Drawings and items can reference other drawings.
 
 ```mermaid
 ---
@@ -95,7 +89,7 @@ classDiagram
 | **Note** | A general notes text block |
 | **Image** | A raster image on a sheet (`logo`, `photo`, `detail-raster`, `diagram`, `other`); image bytes are not stored |
 
-Every object has an `@id`, a UUID written as `urn:uuid:…`, and an `@type`. References between objects (`references`) are lists of these ids.
+Every object has an `@id` (`urn:uuid:…`) and an `@type`. `references` lists other objects' ids.
 
 ## A small example
 
@@ -144,51 +138,28 @@ Every object has an `@id`, a UUID written as `urn:uuid:…`, and an `@type`. Ref
 }
 ```
 
-A few things to know:
-
-- **`pageIndex`** counts from 0, so the first page of the PDF is page 0.
-- **`drawingType`** is one of `plan`, `section`, `elevation`, or `detail`.
-- **`itemType`** is `thing` (a physical element), `tag` (an annotation or symbol), or `area` (a region).
-- **`data`** on an item is free-form. What's in it depends on what was extracted: a wall may have `material` and `thickness`, a door `mark`, `width`, and `doorType`.
-- **Table `content`** is plain text: one row per line, with cells separated by `|`. The first line is the header.
+- `pageIndex` starts at 0.
+- `drawingType`: `plan`, `section`, `elevation`, or `detail`.
+- `itemType`: `thing`, `tag`, or `area`.
+- Item `data` is free-form.
+- Table `content` is one row per line, cells split by `|`, header first.
 
 ## bbox coordinates
 
-Drawings, layers, items, tables, notes, and images can have a `bbox` that says where they are on the page. It's always four numbers:
+A `bbox` is `[xmin, ymin, xmax, ymax]`:
 
-```
-[xmin, ymin, xmax, ymax]
-```
+- in PDF points (1/72 in), not normalized;
+- from the top-left of the page as displayed (after rotation);
+- with y going down.
 
-- **Units are PDF points**: 1/72 of an inch. A box 72 points wide is 1 inch wide on the printed sheet.
-- **The origin is the top-left corner** of the page as you see it (after any page rotation in the PDF).
-- **y increases downward**, as on a screen, not upward as in PDF's internal coordinates.
-- **Values aren't normalized**, so the range depends on the page size. A 36 × 24 in ARCH D sheet runs from 0 to 2592 across and 0 to 1728 down.
+To draw one on a page image rendered at a given DPI, multiply by `DPI / 72`. If the app's boxes land in the wrong place, the file likely uses other units.
 
-For example, the door tag `[408.5, 747.5, 428.5, 767.5]` is a 20 × 20 point box (about 0.28 in square) whose top-left corner is 5.7 in from the left edge and 10.4 in from the top.
+## Making your own files
 
-To draw a bbox on an image of the page rendered at a given DPI, multiply each value by `DPI / 72`. At 72 DPI, one pixel is one point.
-
-This is exactly how the app draws its [red box on the PDF](app.md#the-pdf). If the box lands in the wrong place or off the page, the file was probably made with different units.
-
-## Producing your own files
-
-AECDO is an open standard, and `aecdo` works with any file that matches the schema, whatever produced it: your own extraction pipeline, a script that converts another tool's output, or a commercial service. To make a file `aecdo` can use:
-
-1. Follow the structure above, using [the example](https://github.com/jeff-carmichael/aecdo/blob/main/examples/sample-drawing-package-1and2family.jsonld) as a model.
-2. Give every object a unique `urn:uuid:` `@id`.
-3. Write each `bbox` in PDF points from the top-left of the page, as described above, so the red box lines up.
-4. Set `filename` to the source PDF's name, and save the `.jsonld` next to the PDF with the same base name, so the app can find it.
-5. Check it with `aecdo validate`.
-
-To check a file:
+Any tool can write AECDO files. Give every object a unique `@id`, write bboxes as above, set `filename` to the PDF's name, and save the `.jsonld` beside that PDF. Then check it:
 
 ```bash
 aecdo validate my-file.jsonld
-aecdo validate my-file.jsonld --format json     # {"valid": true, "file": "…", "errors": []}
-aecdo validate my-file.jsonld --schema path/to/custom.schema.json
 ```
 
-`validate` exits with status 1 when the file doesn't match, so it works in CI.
-
-To propose a change to the schema, see [CONTRIBUTING.md](https://github.com/jeff-carmichael/aecdo/blob/main/CONTRIBUTING.md#contributing-to-the-ontologyschema).
+It exits with 1 if the file doesn't match. Schema changes: see [CONTRIBUTING.md](https://github.com/jeff-carmichael/aecdo/blob/main/CONTRIBUTING.md#contributing-to-the-ontologyschema).
