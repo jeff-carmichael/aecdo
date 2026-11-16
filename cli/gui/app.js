@@ -2,6 +2,7 @@
 // The server keeps the navigation state; every move is one small request to it.
 
 import { VirtualList } from "./list.js";
+import { Finder } from "./find.js";
 import { PdfView, loadPdfjs } from "./pdf-view.js";
 import { ChatPanel } from "./chat.js";
 import { SHORTCUTS, HINTS, typing } from "./keys.js";
@@ -436,7 +437,14 @@ function renderHints() {
 // ── Finding a sheet ──────────────────────────────────────
 
 const find = /** @type {HTMLInputElement} */ ($("find"));
-let findSeq = 0;
+const finder = new Finder(
+  (q) => api(`api/find?q=${encodeURIComponent(q)}`),
+  (/** @type {string[] | undefined} */ matches) => {
+    buildSheetRows(matches);
+    const row = sheetList.selectedRow;
+    if (matches && row) schedulePreview(row.n, 0);
+  },
+);
 
 function startFinding() {
   finding = true;
@@ -450,7 +458,7 @@ function stopFinding(keep) {
   finding = false;
   if (!keep) {
     find.value = "";
-    buildSheetRows();
+    void finder.search("");
   }
 }
 
@@ -458,24 +466,18 @@ find.addEventListener("focus", () => {
   finding = true;
   if (focus !== "sheets") setFocus("sheets");
 });
-find.addEventListener("input", async () => {
-  const q = find.value;
-  const seq = ++findSeq;
-  if (!q.trim()) return buildSheetRows();
-  const matches = await api(`api/find?q=${encodeURIComponent(q)}`);
-  if (seq !== findSeq) return;
-  buildSheetRows(matches);
-  const row = sheetList.selectedRow;
-  if (row) schedulePreview(row.n, 0);
-});
+find.addEventListener("input", () => void finder.search(find.value));
 find.addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
     e.preventDefault();
-    sheetList.move(e.key === "ArrowDown" ? 1 : -1);
+    const dir = e.key === "ArrowDown" ? 1 : -1;
+    void finder.after(() => sheetList.move(dir));
   } else if (e.key === "Enter") {
     e.preventDefault();
-    const row = sheetList.selectedRow;
-    if (row && !row.heading) void openSheet(row.n);
+    void finder.after(() => {
+      const row = sheetList.selectedRow;
+      if (row && !row.heading) void openSheet(row.n);
+    });
   } else if (e.key === "Escape") {
     e.preventDefault();
     e.stopPropagation();

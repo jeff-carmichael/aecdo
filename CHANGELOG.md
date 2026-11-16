@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- Fixed: in the app, arrow keys and Enter pressed in the **Find a sheet** box right after typing could act on the full sheet list, so the selection jumped back to the first match (or Enter opened the wrong sheet). Keys pressed while the matches are loading now wait for them and move through the filtered list.
+
 ## [0.6.4] - 2026-11-15
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.
