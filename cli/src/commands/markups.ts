@@ -59,7 +59,7 @@ export interface HistoryEntry {
 }
 
 /** Quick picks when starting a set. */
-export const SUGGESTED_SETS = ["Code review", "Coordination", "QA"];
+export const SUGGESTED_SETS = ["Code review", "Coordination", "QA", "Client comments", "Punch list", "RFIs"];
 
 export interface MarkupDeps {
   /** The source PDF, or undefined with the paths that were tried. */

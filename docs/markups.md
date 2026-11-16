@@ -16,7 +16,7 @@ Markups save as you add them, to a copy beside your PDF: `plans-markups.pdf`. Yo
 
 ## Sets
 
-Keep markups for different purposes apart, such as QA or code review. Pick or start a set from the menu under the PDF. Each set is its own copy, like `plans-markups-qa.pdf`.
+Keep markups for different purposes apart, such as QA or code review. The bar under the PDF shows the **Markup set** in use and the file it's saved to. Switch sets from its menu, or press **+ New** and pick a suggested name (Code review, QA, Punch list…) or type your own. Each set is its own copy, like `plans-markups-qa.pdf`.
 
 ## Undo and history
 

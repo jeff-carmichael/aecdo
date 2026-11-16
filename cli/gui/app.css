@@ -500,6 +500,7 @@ code {
 
 #pdf-pane {
   background: var(--pdf-bg);
+  container-type: inline-size;
 }
 
 #pdf-stage {
@@ -650,9 +651,40 @@ code {
 #pdf-where {
   font-family: var(--mono);
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#pdf-bar > :not(#pdf-where, .spacer),
+#pdf-sets > :not(#pdf-note) {
+  flex-shrink: 0;
+}
+
+@container (max-width: 760px) {
+  #pdf-sets .label,
+  #pdf-note {
+    display: none;
+  }
+}
+
+#pdf-sets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-right: 8px;
+  margin-right: 2px;
+  border-right: 1px solid var(--line);
+}
+
+#pdf-sets .label,
+#markup-new {
+  white-space: nowrap;
 }
 
 #pdf-note {
+  max-width: 260px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1230,6 +1262,7 @@ button.primary kbd {
 
 #markup-set {
   max-width: 160px;
+  font-weight: 600;
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--text);
