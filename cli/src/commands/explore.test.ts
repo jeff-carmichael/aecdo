@@ -58,11 +58,10 @@ test("out-of-range selection reports an error and stays put", () => {
   assert.match(lines.at(-1)!, /^No entry/);
 });
 
-test("back at the top level is a no-op and quit stops the loop", () => {
+test("up at the top level is a no-op", () => {
   const { ex } = make();
-  assert.equal(ex.handle(".."), true);
+  ex.handle("..");
   assert.equal(kindOf(ex), "sheets");
-  assert.equal(ex.handle("quit"), false);
 });
 
 test("view outlines the current level, or the open item", () => {
@@ -323,12 +322,20 @@ test("a number at the sheet list opens that row, and a sheet number still wins",
   assert.equal(other.location(), "2");
 });
 
-test("each hint shows once, and the assistant's view doesn't use it up", () => {
+test("navigate tells the assistant what a command said besides the view: errors, and the whole sheet for all", () => {
   const { ex, lines } = maple();
-  ex.context();
-  ex.render();
-  ex.render();
-  assert.equal(lines.filter((l) => l.includes("and press Enter to open it")).length, 1);
+  const missing = ex.navigate("Z999");
+  assert.equal(missing.view, "sheet list");
+  assert.match(String(missing.output), /^No sheet "Z999"/);
+
+  const moved = ex.navigate("A101");
+  assert.equal(moved.location, "A101");
+  assert.equal(moved.output, undefined);
+
+  const all = ex.navigate("all");
+  assert.match(String(all.output), /Drawing: First Floor Plan/);
+  assert.match(String(all.output), /Layer: Door Tags/);
+  assert.deepEqual(lines, [], "nothing is printed for the assistant's moves");
 });
 
 test("a missing PDF names the .jsonld, why each path was tried, and other PDFs nearby", () => {

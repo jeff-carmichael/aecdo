@@ -1,7 +1,7 @@
 import { output } from "../lib/output.js";
 import type { DrawingSet, CommandOptions } from "../types.js";
 
-export async function summary(data: DrawingSet, filePath: string, opts: CommandOptions = {}): Promise<void> {
+export async function summary(data: DrawingSet, opts: CommandOptions = {}): Promise<void> {
   const sheets = data.sheets ?? [];
 
   let totalDrawings = 0;

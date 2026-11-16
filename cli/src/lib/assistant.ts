@@ -22,7 +22,7 @@ import type { BBox } from "./pdf-page.js";
 export interface AssistantView {
   /** The current view as structured data for the model. */
   context(): unknown;
-  /** Runs a navigation command (sheet number, entry number, "back", "top", "all") and returns the new context. */
+  /** Runs a navigation command (sheet number, entry number, "back", "top", "all") and returns the new context, plus any output. */
   navigate(command: string): unknown;
 }
 
@@ -223,14 +223,10 @@ export function buildTools(host: AssistantHost, T: typeof import("@earendil-work
       name: "navigate",
       label: "Navigate",
       description:
-        'Move the view, exactly like the user typing a command: a sheet number or its number (1, 2, …) in the sheet list shown, a group number or prefix (when the sheet list shows groups), an entry number from the current list, "r1"/"r2"/… (follow a reference tagged "→ [r1]"), "up" (one level up the tree), "back" (to the previous place, e.g. before a jump), "top", or "all" (print the whole sheet). Returns the new current view.',
+        'Move the view the user sees: a sheet number or its number (1, 2, …) in the sheet list shown, a group number or prefix (when the sheet list shows groups), an entry number from the current list, "r1"/"r2"/… (follow a reference tagged "→ [r1]"), "up" (one level up the tree), "back" (to the previous place, e.g. before a jump), "top", or "all" (the whole sheet, returned as output). Returns the new current view, with output when the command said something else, such as an error.',
       parameters: T.Object({ command: T.String({ description: 'e.g. "A101", "3", "r1", "back", "top"' }) }),
       executionMode: "sequential",
-      execute: (_id, params: { command: string }) => {
-        const cmd = params.command.trim().toLowerCase();
-        if (["quit", "q", "exit"].includes(cmd)) throw new Error("The assistant cannot quit the app");
-        return text(truncateJson(host.view.navigate(params.command)));
-      },
+      execute: (_id, params: { command: string }) => text(truncateJson(host.view.navigate(params.command))),
     }),
     defineTool({
       name: "list_sheets",

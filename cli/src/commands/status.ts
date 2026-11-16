@@ -3,29 +3,16 @@ import { getToken } from "../lib/auth.js";
 import { getJobStatus } from "../lib/api.js";
 import { JobProgress, statusLines } from "../lib/progress.js";
 import { output } from "../lib/output.js";
+import { waitForJob } from "./process.js";
 import type { ProcessOptions } from "../types.js";
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((res) => setTimeout(res, ms));
-}
 
 export async function status(jobId: string, opts: ProcessOptions): Promise<void> {
   const config = await loadConfig();
   const token = await getToken(config);
-  const pollInterval = (opts.poll ?? 5) * 1000;
-
-  const progress = new JobProgress();
 
   if (opts.wait) {
-    let current = await getJobStatus(token, jobId, config.baseUrl);
-    progress.update(current);
-
-    while (current.globalStatus === "Pending" || current.globalStatus === "Processing") {
-      await sleep(pollInterval);
-      current = await getJobStatus(token, jobId, config.baseUrl);
-      progress.update(current);
-    }
-
+    const progress = new JobProgress();
+    const current = await waitForJob(config, token, jobId, { poll: opts.poll, onStatus: (s) => progress.update(s) });
     if (current.globalStatus === "Done") {
       progress.complete(current);
     } else {

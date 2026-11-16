@@ -170,7 +170,7 @@ If a command reads a file at runtime, embed it in `cli/bin/embed-assets.ts` too,
 1. Create `cli/src/commands/yourcommand.ts` exporting an async function
 2. Register it in `cli/bin/aecdo.ts` (import + switch case)
 3. Add it to the `HELP` text in `cli/bin/aecdo.ts`
-4. Export from `cli/src/index.ts`
+4. Add it to `COMMANDS` in `cli/src/commands/completion.ts`
 5. Add tests next to the source (`cli/src/commands/yourcommand.test.ts`)
 6. Support `--format json` if the command produces output, so agents can use it
 7. Document it in `.claude/skills/aecdo/SKILL.md` and on the matching page of the user guide in `docs/`

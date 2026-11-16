@@ -1,19 +1,19 @@
 import { resolve, basename, dirname, extname, join } from "node:path";
-import { stat, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { loadConfig } from "../lib/config.js";
 import { getToken } from "../lib/auth.js";
 import { getJobStatus, getJobResult, downloadResult } from "../lib/api.js";
 import { JobProgress, errorLines } from "../lib/progress.js";
-import { uploadPdf } from "./upload.js";
+import { uploadPdf, pdfSize } from "./upload.js";
 import { validate } from "./validate.js";
 import { summary } from "./summary.js";
-import type { DrawingSet, JobStatus, ProcessOptions } from "../types.js";
+import type { ApiConfig, DrawingSet, JobStatus, ProcessOptions } from "../types.js";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms));
 }
 
-export function formatBytes(bytes: number): string {
+function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -46,19 +46,10 @@ export class JobFailedError extends Error {
   }
 }
 
-/**
- * Uploads a PDF, waits for the job, and returns the JSON-LD it produced. Shared by
- * `aecdo process` and the app, so it prints nothing and never exits.
- */
-export async function runJob(path: string, opts: JobOptions = {}): Promise<{ jobId: string; status: JobStatus; content: string }> {
-  const config = await loadConfig();
-  const token = await getToken(config);
+/** Checks a job's status until it's no longer pending or processing, and returns the last one. */
+export async function waitForJob(config: ApiConfig, token: string, jobId: string, opts: JobOptions = {}): Promise<JobStatus> {
   const pollInterval = (opts.poll ?? 5) * 1000;
   const wait = opts.sleep ?? sleep;
-
-  const { jobId } = await uploadPdf(token, path, config.baseUrl);
-  opts.onUpload?.(jobId);
-
   let current = await getJobStatus(token, jobId, config.baseUrl);
   opts.onStatus?.(current);
   while (current.globalStatus === "Pending" || current.globalStatus === "Processing") {
@@ -66,6 +57,35 @@ export async function runJob(path: string, opts: JobOptions = {}): Promise<{ job
     current = await getJobStatus(token, jobId, config.baseUrl);
     opts.onStatus?.(current);
   }
+  return current;
+}
+
+/** `--then validate|summary`: runs that command on a job's result. */
+export async function runThen(content: string, jobId: string, opts: ProcessOptions): Promise<void> {
+  const data = JSON.parse(content) as DrawingSet;
+  switch (opts.then) {
+    case "validate":
+      await validate(data, `job:${jobId}`, opts);
+      return;
+    case "summary":
+      return summary(data, opts);
+    default:
+      throw new Error(`Unknown --then command: "${opts.then}". Use validate or summary.`);
+  }
+}
+
+/**
+ * Uploads a PDF, waits for the job, and returns the JSON-LD it produced. Shared by
+ * `aecdo process` and the app, so it prints nothing and never exits.
+ */
+export async function runJob(path: string, opts: JobOptions = {}): Promise<{ jobId: string; status: JobStatus; content: string }> {
+  const config = await loadConfig();
+  const token = await getToken(config);
+
+  const { jobId } = await uploadPdf(token, path, config.baseUrl);
+  opts.onUpload?.(jobId);
+
+  const current = await waitForJob(config, token, jobId, opts);
   if (current.globalStatus === "Error") throw new JobFailedError(current);
 
   const result = await getJobResult(token, jobId, config.baseUrl);
@@ -78,13 +98,7 @@ export async function processPdf(filePath: string, opts: ProcessOptions): Promis
   }
 
   const resolved = resolve(filePath);
-
-  let size: number;
-  try {
-    size = (await stat(resolved)).size;
-  } catch {
-    throw new Error(`Could not read file "${filePath}": No such file or directory`);
-  }
+  const size = await pdfSize(resolved, filePath);
 
   process.stderr.write(`Uploading ${basename(resolved)} (${formatBytes(size)})\n`);
   const progress = new JobProgress();
@@ -109,22 +123,6 @@ export async function processPdf(filePath: string, opts: ProcessOptions): Promis
     process.stderr.write(`Saved to ${outPath}\n`);
   }
 
-  if (opts.then) {
-    const data = JSON.parse(content) as DrawingSet;
-    switch (opts.then) {
-      case "validate":
-        await validate(data, `job:${jobId}`, opts);
-        break;
-      case "summary":
-        await summary(data, `job:${jobId}`, opts);
-        break;
-      default:
-        throw new Error(`Unknown --then command: "${opts.then}". Use validate or summary.`);
-    }
-    return;
-  }
-
-  if (opts.stdout) {
-    console.log(content);
-  }
+  if (opts.then) await runThen(content, jobId, opts);
+  else if (opts.stdout) console.log(content);
 }

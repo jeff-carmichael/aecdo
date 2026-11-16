@@ -69,59 +69,34 @@ function oneLine(text: string, max: number): string {
   return line.length > max ? `${line.slice(0, max - 1)}…` : line;
 }
 
-export function printPage(sheet: Sheet, data: DrawingSet, resolve: RefResolver = buildRefResolver(data)): void {
+type Log = (line?: string) => void;
 
-  printSheetHeader(sheet);
+export function printPage(sheet: Sheet, data: DrawingSet, resolve: RefResolver = buildRefResolver(data), log: Log = console.log): void {
+  for (const line of sheetHeaderLines(sheet)) log(line);
 
-  const drawings = sheet.drawings ?? [];
+  for (const drawing of sheet.drawings ?? []) printDrawing(drawing, resolve, log);
+
   const tables = sheet.tables ?? [];
   const notes = sheet.notes ?? [];
   const images = sheet.images ?? [];
+  if (tables.length) log(`\n  Tables (${tables.length}):`);
+  for (const t of tables) printTable(t, log);
+  if (notes.length) log(`\n  Notes (${notes.length}):`);
+  for (const n of notes) printNote(n, log);
+  if (images.length) log(`\n  Images (${images.length}):`);
+  for (const img of images) printImage(img, log);
 
-  for (const drawing of drawings) {
-    printDrawing(drawing, resolve);
-  }
-
-  if (tables.length > 0) {
-    console.log(`\n  Tables (${tables.length}):`);
-    for (const table of tables) {
-      printTable(table);
-    }
-  }
-
-  if (notes.length > 0) {
-    console.log(`\n  Notes (${notes.length}):`);
-    for (const note of notes) {
-      printNote(note);
-    }
-  }
-
-  if (images.length > 0) {
-    console.log(`\n  Images (${images.length}):`);
-    for (const image of images) {
-      printImage(image);
-    }
-  }
-
-  console.log();
+  log();
 }
 
-/** "A101  First Floor Plan" in bold, then the 1-based PDF page people see in a PDF viewer. */
+/** "A101  First Floor Plan", then the 1-based PDF page people see in a PDF viewer. */
 export function sheetHeaderLines(sheet: Sheet): string[] {
-  return ["", `  ${`${sheet.sheetNumber}  ${sheet.title}`}`, `  ${`PDF page ${sheet.pageIndex + 1}`}`];
-}
-
-function printSheetHeader(sheet: Sheet): void {
-  for (const line of sheetHeaderLines(sheet)) console.log(line);
+  return ["", `  ${sheet.sheetNumber}  ${sheet.title}`, `  PDF page ${sheet.pageIndex + 1}`];
 }
 
 let details = true;
 
-/** Whether ids and bbox coordinates are printed. On for `page`; the assistant's view turns it off unless asked. */
-export function showDetails(): boolean {
-  return details;
-}
-
+/** Runs `fn` with ids and bbox coordinates printed or not: on for `page`; the app and the assistant turn it off unless asked. */
 export function withDetails<T>(on: boolean, fn: () => T): T {
   const previous = details;
   details = on;
@@ -158,42 +133,27 @@ export function linkNote(count: number): string {
   return count === 1 ? "type r1 to open it" : `type r1 to r${count} to open one`;
 }
 
-/** " [plan, 1/4\" = 1'-0\"]" in the dim color, or "" when the drawing has neither. */
-export function drawingMeta(d: Drawing): string {
+/** " [plan, 1/4\" = 1'-0\"]", or "" when the drawing has neither. */
+function drawingMeta(d: Drawing): string {
   const meta = [d.drawingType, d.scale].filter(Boolean).join(", ");
-  return meta ? ` ${`[${meta}]`}` : "";
+  return meta ? ` [${meta}]` : "";
 }
 
-/** "→ ", for reference lines. */
-export function arrow(): string {
-  return `→ `;
-}
-
-function printDrawing(d: Drawing, resolve: RefResolver): void {
-  console.log(`\n  Drawing: ${d.label ?? d.title}${drawingMeta(d)}`);
+function printDrawing(d: Drawing, resolve: RefResolver, log: Log): void {
+  log(`\n  Drawing: ${d.label ?? d.title}${drawingMeta(d)}`);
   if (details) {
-    console.log(`    id:   ${d["@id"]}`);
-    console.log(`    bbox: ${bboxText(d.bbox)}`);
+    log(`    id:   ${d["@id"]}`);
+    log(`    bbox: ${bboxText(d.bbox)}`);
   }
-  if (d.references?.length) {
-    for (const ref of d.references) {
-      console.log(`    ${arrow()}${resolve(ref)}`);
-    }
-  }
-
-  for (const layer of d.layers) {
-    printLayer(layer, resolve);
-  }
+  for (const ref of d.references ?? []) log(`    → ${resolve(ref)}`);
+  for (const layer of d.layers) printLayer(layer, resolve, log);
 }
 
-function printLayer(l: Layer, resolve: RefResolver): void {
+function printLayer(l: Layer, resolve: RefResolver, log: Log): void {
   const items = l.items ?? [];
-  console.log(`\n    Layer: ${l.name} (${items.length} items)`);
-  if (l.bbox && details) console.log(`      bbox: ${bboxText(l.bbox)}`);
-
-  for (const item of items) {
-    printItem(item, resolve);
-  }
+  log(`\n    Layer: ${l.name} (${items.length} items)`);
+  if (l.bbox && details) log(`      bbox: ${bboxText(l.bbox)}`);
+  for (const item of items) printItem(item, resolve, undefined, log);
 }
 
 function formatValue(value: unknown): string {
@@ -201,7 +161,7 @@ function formatValue(value: unknown): string {
   return JSON.stringify(value) ?? String(value);
 }
 
-/** "[THING]" in the tag color. */
+/** "[THING]". */
 export function itemTypeTag(item: Item): string {
   return `[${item.itemType.toUpperCase()}]`;
 }
@@ -214,7 +174,7 @@ export function printItem(
   item: Item,
   resolve: RefResolver,
   refTag: (i: number) => string = () => "",
-  log: (line?: string) => void = console.log,
+  log: Log = console.log,
   where?: string
 ): void {
   if (!details) {
@@ -230,7 +190,7 @@ export function printItem(
     if (refs.length) {
       const tagged = refTag(0) !== "";
       log(`\n  Related${tagged ? `  ${linkNote(refs.length)}` : ""}`);
-      refs.forEach((ref, i) => log(`  ${arrow()}${refTag(i)}${resolve(ref)}`));
+      refs.forEach((ref, i) => log(`  → ${refTag(i)}${resolve(ref)}`));
     }
     return;
   }
@@ -249,12 +209,12 @@ export function printItem(
 
   if (item.references?.length) {
     item.references.forEach((ref, i) => {
-      log(`        ${arrow()}${refTag(i)}${resolve(ref)}`);
+      log(`        → ${refTag(i)}${resolve(ref)}`);
     });
   }
 }
 
-export function printTable(t: Table, log: (line?: string) => void = console.log): void {
+export function printTable(t: Table, log: Log = console.log): void {
   log(`\n    ${t.label ?? t.title ?? "Untitled Table"}`);
   if (details) {
     log(`      id: ${t["@id"]}`);
@@ -265,7 +225,7 @@ export function printTable(t: Table, log: (line?: string) => void = console.log)
   for (const row of rows) log(`      ${row.join(" | ")}`);
 }
 
-export function printNote(n: Note, log: (line?: string) => void = console.log): void {
+export function printNote(n: Note, log: Log = console.log): void {
   if (!details) {
     log(`\n    Note`);
   } else {
@@ -285,13 +245,13 @@ const IMAGE_ROLES: Record<Image["role"], string> = {
   other: "Image",
 };
 
-export function printImage(img: Image, log: (line?: string) => void = console.log): void {
+export function printImage(img: Image, log: Log = console.log): void {
   if (!details) {
     log(`\n    ${img.caption ?? IMAGE_ROLES[img.role]}`);
     log(`    ${IMAGE_ROLES[img.role]}.`);
     return;
   }
-  log(`\n    ${`[IMAGE:${img.role}]`} ${img.caption ?? img["@id"]}`);
+  log(`\n    [IMAGE:${img.role}] ${img.caption ?? img["@id"]}`);
   log(`      id:   ${img["@id"]}`);
   log(`      bbox: ${bboxText(img.bbox)}`);
 }
