@@ -250,7 +250,7 @@ export class ChatPanel {
     this.input.setSelectionRange(this.input.value.length, this.input.value.length);
   }
 
-  /** Leaves the input but stays in the chat, so [ ] switch chats and Esc leaves. */
+  /** Leaves the input but stays in the chat, so [ ] switch chats, ↑ scrolls, and Esc leaves. */
   blur() {
     this.log.focus({ preventScroll: true });
   }
@@ -310,18 +310,31 @@ export class ChatPanel {
       this.cycle(e.key === "PageDown" ? 1 : -1);
       return;
     }
-    if (e.key === "ArrowUp" && (!this.input.value || this.recall >= 0) && this.sent.length) {
+    if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
       e.preventDefault();
-      this.recall = this.recall < 0 ? this.sent.length - 1 : Math.max(0, this.recall - 1);
-      this.input.value = this.sent[this.recall];
+      this.recallSent(e.key === "ArrowUp" ? -1 : 1);
       return;
     }
-    if (e.key === "ArrowDown" && this.recall >= 0) {
+    const caret = this.input.selectionStart;
+    if (e.key === "ArrowUp" && !e.shiftKey && caret === this.input.selectionEnd && !this.input.value.slice(0, caret).includes("\n")) {
       e.preventDefault();
-      this.recall++;
-      this.input.value = this.sent[this.recall] ?? "";
-      if (this.recall >= this.sent.length) this.recall = -1;
+      this.blur();
     }
+  }
+
+  /** @param {number} dir -1 for the message before, 1 for the one after */
+  recallSent(dir) {
+    if (!this.sent.length || (dir > 0 && this.recall < 0)) return;
+    this.recall = this.recall < 0 ? this.sent.length - 1 : Math.max(0, this.recall + dir);
+    this.input.value = this.sent[this.recall] ?? "";
+    if (this.recall >= this.sent.length) this.recall = -1;
+    this.autosize();
+  }
+
+  /** ↓ in the chat scrolls the answers until the end, then steps into the input. */
+  down() {
+    if (this.log.scrollTop + this.log.clientHeight >= this.log.scrollHeight - 2) this.focus();
+    else this.scroll(1);
   }
 
   completeMention() {

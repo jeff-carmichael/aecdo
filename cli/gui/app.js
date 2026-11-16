@@ -1603,7 +1603,7 @@ function onKey(e) {
   const handled = () => e.preventDefault();
 
   if (focus === "chat") {
-    // In the chat, [ ] switch chats and Esc leaves; any other character starts typing the question.
+    // In the chat, [ ] switch chats, ↓ at the end and Enter go into the input, and Esc leaves; any other character starts typing.
     switch (k) {
       case "Enter":
         handled();
@@ -1613,9 +1613,11 @@ function onKey(e) {
         if (chat.current) void chat.close(chat.current).then(() => chat.ensureThread());
         return;
       case "ArrowDown":
+        handled();
+        return chat.down();
       case "ArrowUp":
         handled();
-        return chat.scroll(k === "ArrowDown" ? 1 : -1);
+        return chat.scroll(-1);
       case "PageDown":
       case "PageUp":
         handled();
