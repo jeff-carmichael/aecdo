@@ -158,7 +158,7 @@ Prints everything on a sheet — drawings, layers, items with their data and ref
 aecdo gui examples/sample-drawing-package-1and2family.jsonld
 ```
 
-`aecdo gui [file]` (also bare `aecdo` in a terminal, and `aecdo explore [file]`) opens a desktop window for people: the sheet list, what's open, and the PDF page with the selection outlined in red, AI chats (`@claude`, `@chatgpt`, `@gemini`, `@grok`, `@deepseek`, `@kimi`, set up in the app's Settings, `,`), and PDF markups. It waits until the window is closed, so **agents should never run `gui`**, nor bare `aecdo` in a terminal. Without a TTY, bare `aecdo` prints the help, and `explore <file>` (or `explore --format json`) prints the sheet list like `sheets`.
+`aecdo gui [file]` (also bare `aecdo` in a terminal) opens a desktop window for people: the sheet list, what's open, and the PDF page with the selection outlined in red, AI chats (`@claude`, `@chatgpt`, `@gemini`, `@grok`, `@deepseek`, `@kimi`, set up in the app's Settings, `,`), and PDF markups. It waits until the window is closed, so **agents should never run `gui`**, nor bare `aecdo` in a terminal. Without a TTY, bare `aecdo` prints the help.
 
 `examples/sample-drawing-package-1and2family.jsonld` comes with its source PDF (a 7-page house permit set from the City of Vancouver), so it's a good file to try commands on.
 

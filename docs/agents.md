@@ -42,7 +42,7 @@ aecdo page plans.jsonld A601 --format json --pretty -o a601.json
 
 | Command | What it does |
 |---------|--------------|
-| `aecdo gui [file]` | Opens the app (`--pdf <file>`, `--browser`). `explore` prints sheets without a terminal |
+| `aecdo gui [file]` | Opens the app (`--pdf <file>`, `--browser`) |
 | `aecdo configure` | Opens the app at Settings |
 | `aecdo examples [folder]` | Downloads the example set |
 | `aecdo shortcut` | Adds the app icon |

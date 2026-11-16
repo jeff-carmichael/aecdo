@@ -9,7 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### CLI
 - Fixed: in the app, arrow keys and Enter pressed in the **Find a sheet** box right after typing could act on the full sheet list, so the selection jumped back to the first match (or Enter opened the wrong sheet). Keys pressed while the matches are loading now wait for them and move through the filtered list.
 - Fixed: when the AI assistant asked for a whole sheet ("all"), the sheet was printed to the terminal the app was started from and the assistant got nothing back. It now gets the sheet, and also sees errors such as a sheet number that doesn't exist.
-- Code cleanup: removed what was left of the old terminal UI (typed-command hints and help, `quit`, `ls`, leftover color wrappers), the unused `cli/src/index.ts` (the package never exported it), and unused helpers; `process`, `status --wait`, and `download` now share one job-polling loop and `--then` handler. `explore` without a terminal now checks for one the same way bare `aecdo` does.
+- Code cleanup: removed what was left of the old terminal UI (typed-command hints and help, `quit`, `ls`, leftover color wrappers), the unused `cli/src/index.ts` (the package never exported it), and unused helpers; `process`, `status --wait`, and `download` now share one job-polling loop and `--then` handler.
+- Removed `aecdo explore`, which had become another name for `gui`. Use `aecdo gui` to open the app, or `aecdo sheets` to list sheets.
 
 ## [0.6.4] - 2026-11-15
 

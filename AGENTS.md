@@ -72,7 +72,7 @@ npx aecdo page test/fixtures/sample-drawing-set.jsonld A101
 npx aecdo gui examples/sample-drawing-package-1and2family.jsonld   # the app (humans)
 ```
 
-The CLI is for scripts and agents: plain output (no colors, spinners, pickers, or screens), and nothing waits for input. `configure` opens the app at Settings (`#settings`). `validate`, `summary`, `sheets`, `page` all support `--format json`. People use the app: bare `aecdo` in a TTY opens it (non-TTY prints `HELP`), and `explore` is an alias for `gui` that falls back to listing sheets without a TTY or with `--format json`.
+The CLI is for scripts and agents: plain output (no colors, spinners, pickers, or screens), and nothing waits for input. `configure` opens the app at Settings (`#settings`). `validate`, `summary`, `sheets`, `page` all support `--format json`. People use the app: bare `aecdo` in a TTY opens it (non-TTY prints `HELP`).
 
 `Explorer` (`cli/src/commands/explore.ts`) is the navigation model behind the app and the assistant: sheet list → sheet contents (numbered drawings, tables, notes, images) → drawing layers → layer items → item detail. `up`/`..` goes up, `back` returns, `top` resets, `r1`/`r2`/… follow the references tagged `→ [r1]` (`Explorer.jump()`, pushed on the stack so `back` returns), `all` prints the full sheet via `printPage`. `screenModel()`/`sheetPane()` give the app its data; `viewTarget()` is what the PDF pane outlines; the text it logs is what the assistant reads through `context()`/`navigate()`. It takes an injectable logger so navigation is unit-tested without a TTY. The assistant's tests use pi-ai's scripted `fauxProvider`, so no network or keys are needed.
 

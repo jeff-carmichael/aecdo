@@ -45,8 +45,6 @@ For people:
                       in red, AI chats, and PDF markups. A window with the
                       standalone binary; otherwise, or with --browser, your
                       default browser. With no file, pick one in the app
-  explore [file]      Same as gui. Without a terminal, or with --format json,
-                      it lists the sheets instead
   shortcut            Add aecdo to the Start menu (Windows), Applications
                       (macOS), or the app menu (Linux), so the app opens from
                       its icon like any desktop app. Standalone binary only
@@ -258,12 +256,6 @@ async function main(): Promise<void> {
       case "upload":
         await (command === "process" ? processPdf : upload)(file(), opts);
         break;
-      case "explore":
-        if (!canPrompt() || opts.format === "json") {
-          await runOnFile("sheets", file(), opts);
-          break;
-        }
-      // falls through: in a terminal, explore opens the app
       case "gui":
         await gui(options.positionals[0], { pdf: options.values.pdf, schema: options.values.schema, browser: options.values.browser });
         break;
