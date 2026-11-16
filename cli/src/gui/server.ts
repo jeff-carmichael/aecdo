@@ -129,6 +129,11 @@ function routeId(value: unknown): RouteId {
   throw new HttpError(400, `Unknown route ${JSON.stringify(value)}`);
 }
 
+/** Settings, with the update status shown at the top of the screen. */
+async function settingsInfo(app: GuiApp) {
+  return { ...(await app.settings.info()), update: app.updates.state() };
+}
+
 function routes(app: GuiApp): Record<string, Handler> {
   return {
     "GET /api/boot": async () => (app.session ? { set: await app.session.boot() } : { home: await app.home() }),
@@ -226,7 +231,18 @@ function routes(app: GuiApp): Record<string, Handler> {
       await app.setTheme(theme);
       return { theme };
     },
-    "GET /api/settings": () => app.settings.info(),
+    "GET /api/settings": () => settingsInfo(app),
+    "GET /api/update": () => app.updates.state(),
+    "POST /api/update": async (b) => {
+      const action = str(b, "action");
+      if (action === "check") return { update: await app.updates.check() };
+      if (action !== "install") throw new HttpError(400, `Unknown update action "${action}"`);
+      try {
+        return { message: await app.updates.install(), update: app.updates.state() };
+      } catch (err) {
+        throw new HttpError(400, (err as Error).message);
+      }
+    },
     "POST /api/settings": async (b) => {
       const action = str(b, "action");
       const opt = (key: string) => (typeof b[key] === "string" ? (b[key]) : "");
@@ -256,7 +272,7 @@ function routes(app: GuiApp): Record<string, Handler> {
               throw new HttpError(400, `Unknown settings action "${action}"`);
           }
         });
-        return { message, settings: await app.settings.info() };
+        return { message, settings: await settingsInfo(app) };
       } catch (err) {
         if (err instanceof HttpError) throw err;
         throw new HttpError(400, (err as Error).message);

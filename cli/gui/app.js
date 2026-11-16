@@ -118,6 +118,7 @@ function placeKey(s) {
 // ── Opening a set ────────────────────────────────────────
 
 async function boot() {
+  void api("api/update").then(setUpdateState, () => undefined);
   const r = await api("api/boot");
   if (r.set) await start(r.set);
   else showHome(r.home);
@@ -954,6 +955,73 @@ const ROUTE_ACTIONS = {
 let authNote;
 
 /**
+ * @typedef {{ current: string, latest?: string, available: boolean, npmCommand?: string, checking: boolean, installing: boolean, installed?: string, checkedAt?: number, error?: string }} UpdateState
+ */
+
+/** Whether a newer aecdo is out, from the server's daily check. @type {UpdateState | undefined} */
+let updateState;
+
+const SETTINGS_TITLE = "Settings: AI models and API credentials (,)";
+
+/**
+ * The dot on the Settings buttons while an update is waiting to be installed.
+ * @param {ParentNode} [root] where to look, for a screen not on the page yet
+ */
+function showUpdateDot(root = document) {
+  const waiting = Boolean(updateState?.available);
+  for (const btn of root.querySelectorAll("#settings-btn, [data-settings]")) {
+    let dot = /** @type {HTMLElement | null} */ (btn.querySelector(".update-dot"));
+    if (!dot) {
+      dot = document.createElement("span");
+      dot.className = "update-dot";
+      const kbd = btn.querySelector("kbd");
+      if (kbd) kbd.before(dot);
+      else btn.append(dot);
+    }
+    dot.hidden = !waiting;
+    btn.setAttribute("title", waiting ? `aecdo v${updateState?.latest} is out: install it in Settings (,)` : SETTINGS_TITLE);
+  }
+}
+
+/** @param {UpdateState} next */
+function setUpdateState(next) {
+  updateState = next;
+  showUpdateDot();
+}
+
+/** @param {number} ms */
+function sinceText(ms) {
+  const mins = Math.round((Date.now() - ms) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+/** The Updates part of Settings: the version, and a button to check or install. */
+function updatePart() {
+  const u = updateState;
+  if (!u) return "";
+  const error = u.error && !u.installing ? `<p class="warn">${esc(u.error)}</p>` : "";
+  const notes = u.latest ? ` <a href="https://github.com/jeff-carmichael/aecdo/releases/tag/v${esc(u.latest)}" target="_blank" rel="noreferrer">What's new</a>` : "";
+  let status;
+  if (u.installed) {
+    status = `<div class="update-row"><span class="ok">Installed aecdo v${esc(u.installed)}. Quit and open aecdo again to use it.${notes}</span><button data-quit>Quit aecdo</button></div>`;
+  } else if (u.installing) {
+    status = `<p>Downloading and installing aecdo v${esc(u.latest ?? "")}…</p>`;
+  } else if (u.available) {
+    status = `<div class="update-row"><span class="update-dot"></span><span><strong>aecdo v${esc(u.latest ?? "")} is out.</strong> You have v${esc(u.current)}.${notes}</span>${u.npmCommand ? "" : `<button class="primary" data-update="install">Install v${esc(u.latest ?? "")}</button>`}</div>
+${u.npmCommand ? `<p class="dim">aecdo was installed with npm. To update it, run <code>${esc(u.npmCommand)}</code> in a terminal.</p>` : ""}`;
+  } else {
+    const checked = u.checkedAt ? ` Checked ${sinceText(u.checkedAt)}.` : "";
+    status = `<div class="update-row"><span class="dim">aecdo v${esc(u.current)}${u.latest && !u.error ? " is the latest version" : ""}.${checked}</span><button data-update="check"${u.checking ? " disabled" : ""}>${u.checking ? "Checking…" : "Check for updates"}</button></div>`;
+  }
+  return `<h3>Updates</h3>${status}${error}`;
+}
+
+/**
  * The app's Settings: ways to reach the AI models, which model each @name uses, and the
  * DrawingBot API credentials.
  * @param {any} [info]
@@ -1029,7 +1097,9 @@ ${models}
     const themes = /** @type {Theme[]} */ (Object.keys(THEME_LABELS))
       .map((t) => `<button data-theme="${t}" aria-pressed="${t === theme()}">${THEME_LABELS[t]}</button>`)
       .join("");
-    body.innerHTML = `${auth}<h3>Look</h3><div class="theme-choice" role="group" aria-label="Light or dark">${themes}</div>
+    const updates = updatePart();
+    const first = updateState?.available || updateState?.installing || updateState?.installed;
+    body.innerHTML = `${auth}${first ? updates : ""}<h3>Look</h3><div class="theme-choice" role="group" aria-label="Light or dark">${themes}</div>
 <h3>AI models</h3>${aiPart}
 <h3>DrawingBot API</h3>
 ${info.api.available ? `<p class="dim">Turns PDFs into drawing sets: pick one on the home screen. ${info.api.configured ? "Set up." : "Not set up."} Saved in <code>${esc(info.api.path)}</code>.</p>
@@ -1038,8 +1108,9 @@ ${info.api.available ? `<p class="dim">Turns PDFs into drawing sets: pick one on
 <label>Client Secret <input name="clientSecret" type="password" placeholder="${info.api.configured ? "leave blank to keep the saved one" : ""}" autocomplete="off"${info.api.configured ? "" : " required"}></label>
 <label>Region <select name="region">${info.api.regions.map((/** @type {string} */ r) => `<option${r === info.api.region ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
 <div class="actions"><button class="primary">Save</button></div></form>` : `<p class="dim">Turning PDFs into drawing sets is coming soon.</p>`}
+${first ? "" : updates}
 <div class="actions"><button data-close>Done <kbd>Esc</kbd></button></div>`;
-    body.querySelectorAll("button").forEach((b) => (b.disabled = busy && !b.hasAttribute("data-close")));
+    body.querySelectorAll("button").forEach((b) => (b.disabled ||= busy && !b.hasAttribute("data-close")));
     void loadModelChoices();
   };
 
@@ -1085,6 +1156,8 @@ ${info.api.available ? `<p class="dim">Turns PDFs into drawing sets: pick one on
     if (!t || t.disabled) return;
     if (t.dataset.close !== undefined) return closeSettings();
     if (t.dataset.theme) return void setTheme(/** @type {Theme} */ (t.dataset.theme)).then(draw);
+    if (t.dataset.quit !== undefined) return void quit();
+    if (t.dataset.update) return void updateAction(t.dataset.update);
     if (t.dataset.cancel !== undefined) {
       editing = undefined;
       return draw();
@@ -1125,6 +1198,25 @@ ${info.api.available ? `<p class="dim">Turns PDFs into drawing sets: pick one on
     void save({ action: "choose", name, route, ...(t.dataset.model !== undefined ? { model: t.value } : {}) });
   });
 
+  /** @param {string} action "check" or "install" */
+  const updateAction = async (action) => {
+    try {
+      const r = await api("api/update", { action });
+      setUpdateState(r.update);
+      if (r.message) toast(r.message);
+    } catch (err) {
+      const text = /** @type {Error} */ (err).message;
+      if (text !== "Cancelled") toast(text, "warn");
+      try {
+        setUpdateState(await api("api/update"));
+      } catch {
+        // keep what's shown
+      }
+    }
+    if (body.isConnected) draw();
+  };
+
+  if (info.update) setUpdateState(info.update);
   draw();
   openModal({
     kind: "settings",
@@ -1135,7 +1227,7 @@ ${info.api.available ? `<p class="dim">Turns PDFs into drawing sets: pick one on
     update: async (/** @type {any} */ next) => {
       if (busy) return;
       if (next) info = next;
-      else {
+      else if (next === undefined) {
         try {
           info = await api("api/settings");
         } catch {
@@ -1281,6 +1373,7 @@ ${others.length ? `<h3>Recent</h3><ul class="files">${others.map((item, i) => ro
 <form class="open-path"${typingPath ? "" : " hidden"}><input placeholder="Path to a .jsonld file or a folder" autocomplete="off" spellcheck="false"><button class="primary">Open</button></form>
 <div class="actions"><button data-settings>Settings <kbd>,</kbd></button></div>`;
     body.querySelector("[data-settings]")?.addEventListener("click", () => void settingsModal());
+    showUpdateDot(body);
     body.querySelector("[data-folder]")?.addEventListener("click", () => void pickFolder());
     body.querySelectorAll("li[data-i]").forEach((li) => li.addEventListener("click", () => choose(Number(/** @type {HTMLElement} */ (li).dataset.i))));
     body.querySelector("form")?.addEventListener("submit", (e) => {
@@ -1435,6 +1528,11 @@ function listen() {
       case "settings":
         if (modal?.kind === "settings") void modal.update?.(undefined);
         if (set) void chat.loadModels();
+        break;
+      case "update":
+        setUpdateState(ev.update);
+        // null: draw again with the new update state, without fetching Settings again
+        if (modal?.kind === "settings") void modal.update?.(null);
         break;
       case "process":
         onProcess(ev);

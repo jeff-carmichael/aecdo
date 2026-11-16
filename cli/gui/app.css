@@ -181,6 +181,44 @@ code {
   padding: 3px 8px;
 }
 
+/* An update is out: a small dot on the Settings buttons. */
+.update-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 25%, transparent);
+  vertical-align: 2px;
+}
+
+.update-dot[hidden] {
+  display: none;
+}
+
+.settings .update-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 6px 0 10px;
+}
+
+.settings .update-row > button {
+  margin-left: auto;
+}
+
+.settings .update-row .update-dot {
+  flex: none;
+  margin-left: 0;
+  vertical-align: 0;
+}
+
+.settings a {
+  color: var(--accent);
+}
+
 .badge {
   display: inline-block;
   min-width: 18px;

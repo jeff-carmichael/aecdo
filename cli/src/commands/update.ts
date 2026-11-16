@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { access, chmod, mkdtemp, readFile, rename, rm, unlink, writeFile, constants } from "node:fs/promises";
 import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-import { fetchLatestVersion, isNewerVersion, writeCache } from "../lib/update-check.js";
+import { fetchLatestVersion, isNewerVersion, NPM_UPDATE_COMMAND, writeCache } from "../lib/update-check.js";
 
 const REPO = "jeff-carmichael/aecdo";
 const DOWNLOAD_TIMEOUT_MS = 120_000;
@@ -19,6 +19,11 @@ export interface UpdateOptions {
   fetchImpl?: typeof fetch;
   cachePath?: string;
   log?: (line: string) => void;
+  /**
+   * Moves the new binary over the old one as an administrator, when the folder needs that
+   * (the app asks for the password with the system's own dialog). Without it, that's an error.
+   */
+  elevate?: (staged: string, target: string) => Promise<void>;
 }
 
 export interface ReleaseAsset {
@@ -74,6 +79,48 @@ export async function replaceBinary(newPath: string, targetPath: string, platfor
   }
 }
 
+/**
+ * How the app moves the new binary into a folder only an administrator can change (such as
+ * /usr/local/bin, where install.sh puts it): the Mac's password dialog, or pkexec's on Linux.
+ * Undefined on Windows, which installs to the user's own folder.
+ */
+export function adminMoveCommand(platform: NodeJS.Platform, staged: string, target: string): string[] | undefined {
+  if (platform === "darwin") {
+    // The paths are arguments, never part of the script text.
+    return [
+      "osascript",
+      "-e",
+      "on run argv",
+      "-e",
+      'do shell script "/bin/mv -f " & quoted form of item 1 of argv & " " & quoted form of item 2 of argv with prompt "aecdo needs your password to install its update." with administrator privileges',
+      "-e",
+      "end run",
+      staged,
+      target,
+    ];
+  }
+  if (platform === "linux") return ["pkexec", "/bin/mv", "-f", staged, target];
+  return undefined;
+}
+
+/** Runs `adminMoveCommand`; rejects "Cancelled" when the password dialog is dismissed. */
+export function adminMove(staged: string, target: string, platform: NodeJS.Platform = process.platform): Promise<void> {
+  const command = adminMoveCommand(platform, staged, target);
+  if (!command) return Promise.reject(new Error(`Cannot write to ${dirname(target)}.`));
+  return new Promise((res, rej) => {
+    const child = spawn(command[0], command.slice(1), { stdio: ["ignore", "ignore", "pipe"] });
+    let errors = "";
+    child.stderr.on("data", (d: Buffer) => (errors += d.toString("utf-8")));
+    child.on("error", (err) => rej(new Error(`Couldn't ask for the administrator password (${err.message}). Run 'sudo aecdo update' in a terminal.`)));
+    child.on("exit", (code) => {
+      if (code === 0) return res();
+      // osascript: "User canceled. (-128)"; pkexec: 126 when the dialog is dismissed, 127 when not authorized.
+      if (/-128|cancel/i.test(errors) || code === 126) return rej(new Error("Cancelled"));
+      rej(new Error(`Couldn't install the update in ${dirname(target)}: ${errors.trim() || `exit code ${code}`}. Run 'sudo aecdo update' in a terminal.`));
+    });
+  });
+}
+
 export async function cleanupOldBinary(execPath = process.execPath): Promise<void> {
   try {
     await unlink(`${execPath}.old`);
@@ -108,15 +155,16 @@ async function download(url: string, fetchImpl: typeof fetch): Promise<Uint8Arra
   return new Uint8Array(await res.arrayBuffer());
 }
 
-export async function update(opts: UpdateOptions): Promise<void> {
+/** Replaces the standalone binary with the latest release; resolves the version installed, if any. */
+export async function update(opts: UpdateOptions): Promise<string | undefined> {
   const log = opts.log ?? ((line: string) => console.log(line));
   const fetchImpl = opts.fetchImpl ?? fetch;
   const platform = opts.platform ?? process.platform;
 
   if (!opts.standalone) {
     log(`aecdo v${opts.currentVersion} was installed with npm. To upgrade, run:`);
-    log("  npm install -g aecdo@latest");
-    return;
+    log(`  ${NPM_UPDATE_COMMAND}`);
+    return undefined;
   }
 
   let latest: string | undefined;
@@ -138,7 +186,7 @@ export async function update(opts: UpdateOptions): Promise<void> {
   if (!isNewerVersion(latest, opts.currentVersion)) {
     recordLatest();
     log(`aecdo v${opts.currentVersion} is already the latest version.`);
-    return;
+    return undefined;
   }
 
   const asset = resolveAsset(platform, opts.arch ?? process.arch);
@@ -146,14 +194,16 @@ export async function update(opts: UpdateOptions): Promise<void> {
   const installDir = dirname(targetPath);
 
   const notWritable = () => {
-    const hint = platform === "win32" ? "Run it again from an administrator terminal." : "Run it again with: sudo aecdo update";
+    const hint = platform === "win32" ? "Run 'aecdo update' in an administrator terminal." : "Run 'sudo aecdo update' in a terminal.";
     return new Error(`Cannot write to ${installDir}. ${hint}`);
   };
+  let writable = true;
   try {
     await access(installDir, constants.W_OK);
   } catch {
-    throw notWritable();
+    writable = false;
   }
+  if (!writable && !opts.elevate) throw notWritable();
 
   log(`Updating aecdo v${opts.currentVersion} → v${latest} (${asset.target})...`);
   const [archive, checksums] = await Promise.all([
@@ -168,7 +218,8 @@ export async function update(opts: UpdateOptions): Promise<void> {
   }
 
   const work = await mkdtemp(join(tmpdir(), "aecdo-update-"));
-  const staged = join(installDir, `.${asset.binary}.new-${process.pid}`);
+  // Stage beside the target so the final rename stays on one filesystem; an administrator's move copies if it must.
+  const staged = writable ? join(installDir, `.${asset.binary}.new-${process.pid}`) : join(work, `${asset.binary}.new`);
   try {
     const archivePath = join(work, asset.archive);
     await writeFile(archivePath, archive);
@@ -180,10 +231,13 @@ export async function update(opts: UpdateOptions): Promise<void> {
     } catch {
       throw new Error(`${asset.archive} did not contain ${asset.binary}`);
     }
-    // Stage beside the target so the final rename stays on one filesystem.
     try {
       await writeFile(staged, binary);
-      await replaceBinary(staged, targetPath, platform);
+      if (writable) await replaceBinary(staged, targetPath, platform);
+      else {
+        await chmod(staged, 0o755);
+        await opts.elevate!(staged, targetPath);
+      }
     } catch (err) {
       // Windows' access() check ignores ACLs, so permission errors can surface here instead.
       const code = (err as NodeJS.ErrnoException).code;
@@ -197,4 +251,5 @@ export async function update(opts: UpdateOptions): Promise<void> {
 
   recordLatest();
   log(`Updated ${targetPath} to v${latest}.`);
+  return latest;
 }

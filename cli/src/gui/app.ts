@@ -11,6 +11,8 @@ import { isValid } from "../commands/validate.js";
 import { openWithDefaultApp } from "../lib/open.js";
 import { chooseFolder } from "../lib/folder-dialog.js";
 import { GuiSettings } from "./settings.js";
+import { GuiUpdates, type GuiUpdatesOptions } from "./updates.js";
+import { appVersion, isStandalone } from "../lib/version.js";
 import { NOTE_EXTENSIONS, resolveInCwd } from "../lib/assistant.js";
 import { SPREADSHEET_EXTENSIONS } from "../lib/spreadsheet.js";
 import type { AuthInteraction, AuthPrompt } from "@earendil-works/pi-ai";
@@ -38,6 +40,8 @@ export interface GuiAppOptions {
   processing?: boolean;
   /** Uploads a PDF and waits for its JSON-LD; tests replace it. */
   runJob?: (path: string, opts: JobOptions) => Promise<{ content: string }>;
+  /** Where updates are checked and installed; tests replace the version, binary, and network. */
+  updates?: Partial<Omit<GuiUpdatesOptions, "onChange">>;
 }
 
 /** Light or dark look, or "system" to follow the computer's setting. */
@@ -99,6 +103,7 @@ export class GuiApp {
   private confirms = new Map<string, (ok: boolean) => void>();
   private prompts = new Map<string, { resolve: (value: string) => void; reject: (err: Error) => void }>();
   readonly settings: GuiSettings;
+  readonly updates: GuiUpdates;
   private confirmSeq = 0;
   /** PDFs being processed, by full path, with their latest progress. */
   private jobs = new Map<string, string>();
@@ -112,6 +117,12 @@ export class GuiApp {
     this.cwd = opts.cwd;
     this.quitting = new Promise((res) => (this.quitWith = res));
     this.settings = new GuiSettings(this.interaction(), { llmPath: opts.llmPath, configDir: opts.configDir, processing: opts.processing });
+    this.updates = new GuiUpdates({
+      currentVersion: appVersion(),
+      standalone: isStandalone(),
+      ...opts.updates,
+      onChange: (update) => this.emit({ type: "update", update }),
+    });
   }
 
   get processing(): boolean {

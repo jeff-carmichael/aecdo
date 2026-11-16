@@ -30,6 +30,10 @@ Linux also needs WebKitGTK 6, e.g. `sudo apt install libwebkitgtk-6.0-4`. Withou
 
 ## Update
 
+When a new version is out, a dot shows on **Settings**. Open Settings and click **Install**, then quit and open aecdo again. On a Mac or Linux it may ask for your password.
+
+Or, in a terminal:
+
 ```bash
 aecdo update
 ```
