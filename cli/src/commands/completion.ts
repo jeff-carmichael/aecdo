@@ -7,7 +7,6 @@ const COMMANDS: [name: string, description: string][] = [
   ["summary", "Print a concise summary of a drawing set"],
   ["sheets", "List all sheets"],
   ["page", "Print one sheet by sheet number or page index"],
-  ["explore", "Open the app (lists sheets without a terminal)"],
   ["gui", "Open the app: the PDF beside the data, with AI chats"],
   ["configure", "Open the app's Settings: AI models and API credentials"],
   ["process", "Upload a PDF, wait, and save the result"],
@@ -21,7 +20,7 @@ const COMMANDS: [name: string, description: string][] = [
 ];
 
 const PDF_COMMANDS = ["process", "upload"];
-const JSONLD_COMMANDS = ["validate", "summary", "sheets", "page", "explore", "gui"];
+const JSONLD_COMMANDS = ["validate", "summary", "sheets", "page", "gui"];
 const JOB_COMMANDS = ["status", "download"];
 
 const OPTIONS = [

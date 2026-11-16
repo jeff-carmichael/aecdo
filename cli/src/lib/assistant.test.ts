@@ -20,8 +20,7 @@ const data = JSON.parse(
 
 function setup(confirm = true) {
   const cwd = mkdtempSync(join(tmpdir(), "aecdo-assistant-"));
-  const screen: string[] = [];
-  const explorer = new Explorer(data, (l = "") => screen.push(l));
+  const explorer = new Explorer(data, () => undefined);
   const out: string[] = [];
   const host: AssistantHost = {
     data,
@@ -35,7 +34,7 @@ function setup(confirm = true) {
   const faux = fauxProvider({ tokensPerSecond: 100_000 });
   const models = createModels();
   models.setProvider(faux.provider);
-  return { cwd, explorer, host, faux, models, out, screen };
+  return { cwd, explorer, host, faux, models, out };
 }
 
 function lastUserText(context: { messages: { role: string; content: unknown }[] }): string {
@@ -56,7 +55,7 @@ test("wraps prompts with the current explore view", () => {
 });
 
 test("the assistant can navigate, take notes and fill a spreadsheet", async () => {
-  const { cwd, explorer, host, faux, models, out, screen } = setup();
+  const { cwd, explorer, host, faux, models, out } = setup();
   writeFileSync(join(cwd, "takeoff.csv"), "Sheet,Drawings\n");
   let firstPrompt = "";
 
@@ -80,7 +79,6 @@ test("the assistant can navigate, take notes and fill a spreadsheet", async () =
 
   assert.match(firstPrompt, /"view": "sheet list"/);
   assert.equal(explorer.view.kind, "sheet");
-  assert.ok(screen.some((l) => l.includes("A101  ")), "user sees the navigation");
   assert.equal(readFileSync(join(cwd, "notes.md"), "utf-8"), "- A101 has one drawing\n");
   assert.equal(readFileSync(join(cwd, "takeoff.csv"), "utf-8"), "Sheet,Drawings\nA101,1\n");
   const printed = out.join("");

@@ -45,8 +45,6 @@ For people:
                       in red, AI chats, and PDF markups. A window with the
                       standalone binary; otherwise, or with --browser, your
                       default browser. With no file, pick one in the app
-  explore [file]      Same as gui. Without a terminal, or with --format json,
-                      it lists the sheets instead
   shortcut            Add aecdo to the Start menu (Windows), Applications
                       (macOS), or the app menu (Linux), so the app opens from
                       its icon like any desktop app. Standalone binary only
@@ -98,6 +96,13 @@ Examples:
   eval "$(aecdo completion bash)"      # add to ~/.bashrc (zsh: ~/.zshrc)
 `;
 
+function fail(...lines: string[]): never {
+  for (const line of lines) console.error(line);
+  process.exit(1);
+}
+
+const USAGE_HINT = 'Run "aecdo --help" for usage information.';
+
 async function getVersion(): Promise<string> {
   return (
     embedded.version ??
@@ -112,16 +117,14 @@ async function runOnFile(command: "validate" | "summary" | "sheets" | "page", fi
   try {
     fileContent = await readFile(resolvedPath, "utf-8");
   } catch (err) {
-    console.error(`Error: Could not read file "${filePath}": ${(err as Error).message}`);
-    process.exit(1);
+    fail(`Error: Could not read file "${filePath}": ${(err as Error).message}`);
   }
 
   let data: DrawingSet;
   try {
     data = JSON.parse(fileContent) as DrawingSet;
   } catch (err) {
-    console.error(`Error: Invalid JSON in "${filePath}": ${(err as Error).message}`);
-    process.exit(1);
+    fail(`Error: Invalid JSON in "${filePath}": ${(err as Error).message}`);
   }
 
   const cmdOpts: CommandOptions = { format: opts.format, pretty: opts.pretty, output: opts.output, schema: opts.schema };
@@ -131,15 +134,11 @@ async function runOnFile(command: "validate" | "summary" | "sheets" | "page", fi
       await validate(data, resolvedPath, cmdOpts);
       return;
     case "summary":
-      return summary(data, resolvedPath, cmdOpts);
+      return summary(data, cmdOpts);
     case "sheets":
-      return sheets(data, resolvedPath, cmdOpts);
+      return sheets(data, cmdOpts);
     case "page":
-      if (!selector) {
-        console.error("Error: No sheet number or page index specified.");
-        console.error("Usage: aecdo page <file> <sheetNumber|pageIndex>");
-        process.exit(1);
-      }
+      if (!selector) fail("Error: No sheet number or page index specified.", "Usage: aecdo page <file> <sheetNumber|pageIndex>");
       return page(data, selector, cmdOpts);
   }
 }
@@ -180,10 +179,7 @@ async function main(): Promise<void> {
   const rest = args.slice(1);
 
   if (command === "configure") {
-    if (!canPrompt()) {
-      console.error('Error: settings are in the app. Run "aecdo configure" in a terminal on a computer with a screen.');
-      process.exit(1);
-    }
+    if (!canPrompt()) fail('Error: settings are in the app. Run "aecdo configure" in a terminal on a computer with a screen.');
     await gui(undefined, { settings: true, browser: rest.includes("--browser") });
     return;
   }
@@ -192,8 +188,7 @@ async function main(): Promise<void> {
     try {
       completion(rest[0]);
     } catch (err) {
-      console.error(`Error: ${(err as Error).message}`);
-      process.exit(1);
+      fail(`Error: ${(err as Error).message}`);
     }
     return;
   }
@@ -208,8 +203,7 @@ async function main(): Promise<void> {
     try {
       console.log(await shortcut());
     } catch (err) {
-      console.error(`Error: ${(err as Error).message}`);
-      process.exit(1);
+      fail(`Error: ${(err as Error).message}`);
     }
     return;
   }
@@ -239,8 +233,7 @@ async function main(): Promise<void> {
       allowPositionals: true,
     });
   } catch (err) {
-    console.error(`Error: ${(err as Error).message}`);
-    process.exit(1);
+    fail(`Error: ${(err as Error).message}`);
   }
 
   const opts: ProcessOptions = {
@@ -255,33 +248,14 @@ async function main(): Promise<void> {
     pdf: options.values.pdf,
   };
 
+  const file = (): string => options.positionals[0] ?? fail("Error: No input file specified.", USAGE_HINT);
+
   try {
     switch (command) {
       case "process":
-      case "upload": {
-        const filePath = options.positionals[0];
-        if (!filePath) {
-          console.error("Error: No input file specified.");
-          console.error('Run "aecdo --help" for usage information.');
-          process.exit(1);
-        }
-        if (command === "process") {
-          await processPdf(filePath, opts);
-        } else {
-          await upload(filePath, opts);
-        }
+      case "upload":
+        await (command === "process" ? processPdf : upload)(file(), opts);
         break;
-      }
-      case "explore":
-        if (!process.stdin.isTTY || opts.format === "json") {
-          if (!options.positionals[0]) {
-            console.error("Error: No input file specified.");
-            process.exit(1);
-          }
-          await runOnFile("sheets", options.positionals[0], opts);
-          break;
-        }
-      // falls through: in a terminal, explore opens the app
       case "gui":
         await gui(options.positionals[0], { pdf: options.values.pdf, schema: options.values.schema, browser: options.values.browser });
         break;
@@ -290,44 +264,22 @@ async function main(): Promise<void> {
         break;
       case "status":
       case "download": {
-        const jobId = options.positionals[0];
-        if (!jobId) {
-          console.error("Error: No job ID specified.");
-          console.error('Run "aecdo --help" for usage information.');
-          process.exit(1);
-        }
-        if (command === "status") {
-          await status(jobId, opts);
-        } else {
-          await download(jobId, opts);
-        }
+        const jobId = options.positionals[0] ?? fail("Error: No job ID specified.", USAGE_HINT);
+        await (command === "status" ? status : download)(jobId, opts);
         break;
       }
       case "validate":
       case "summary":
       case "sheets":
-      case "page": {
-        const filePath = options.positionals[0];
-        if (!filePath) {
-          console.error("Error: No input file specified.");
-          console.error('Run "aecdo --help" for usage information.');
-          process.exit(1);
-        }
-        await runOnFile(command, filePath, opts, options.positionals[1]);
+      case "page":
+        await runOnFile(command, file(), opts, options.positionals[1]);
         break;
-      }
       default:
-        console.error(`Error: Unknown command "${command}".`);
-        console.error('Run "aecdo --help" for usage information.');
-        process.exit(1);
+        fail(`Error: Unknown command "${command}".`, USAGE_HINT);
     }
   } catch (err) {
-    console.error(`Error: ${(err as Error).message}`);
-    process.exit(1);
+    fail(`Error: ${(err as Error).message}`);
   }
 }
 
-main().catch((err) => {
-  console.error(`Error: ${(err as Error).message}`);
-  process.exit(1);
-});
+main().catch((err) => fail(`Error: ${(err as Error).message}`));

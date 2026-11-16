@@ -1,7 +1,7 @@
 import { output } from "../lib/output.js";
 import type { DrawingSet, CommandOptions } from "../types.js";
 
-export async function sheets(data: DrawingSet, _filePath: string, opts: CommandOptions = {}): Promise<void> {
+export async function sheets(data: DrawingSet, opts: CommandOptions = {}): Promise<void> {
   const list = (data.sheets ?? []).map((s) => ({
     sheetNumber: s.sheetNumber,
     title: s.title,

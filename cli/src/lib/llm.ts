@@ -95,11 +95,6 @@ export function routesFor(name: AssistantName): RouteId[] {
   return ROUTE_ORDER.filter((r) => ASSISTANTS[name].routes[r] !== undefined);
 }
 
-/** Every @name that reaches an assistant, for completion and hints. */
-export function allMentions(): string[] {
-  return Object.values(ASSISTANTS).flatMap((a) => a.mentions);
-}
-
 export const APP_NAME = "aecdo";
 
 export type CustomApi = "openai-completions" | "anthropic-messages";

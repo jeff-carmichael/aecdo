@@ -2,9 +2,8 @@ import { loadConfig } from "../lib/config.js";
 import { getToken } from "../lib/auth.js";
 import { getJobResult, downloadResult, ApiError } from "../lib/api.js";
 import { output } from "../lib/output.js";
-import { validate } from "./validate.js";
-import { summary } from "./summary.js";
-import type { DrawingSet, ProcessOptions } from "../types.js";
+import { runThen } from "./process.js";
+import type { ProcessOptions } from "../types.js";
 
 export async function download(jobId: string, opts: ProcessOptions): Promise<void> {
   const config = await loadConfig();
@@ -32,22 +31,6 @@ export async function download(jobId: string, opts: ProcessOptions): Promise<voi
     await output(content, opts);
   }
 
-  if (opts.then) {
-    const data = JSON.parse(content) as DrawingSet;
-    switch (opts.then) {
-      case "validate":
-        await validate(data, `job:${jobId}`, opts);
-        break;
-      case "summary":
-        await summary(data, `job:${jobId}`, opts);
-        break;
-      default:
-        throw new Error(`Unknown --then command: "${opts.then}". Use validate or summary.`);
-    }
-    return;
-  }
-
-  if (!opts.output) {
-    console.log(content);
-  }
+  if (opts.then) await runThen(content, jobId, opts);
+  else if (!opts.output) console.log(content);
 }

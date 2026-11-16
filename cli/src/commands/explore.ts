@@ -13,7 +13,6 @@ import {
   withDetails,
   linkNote,
   fieldName,
-  arrow,
   plainValue,
   bboxText,
   type RefResolver,
@@ -220,7 +219,7 @@ export function buildRefIndex(data: DrawingSet): Map<string, RefTarget> {
 const REF_COMMAND = /^r(\d*)$/i;
 
 function refTag(i: number): string {
-  return `${`[r${i + 1}]`} `;
+  return `[r${i + 1}] `;
 }
 
 const GROUP_TITLES: Record<SheetEntry["kind"], string> = {
@@ -298,8 +297,6 @@ export class Explorer {
   private groups?: SheetGroup[];
   /** Places visited in order, newest last, including ones "back" has since left. */
   private visited: { location: string; via?: string }[] = [];
-  /** Which one-time hints have been shown. */
-  private hinted = new Set<string>();
   /** Whether ids and coordinates are shown; "details" toggles it. */
   private details = false;
 
@@ -562,10 +559,14 @@ export class Explorer {
     return out;
   }
 
-  /** Runs a command for the assistant; the user sees the same output as if they typed it. */
+  /**
+   * Runs a command for the assistant and returns the new view. What the command said besides the
+   * view's listing (an error, or the whole sheet for "all") comes back as `output`.
+   */
   navigate(command: string): Record<string, unknown> {
-    this.handle(command);
-    return this.context();
+    const said = this.capture(() => this.handle(command), true).join("\n").trim();
+    const context = this.context();
+    return said && !said.endsWith(String(context.listing)) ? { ...context, output: said } : context;
   }
 
   /** What the PDF pane outlines: the current sheet's page and what is open on it. */
@@ -596,75 +597,32 @@ export class Explorer {
     }
   }
 
-  private capture(fn: () => void): string[] {
+  /** What `fn` logs, without showing it. `keepRefs` false leaves the [r1] tags as they were, for a look that isn't a move. */
+  private capture(fn: () => void, keepRefs = false): string[] {
     const lines: string[] = [];
     const log = this.log;
     const refs = this.refs;
-    const hinted = new Set(this.hinted);
     this.log = (line = "") => lines.push(line);
     try {
       fn();
     } finally {
       this.log = log;
-      this.refs = refs;
-      this.hinted = hinted;
+      if (!keepRefs) this.refs = refs;
     }
     return lines;
   }
 
-  help(): void {
-    const kind = this.view.kind;
-    const rows: [string, string][] = [];
-    if (kind === "sheets" && this.groups) {
-      rows.push(["3 or A", "see one group of sheets"], ["A101", "open a sheet by its sheet number"]);
-    } else if (kind === "sheets" || kind === "group") {
-      rows.push(["4 or A101", "open a sheet"]);
-      if (kind === "group") rows.push(["up", "go back to the groups"]);
-    } else {
-      rows.push(
-        ["1, 2, 3 …", "open something from the list"],
-        ["up", "go up one level"],
-        ["back", "go back to where you just were"],
-        ["top", "go back to the sheet list"],
-        ["r1, r2 …", 'follow a link to another sheet (shown as "→ [r1]")']
-      );
-    }
-    if (kind === "sheet" || kind === "entry") rows.push(["all", "show everything on this sheet at once"]);
-    if (kind !== "sheets" && kind !== "group") rows.push(["details", "show or hide ids and coordinates"]);
-    rows.push(["ls", "show this list again"]);
-
-    const width = Math.max(...rows.map(([cmd]) => cmd.length));
-    this.log();
-    for (const [cmd, what] of rows) this.log(`  ${cmd.padEnd(width)}   ${what}`);
-    this.log();
-    this.log(`  Type one and press Enter.`);
-    this.log();
-  }
-
-  /** Returns false when the user asked to quit. */
-  handle(input: string): boolean {
+  /** Runs one navigation command: a number or sheet number, "up", "back", "top", "r1", "all", or "details". */
+  handle(input: string): void {
     const answer = input.trim();
-    if (!answer) return true;
+    if (!answer) return;
     const cmd = answer.toLowerCase();
 
-    if (cmd === "quit" || cmd === "q" || cmd === "exit") return false;
-    if (cmd === "help" || cmd === "?") {
-      this.help();
-      return true;
-    }
-    if (/^\/?view\b/i.test(answer)) {
-      this.log('"view" can\'t be run from here; use the show_page tool instead.');
-      return true;
-    }
     if (cmd === "details") {
       this.details = !this.details;
       this.log(this.details ? '\n  Showing ids and coordinates. Type "details" again to hide them.' : "\n  Hiding ids and coordinates.");
       this.render();
-      return true;
-    }
-    if (cmd === "list" || cmd === "ls") {
-      this.render();
-      return true;
+      return;
     }
     if (cmd === "back" || cmd === "b") {
       if (this.stack.length > 1) {
@@ -672,37 +630,37 @@ export class Explorer {
         this.moved();
       }
       this.render();
-      return true;
+      return;
     }
     if (cmd === "up" || cmd === "..") {
       this.up();
-      return true;
+      return;
     }
     if (cmd === "top" || cmd === "home") {
       this.stack = [{ kind: "sheets" }];
       this.moved();
       this.render();
-      return true;
+      return;
     }
 
     const v = this.view;
     const ref = REF_COMMAND.exec(answer);
     if (ref && v.kind !== "sheets" && v.kind !== "group") {
       this.jump(ref[1] ? Number(ref[1]) : undefined, answer);
-      return true;
+      return;
     }
     if (v.kind === "sheets" && this.groups) {
       this.openGroup(this.groups, answer);
-      return true;
+      return;
     }
     if (v.kind === "sheets" || v.kind === "group") {
       this.openSheet(answer, v.kind === "group" ? v.group.sheets : (this.data.sheets ?? []));
-      return true;
+      return;
     }
 
     if ((v.kind === "sheet" || v.kind === "entry") && cmd === "all") {
-      withDetails(this.details, () => printPage(v.sheet, this.data, this.resolve));
-      return true;
+      withDetails(this.details, () => printPage(v.sheet, this.data, this.resolve, this.log));
+      return;
     }
 
     const index = /^\d+$/.test(answer) ? Number(answer) : NaN;
@@ -723,7 +681,6 @@ export class Explorer {
         this.selectItem(v.sheet, v.drawing, v.layer, index, answer, "replace");
         break;
     }
-    return true;
   }
 
   /** The place one level up the tree from `v`. */
@@ -904,17 +861,9 @@ export class Explorer {
     return pdf || this.opts.fileName || "Drawing set";
   }
 
-  /** A one-line nudge shown the first time each kind of list appears. */
-  private hint(key: string, text: string): void {
-    if (this.hinted.has(key)) return;
-    this.hinted.add(key);
-    this.log(`  ${text}`);
-    this.log();
-  }
-
   private renderGroups(groups: SheetGroup[]): void {
     this.log(`\n  ${this.setTitle()}`);
-    this.log(`  ${`${plural(this.data.sheets?.length ?? 0, "sheet")} in ${groups.length} groups`}\n`);
+    this.log(`  ${plural(this.data.sheets?.length ?? 0, "sheet")} in ${groups.length} groups\n`);
     const numberWidth = String(groups.length).length;
     const prefixWidth = Math.max(...groups.map((g) => (g.prefix || "-").length));
     groups.forEach((g, i) => {
@@ -922,7 +871,6 @@ export class Explorer {
       this.log(`  ${String(i + 1).padStart(numberWidth)}  ${name}  ${plural(g.sheets.length, "sheet")}`);
     });
     this.log();
-    this.hint("groups", 'Type a number or letter (like A) to see those sheets, then press Enter. Type "help" for more.');
   }
 
   private renderSheets(sheets: Sheet[], group?: SheetGroup): void {
@@ -944,7 +892,6 @@ export class Explorer {
       this.log(`  ${String(i + 1).padStart(numberWidth)}  ${s.sheetNumber.padEnd(sheetWidth)}  ${s.title}`);
     });
     this.log();
-    this.hint("sheets", 'Type a number or sheet number (like A101) and press Enter to open it. Type "help" for more.');
   }
 
   private renderSheet(sheet: Sheet): void {
@@ -970,10 +917,9 @@ export class Explorer {
       this.log(`  ${String(i + 1).padStart(width)}  ${name}${after}`);
     });
     this.log();
-    this.hint("sheet", 'Type a number to open it, or "up" to go back.');
   }
 
-  /** A list of named rows with a dim count or note after each, numbered from 1. */
+  /** A list of named rows with a count or note after each, numbered from 1. */
   private numbered(rows: [name: string, note?: string][]): void {
     const width = String(rows.length).length;
     const nameWidth = Math.min(50, Math.max(...rows.map(([n]) => n.length)));
@@ -986,9 +932,9 @@ export class Explorer {
   private renderDrawing(sheet: Sheet, drawing: Drawing): void {
     const kind = [drawing.drawingType, drawing.scale].filter(Boolean).join(", ");
     this.log(`\n  ${drawingName(drawing)}`);
-    this.log(`  ${`${kind ? `${kind[0].toUpperCase()}${kind.slice(1)}, on` : "On"} ${sheet.sheetNumber}`}`);
+    this.log(`  ${kind ? `${kind[0].toUpperCase()}${kind.slice(1)}, on` : "On"} ${sheet.sheetNumber}`);
     if (this.details) {
-      this.log(`  ${`id    ${drawing["@id"]}`}`);
+      this.log(`  id    ${drawing["@id"]}`);
       this.log(`  bbox  ${bboxText(drawing.bbox)}`);
     }
 
@@ -1002,17 +948,16 @@ export class Explorer {
     const refs = drawing.references ?? [];
     if (refs.length) {
       this.log(`\n  Links to other drawings  ${linkNote(refs.length)}`);
-      refs.forEach((ref, i) => this.log(`  ${arrow()}${refTag(i)}${this.resolve(ref)}`));
+      refs.forEach((ref, i) => this.log(`  → ${refTag(i)}${this.resolve(ref)}`));
     }
     this.refs = { view: this.view, ids: refs };
     this.log();
-    this.hint("drawing", drawing.layers.length ? 'Type a number to open a layer, or "up" to go back.' : 'Type "up" to go back.');
   }
 
   private renderLayer(sheet: Sheet, drawing: Drawing, layer: Layer): void {
     const items = layer.items ?? [];
     this.log(`\n  ${layer.name}`);
-    this.log(`  ${`${plural(items.length, "item")} on ${drawingName(drawing)}, ${sheet.sheetNumber}`}`);
+    this.log(`  ${plural(items.length, "item")} on ${drawingName(drawing)}, ${sheet.sheetNumber}`);
     if (this.details && layer.bbox) this.log(`  bbox  ${bboxText(layer.bbox)}`);
 
     if (items.length === 0) {
@@ -1026,7 +971,6 @@ export class Explorer {
       this.numbered(items.map((item) => [truncate(itemName(item))]));
     }
     this.log();
-    this.hint("layer", 'Type a number to see what was read for it, or "up" to go back.');
   }
 }
 
@@ -1064,7 +1008,6 @@ const SETUP_WAYS = {
   openrouter: "OpenRouter",
 } as const;
 
-/** Where the assistant's answer goes: the terminal for the typed prompt, the chat panel in full screen or the app. */
 /** Which model an @mention uses and how it's reached. */
 export interface AiModel {
   /** The model family, e.g. "Claude". */
@@ -1093,7 +1036,7 @@ export interface AssistantBridgeOptions {
   showPage?: () => Promise<string>;
   /** Called when the assistant starts using a tool. */
   onTool?: (name: string, args: unknown) => void;
-  /** Models to use instead of the ones set up with "aecdo configure ai" (tests). */
+  /** Models to use instead of the ones set up in Settings (tests). */
   models?: MutableModels;
 }
 
@@ -1237,13 +1180,8 @@ export class PdfLocator {
 
   /** The source PDF: an explicit path, or one found next to the JSON-LD. */
   locatePdf(pdfArg?: string): { path?: string; looked: string[] } {
-    const exists = this.deps.exists;
-    if (pdfArg) {
-      const looked = sourcePdfCandidates(this.filePath, this.data, pdfArg);
-      return { path: findSourcePdf(looked, exists), looked };
-    }
-    const looked = sourcePdfCandidates(this.filePath, this.data, this.explicitPdf);
-    return { path: findSourcePdf(looked, exists), looked };
+    const looked = sourcePdfCandidates(this.filePath, this.data, pdfArg ?? this.explicitPdf);
+    return { path: findSourcePdf(looked, this.deps.exists), looked };
   }
 
   /** Says which .jsonld is open, each path tried and why, and which PDFs are in that folder. */
