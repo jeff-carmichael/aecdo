@@ -33,6 +33,8 @@ export const SHORTCUTS = [
       ["a  or  @", "go to the chat; then just type your question"],
       ["t  or  Ctrl+T", "start another chat"],
       ["[  ]", "switch chats (also in the chat until you type)"],
+      ["↑  ↓", "in the chat: ↑ leaves the input to scroll the answers, ↓ at the end goes back in"],
+      ["Alt + ↑ ↓", "bring back a question you sent (while typing)"],
       ["Delete", "close the chat you're in (in the chat)"],
       ["c", "show or hide the chat"],
       ["Esc", "stop an answer, stop typing, then leave the chat"],
@@ -57,8 +59,8 @@ export const HINTS = {
   sheets: [["↑↓", "move"], ["Enter", "open"], ["/", "find"], ["a", "ask AI"], ["?", "keys"]],
   main: [["↑↓", "move"], ["Enter", "open"], ["←", "back"], ["u", "up"], ["z", "zoom to it"], ["a", "ask AI"], ["?", "keys"]],
   pdf: [["arrows", "pan"], ["+ −", "zoom"], ["f", "fit"], ["z", "zoom to selection"], ["Tab", "back to lists"], ["?", "keys"]],
-  chat: [["type", "ask"], ["[ ]", "switch chats"], ["Ctrl+T", "new chat"], ["Delete", "close chat"], ["↑↓", "scroll"], ["Esc", "leave"]],
-  chatInput: [["Enter", "send"], ["Shift+Enter", "new line"], ["Tab", "complete @model"], ["Ctrl+T", "new chat"], ["Esc", "stop / stop typing"]],
+  chat: [["type", "ask"], ["[ ]", "switch chats"], ["Ctrl+T", "new chat"], ["Delete", "close chat"], ["↑", "scroll"], ["↓", "scroll, then type"], ["Esc", "leave"]],
+  chatInput: [["Enter", "send"], ["Shift+Enter", "new line"], ["Tab", "complete @model"], ["↑", "scroll answers"], ["Ctrl+T", "new chat"], ["Esc", "stop / stop typing"]],
 };
 
 /** True when a key press is typing into a field rather than a shortcut. */

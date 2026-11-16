@@ -28,6 +28,7 @@ There's no "Sign in with Claude": Anthropic doesn't allow Claude plans in other 
 
 - Type `@claude`, `@chatgpt`, `@gemini`, `@grok`, `@deepseek`, or `@kimi` to switch models.
 - <kbd>t</kbd> starts another chat. Each has its own model and history.
+- <kbd>↑</kbd> leaves the question box to scroll the answers; <kbd>↓</kbd> goes back to it. <kbd>Alt</kbd>+<kbd>↑</kbd> brings back a question you sent.
 - <kbd>Esc</kbd> stops an answer or leaves the chat.
 - Chats end when you close the app.
 
