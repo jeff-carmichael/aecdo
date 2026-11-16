@@ -173,13 +173,18 @@ function buildSheetRows(query) {
   if (!rows.length) $("sheet-list").dataset.empty = query ? "No sheets match." : "This set has no sheets.";
 }
 
+/** "sample-drawing-pa…markups-code-review.pdf": keeps the end, where the set's name is. */
+const middleCut = (/** @type {string} */ s, /** @type {number} */ max) => (s.length <= max ? s : `${s.slice(0, Math.floor(max / 3))}…${s.slice(s.length - Math.ceil((max * 2) / 3) + 1)}`);
+
 async function loadPdf() {
   const info = pdfInfo;
   $("pdf-missing").hidden = info.available;
   $("pdf-stage").hidden = !info.available;
   $("pdf-bar").hidden = !info.available;
-  $("pdf-note").textContent = info.savedCopy ? "" : "original PDF";
-  $("pdf-note").title = info.name ?? "";
+  $("pdf-note").textContent = info.savedCopy ? middleCut(info.name ?? "", 30) : "original PDF";
+  $("pdf-note").title = info.savedCopy
+    ? `Showing ${info.name}, the copy with ${info.markupSet ?? "these"} markups. The original PDF isn't changed.`
+    : `Showing ${info.name ?? "the original PDF"}. ${info.markupSet ?? "This set"} has no markups yet; its copy is made with the first one.`;
   if (!info.available) {
     showMissingPdf(info);
     return;
@@ -517,8 +522,6 @@ function toggleChat() {
 
 /** @type {MarkupsInfo} */
 let markupsInfo = { sets: [], suggested: [], markups: [], history: [] };
-/** The "New set…" option's value; set names are never empty. */
-const NEW_SET = "";
 
 async function refreshMarkups() {
   if (!set) return;
@@ -529,26 +532,29 @@ async function refreshMarkups() {
   badge.hidden = info.markups.length === 0;
   badge.textContent = String(info.markups.length);
   const picker = /** @type {HTMLSelectElement} */ ($("markup-set"));
-  fillSetSelect(picker, info, true);
-  picker.title = info.file ? `Markup set: new markups go here, saved to ${info.file}` : "Markup set";
+  fillSetSelect(picker, info, false);
+  picker.title = info.file ? `Switch markup set. New markups go to ${info.set}, saved in ${info.file}` : "Switch markup set";
+  $("pdf-sets").hidden = info.sets.length === 0 && !!info.error;
   if (modal?.kind === "markups") modal.update?.(info);
 }
 
+/** Suggested set names that aren't taken yet. */
+function freeSuggestions(/** @type {MarkupsInfo} */ info) {
+  const names = new Set(info.sets.map((s) => s.name.toLowerCase()));
+  return info.suggested.filter((n) => !names.has(n.toLowerCase()));
+}
+
 /**
- * The markup sets as options, the current one selected; suggested sets that don't exist yet are offered too.
+ * The markup sets as options, the current one selected.
  * @param {HTMLSelectElement} select
  * @param {MarkupsInfo} info
- * @param {boolean} withNew  adds "New set…"
+ * @param {boolean} withSuggested  also offers suggested sets that don't exist yet
  */
-function fillSetSelect(select, info, withNew) {
-  const names = new Set(info.sets.map((s) => s.name.toLowerCase()));
-  const extra = info.suggested.filter((n) => !names.has(n.toLowerCase()));
+function fillSetSelect(select, info, withSuggested) {
   select.innerHTML = [
-    ...info.sets.map((s) => `<option value="${esc(s.name)}"${s.current ? " selected" : ""}>${esc(s.name)}${s.exists ? "" : " (new)"}</option>`),
-    ...extra.map((n) => `<option value="${esc(n)}">${esc(n)} (new)</option>`),
-    ...(withNew ? [`<option value="${NEW_SET}">New set…</option>`] : []),
+    ...info.sets.map((s) => `<option value="${esc(s.name)}"${s.current ? " selected" : ""}>${esc(s.name)}${s.exists ? "" : " (empty)"}</option>`),
+    ...(withSuggested ? freeSuggestions(info).map((n) => `<option value="${esc(n)}">${esc(n)} (new)</option>`) : []),
   ].join("");
-  select.hidden = info.sets.length === 0 && !!info.error;
 }
 
 /** @param {string} name */
@@ -562,15 +568,15 @@ async function useSet(name) {
 
 /**
  * Asks for a set name, with quick picks.
- * @param {{ title: string, value?: string, picks?: string[], submit: (name: string) => Promise<unknown> }} o
+ * @param {{ title: string, intro?: string, value?: string, picks?: string[], submit: (name: string) => Promise<unknown> }} o
  */
 function setNameDialog(o) {
   const body = document.createElement("form");
   body.className = "markup-form set-name";
   const picks = (o.picks ?? []).map((n) => `<button type="button" class="chip" data-pick="${esc(n)}">${esc(n)}</button>`).join("");
-  body.innerHTML = `<p class="dim">Each set is its own copy of the PDF, so markups for different purposes stay apart.</p>
+  body.innerHTML = `<p class="dim">${esc(o.intro ?? "Each set is its own copy of the PDF, so markups for different purposes stay apart.")}</p>
 ${picks ? `<div class="picks">${picks}</div>` : ""}
-<input name="name" type="text" maxlength="60" placeholder="Set name, e.g. Code review" value="${esc(o.value ?? "")}">
+<input name="name" type="text" maxlength="60" placeholder="${picks ? "Or type a name" : "Set name, e.g. Code review"}" value="${esc(o.value ?? "")}">
 <div class="actions"><button type="button" data-cancel>Cancel <kbd>Esc</kbd></button><button class="primary">OK <kbd>Enter</kbd></button></div>`;
   const input = /** @type {HTMLInputElement} */ (body.querySelector("input"));
   const submit = async (/** @type {string} */ name) => {
@@ -594,10 +600,11 @@ ${picks ? `<div class="picks">${picks}</div>` : ""}
 }
 
 function newSetDialog() {
-  const names = new Set(markupsInfo.sets.map((s) => s.name.toLowerCase()));
+  if (!set || !pdfInfo?.available) return;
   setNameDialog({
     title: "New markup set",
-    picks: markupsInfo.suggested.filter((n) => !names.has(n.toLowerCase())),
+    intro: "A new copy of the PDF for one purpose, so its markups stay apart from the others. The original isn't changed. Pick a name or type your own.",
+    picks: freeSuggestions(markupsInfo),
     submit: async (name) => toast((await api("api/markups", { action: "set", name })).message),
   });
 }
@@ -618,7 +625,7 @@ function markupDialog(at) {
 <div class="actions"><button type="button" data-cancel>Cancel <kbd>Esc</kbd></button><button class="primary">Add markup <kbd>Enter</kbd></button></div>`;
   const text = /** @type {HTMLTextAreaElement} */ (body.querySelector("textarea"));
   const setSelect = /** @type {HTMLSelectElement} */ (body.querySelector("select[name=set]"));
-  fillSetSelect(setSelect, markupsInfo, false);
+  fillSetSelect(setSelect, markupsInfo, true);
   if (!setSelect.options.length) setSelect.innerHTML = `<option value="">Markups</option>`;
   const submit = async () => {
     const kind = /** @type {HTMLInputElement} */ (body.querySelector("input[name=kind]:checked")).value;
@@ -1674,14 +1681,10 @@ $("chat-input").addEventListener("blur", renderHints);
 $("markups-btn").addEventListener("click", markupsPanel);
 $("markup-set").addEventListener("change", (e) => {
   const select = /** @type {HTMLSelectElement} */ (e.target);
-  if (select.value === NEW_SET) {
-    fillSetSelect(select, markupsInfo, true);
-    newSetDialog();
-  } else {
-    void useSet(select.value);
-  }
+  void useSet(select.value);
   select.blur();
 });
+$("markup-new").addEventListener("click", newSetDialog);
 $("zoom-in").addEventListener("click", () => pdf.zoomBy(1.25));
 $("zoom-out").addEventListener("click", () => pdf.zoomBy(0.8));
 $("zoom-fit").addEventListener("click", () => pdf.fit(true));

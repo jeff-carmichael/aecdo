@@ -48,8 +48,12 @@
       <div id="pdf-bar">
         <span id="pdf-where"></span>
         <span class="spacer"></span>
-        <span id="pdf-note"></span>
-        <select id="markup-set" title="Markup set: new markups go here" aria-label="Markup set"></select>
+        <span id="pdf-sets">
+          <span class="label">Markup set</span>
+          <select id="markup-set" title="Switch markup set" aria-label="Markup set"></select>
+          <button class="icon" id="markup-new" title="Start a new markup set, its own copy of the PDF">+ New</button>
+          <span id="pdf-note"></span>
+        </span>
         <button class="icon" id="zoom-out" title="Zoom out (−)">−</button>
         <span id="pdf-zoom">–</span>
         <button class="icon" id="zoom-in" title="Zoom in (+)">+</button>
