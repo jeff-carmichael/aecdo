@@ -296,3 +296,28 @@ test("the light or dark choice is saved and written into the page", async () => 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("Settings shows whether an update is out, and checks on request", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "aecdo-gui-update-"));
+  const fetchImpl: typeof fetch = () => Promise.resolve(Response.json({ tag_name: "v99.0.0" }));
+  const app = new GuiApp({
+    cwd: dir,
+    settingsPath: join(dir, "gui.json"),
+    llmPath: join(dir, "llm.json"),
+    configDir: dir,
+    updates: { currentVersion: "0.6.4", standalone: false, cachePath: join(dir, "update-check.json"), fetchImpl },
+  });
+  const server = await startGuiServer(app, { token: "secret" });
+  try {
+    const settings = await json<{ update: { current: string; available: boolean } }>(`${server.url}api/settings`);
+    assert.deepEqual(settings.data.update, { current: "0.6.4", available: false, npmCommand: "npm install -g aecdo@latest", checking: false, installing: false });
+    const checked = await json<{ update: { latest: string; available: boolean } }>(`${server.url}api/update`, { action: "check" });
+    assert.equal(checked.data.update.latest, "99.0.0");
+    assert.equal(checked.data.update.available, true);
+    const install = await json<{ error: string }>(`${server.url}api/update`, { action: "install" });
+    assert.equal(install.status, 400);
+    assert.match(install.data.error, /installed with npm/);
+  } finally {
+    await server.close();
+  }
+});

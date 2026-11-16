@@ -17,7 +17,7 @@ import { examples } from "../src/commands/examples.js";
 import { gui } from "../src/commands/gui.js";
 import { shortcut } from "../src/commands/shortcut.js";
 import { canPrompt } from "../src/lib/prompt.js";
-import { embedded } from "../src/lib/embedded.js";
+import { appVersion, isStandalone } from "../src/lib/version.js";
 import { startUpdateNotifier, runUpdateCheckWorker, WORKER_ENV, NO_UPDATE_CHECK_FLAG } from "../src/lib/update-check.js";
 import type { DrawingSet, CommandOptions, ProcessOptions } from "../src/types.js";
 
@@ -103,13 +103,6 @@ function fail(...lines: string[]): never {
 
 const USAGE_HINT = 'Run "aecdo --help" for usage information.';
 
-async function getVersion(): Promise<string> {
-  return (
-    embedded.version ??
-    (JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf-8")) as { version: string }).version
-  );
-}
-
 /** Loads a drawing set and runs one of the commands that read it. */
 async function runOnFile(command: "validate" | "summary" | "sheets" | "page", filePath: string, opts: ProcessOptions, selector?: string): Promise<void> {
   const resolvedPath = resolve(filePath);
@@ -152,12 +145,12 @@ async function main(): Promise<void> {
   const rawArgs = process.argv.slice(2);
   let args = rawArgs.filter((a) => a !== NO_UPDATE_CHECK_FLAG);
 
-  const standalone = embedded.version !== undefined;
+  const standalone = isStandalone();
   if (standalone && process.platform === "win32") await cleanupOldBinary();
 
   if (args[0] !== "update") {
     try {
-      startUpdateNotifier({ currentVersion: await getVersion(), standalone, args: rawArgs });
+      startUpdateNotifier({ currentVersion: appVersion(), standalone, args: rawArgs });
     } catch {
       // update checks must never break a command
     }
@@ -171,7 +164,7 @@ async function main(): Promise<void> {
   }
 
   if (args.includes("--version") || args.includes("-v")) {
-    console.log(`aecdo v${await getVersion()}`);
+    console.log(`aecdo v${appVersion()}`);
     process.exit(0);
   }
 
@@ -209,7 +202,7 @@ async function main(): Promise<void> {
   }
 
   if (command === "update") {
-    await update({ currentVersion: await getVersion(), standalone });
+    await update({ currentVersion: appVersion(), standalone });
     return;
   }
 
@@ -260,7 +253,7 @@ async function main(): Promise<void> {
         await gui(options.positionals[0], { pdf: options.values.pdf, schema: options.values.schema, browser: options.values.browser });
         break;
       case "examples":
-        await examples(options.positionals[0], { version: await getVersion(), force: options.values.force });
+        await examples(options.positionals[0], { version: appVersion(), force: options.values.force });
         break;
       case "status":
       case "download": {

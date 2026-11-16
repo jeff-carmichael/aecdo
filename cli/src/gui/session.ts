@@ -9,6 +9,7 @@ import { listPdfs } from "../lib/files.js";
 import { ASSISTANTS, type AssistantName } from "../lib/llm.js";
 import { MARKUP_KINDS, type Markup, type MarkupKind } from "../lib/markup.js";
 import type { DrawingSet, Sheet } from "../types.js";
+import type { UpdateState } from "./updates.js";
 
 /** Something on the page a row or box points at. */
 export interface PageBox {
@@ -130,6 +131,7 @@ export type GuiEvent =
   | { type: "prompt-cancel"; id: string }
   | { type: "auth"; text: string; url?: string; code?: string }
   | { type: "settings" }
+  | { type: "update"; update: UpdateState }
   | { type: "process"; file: string; status?: string; done?: string; error?: string };
 
 export interface GuiSessionOptions {

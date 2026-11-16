@@ -52,6 +52,7 @@ function runWindow(command: string[], app: GuiApp, kill: { current?: () => void 
 /** `aecdo gui [file]`: the app window, with the PDF beside the data. */
 export async function gui(file: string | undefined, opts: GuiOptions = {}): Promise<void> {
   const app = new GuiApp({ cwd: process.cwd(), pdf: opts.pdf, schema: opts.schema, chdir: true });
+  app.updates.checkInBackground();
   if (opts.app) await app.openFolder((await app.lastFolder()) ?? homedir()).catch(() => undefined);
   const self = embedded.selfCommand;
   const browser = !opts.serveOnly && (opts.browser || !self);

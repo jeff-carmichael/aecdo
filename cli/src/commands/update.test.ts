@@ -1,47 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, existsSync, statSync, readdirSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { expectedChecksum, replaceBinary, resolveAsset, sha256, systemTar, update } from "./update.js";
-import { readCache, RELEASES_URL } from "../lib/update-check.js";
-
-const tmp = () => mkdtempSync(join(tmpdir(), "aecdo-update-test-"));
-
-function makeTarball(binaryContent: string): Buffer {
-  const dir = tmp();
-  writeFileSync(join(dir, "aecdo"), binaryContent);
-  writeFileSync(join(dir, "README.md"), "readme");
-  const out = join(tmp(), "aecdo-linux-x64.tar.gz");
-  const res = spawnSync(systemTar(), ["-C", dir, "-czf", out, "."]);
-  assert.equal(res.status, 0, res.stderr.toString());
-  return readFileSync(out);
-}
-
-function fakeFetch(routes: Record<string, () => Response>): typeof fetch {
-  return (input: string | URL | Request) => {
-    const url = input instanceof Request ? input.url : input.toString();
-    const route = routes[url];
-    return Promise.resolve(route ? route() : new Response("not found", { status: 404 }));
-  };
-}
-
-function releaseRoutes(version: string, archive: Buffer, checksum = sha256(archive)) {
-  const base = `https://github.com/jeff-carmichael/aecdo/releases/download/v${version}`;
-  return {
-    [RELEASES_URL]: () => Response.json({ tag_name: `v${version}` }),
-    [`${base}/aecdo-linux-x64.tar.gz`]: () => new Response(new Uint8Array(archive)),
-    [`${base}/checksums.txt`]: () =>
-      new Response(`${"0".repeat(64)}  aecdo-darwin-arm64.tar.gz\n${checksum}  aecdo-linux-x64.tar.gz\n`),
-  };
-}
-
-function installedBinary(content = "old binary"): string {
-  const path = join(tmp(), "aecdo");
-  writeFileSync(path, content, { mode: 0o755 });
-  return path;
-}
+import { expectedChecksum, replaceBinary, resolveAsset, update } from "./update.js";
+import { fakeFetch, installedBinary, makeTarball, releaseRoutes, tmp } from "./update.test-helpers.js";
+import { readCache } from "../lib/update-check.js";
 
 test("resolveAsset maps platforms to release archives", () => {
   assert.deepEqual(resolveAsset("darwin", "arm64"), { target: "darwin-arm64", archive: "aecdo-darwin-arm64.tar.gz", binary: "aecdo" });
