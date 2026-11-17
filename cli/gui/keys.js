@@ -10,7 +10,7 @@ export const SHORTCUTS = [
       ["←  or  Backspace", "go back to where you just were"],
       ["u", "go up a level"],
       ["1 2 3 …", "pick a row by its number"],
-      ["/", "find a sheet by number or title"],
+      ["/", "find a sheet by number or title; ↓ goes into the matches, Esc shows all"],
       ["s", "show or hide the other drawing sets in this folder"],
       ["Tab", "switch between the sheet list, the contents, and the PDF"],
       ["Home  End  PgUp  PgDn", "jump in the list"],

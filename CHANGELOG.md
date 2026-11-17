@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- The app's sheet filter (<kbd>/</kbd>) stays applied when you leave it: <kbd>↓</kbd> (or <kbd>↑</kbd>) moves into the matching sheets, and you can keep arrowing, open sheets, and come back to the same short list. <kbd>Esc</kbd> in the filter or the sheet list shows every sheet again, as does emptying the filter.
+
 ## [0.6.5] - 2026-11-17
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.
