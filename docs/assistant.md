@@ -16,11 +16,13 @@ It knows what you have open, so "this floor" or "these doors" work.
 
 ## Set it up
 
-Press <kbd>,</kbd> for **Settings**, then under **AI models**:
+Press <kbd>,</kbd> for **Settings**, then under **AI sign-ins**:
 
 - **Sign in with ChatGPT** uses your ChatGPT Plus or Pro plan.
 - **API key** for [Anthropic](https://console.anthropic.com/) (Claude), [OpenAI](https://platform.openai.com/api-keys), or [OpenRouter](https://openrouter.ai/settings/keys) (all models). Billed per use.
 - **Amazon Bedrock** or a **custom endpoint** (a company gateway, Azure, Ollama, …) for teams.
+
+Once one is set up, **Models** picks which model each `@name` uses.
 
 There's no "Sign in with Claude": Anthropic doesn't allow Claude plans in other apps. Use an API key, or [Claude Code](agents.md).
 

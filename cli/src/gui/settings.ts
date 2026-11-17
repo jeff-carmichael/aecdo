@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { homedir } from "node:os";
+import { join, sep } from "node:path";
 import { AVAILABLE_REGIONS, DEFAULT_REGION, getConfigDir, processingAvailable, saveConfig } from "../lib/config.js";
 import {
   ASSISTANTS,
@@ -81,6 +82,11 @@ type SavedApiConfig = { clientId?: string; clientSecret?: string; region?: strin
 
 const KEY_ROUTES: RouteId[] = ["openai", "anthropic", "openrouter"];
 
+/** A path for showing: the home folder as "~". */
+function shortPath(path: string, home = homedir()): string {
+  return path === home || path.startsWith(home + sep) ? "~" + path.slice(home.length) : path;
+}
+
 /**
  * The app's Settings: the AI models and the DrawingBot API
  * credentials. Sign-ins ask their questions through `interaction`, which the app shows as dialogs.
@@ -146,7 +152,7 @@ export class GuiSettings {
         routes,
         assistants,
         ...(custom ? { custom: { name: custom.name, baseUrl: custom.baseUrl, api: custom.api, models: customModels } } : {}),
-        path,
+        path: shortPath(path),
       },
       api: {
         available: this.opts.processing ?? processingAvailable(),
@@ -154,7 +160,7 @@ export class GuiSettings {
         ...(api?.clientId ? { clientId: api.clientId.slice(-4).padStart(api.clientId.length, "•") } : {}),
         region: api?.region ?? DEFAULT_REGION,
         regions: AVAILABLE_REGIONS,
-        path: this.apiPath(),
+        path: shortPath(this.apiPath()),
       },
     };
   }

@@ -23,7 +23,7 @@ Open a sheet, then a drawing, a layer, an item. What you pick is outlined on the
 | <kbd>↑</kbd> <kbd>↓</kbd> | Move |
 | <kbd>Enter</kbd> | Open |
 | <kbd>←</kbd> | Back |
-| <kbd>/</kbd> | Find a sheet |
+| <kbd>/</kbd> | Find a sheet (<kbd>↓</kbd> goes into the matches, <kbd>Esc</kbd> shows all) |
 | <kbd>s</kbd> | Show or hide the other drawing sets |
 | <kbd>z</kbd> / <kbd>f</kbd> | Zoom to selection / fit page |
 | <kbd>a</kbd> | Ask the AI |

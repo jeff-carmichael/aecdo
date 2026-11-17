@@ -8,8 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### CLI
 - Each markup copy now says what it is in its PDF document info: `AECDOMarkupSet` (the set's name, e.g. QA) and `AECDOSourcePDF` (the original PDF's file name), updated with every change. Acrobat shows them under File → Properties → Custom, and `pdfinfo -custom` lists them. The app reads the set's name from there (only the end of the file, so it's quick) instead of going by the file name, falling back to the notes in the file for older copies.
-
-### CLI
+- The app's Settings screen is tidier. **Look** and **Version** (with Check for updates or Install) sit on two short rows at the top. **AI sign-ins** lists each way to reach the models with the `@names` it covers and a ✓ once it's set up; a set-up one only offers **Change** and **Remove**. **Models** lists only the `@names` that are ready, instead of a "needs one of" line for each that isn't. The long file paths are now one "Saved in `~/.aecdo`" line at the bottom, and the DrawingBot section is hidden until PDF processing is available.
+- The app's sheet filter (<kbd>/</kbd>) stays applied when you leave it: <kbd>↓</kbd> (or <kbd>↑</kbd>) moves into the matching sheets, and you can keep arrowing, open sheets, and come back to the same short list. <kbd>Esc</kbd> in the filter or the sheet list shows every sheet again, as does emptying the filter.
 - The bar under the app's PDF now reads **Current PDF version:** with a menu of **Original** and each markup set (Markups, QA, …), then **+ New**. Picking **Original** shows the PDF without markups; picking a set shows its copy, and new markups go to the last set picked. The file name moved from the bar into the menu's tooltip.
 
 ## [0.6.5] - 2026-11-17

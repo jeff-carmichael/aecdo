@@ -32,7 +32,6 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 /** @type {any} */ let state = null;
 /** @type {any} */ let shown = null;
 /** @type {"sheets" | "main" | "pdf" | "chat"} */ let focus = "sheets";
-let finding = false;
 let quitting = false;
 /** @type {any} */ let pdfInfo = null;
 /** Selected row for each place, so "back" lands where you were. */
@@ -141,6 +140,7 @@ async function start(boot) {
   $("set-title").textContent = set.title;
   $("set-title").title = set.path;
   cursors.clear();
+  find.value = "";
   buildSheetRows();
   void refreshSets();
   void loadPdf();
@@ -374,7 +374,6 @@ function applyState(s) {
 
 /** @param {string} sheet */
 async function openSheet(sheet) {
-  if (finding) stopFinding(false);
   applyState(await api("api/sheet", { sheet }));
   setFocus("main");
 }
@@ -384,7 +383,6 @@ async function openSheet(sheet) {
  * @param {string} id
  */
 async function openSource(id) {
-  if (finding) stopFinding(false);
   const s = await api("api/id", { id });
   applyState(s);
   if (s.target?.id !== id) return;
@@ -432,7 +430,7 @@ function setFocus(f) {
     render(state);
   }
   if (f === "sheets") {
-    if (!finding) $("sheet-list").focus({ preventScroll: true });
+    if (document.activeElement !== find) $("sheet-list").focus({ preventScroll: true });
     const row = sheetList.selectedRow;
     if (row && state && !state.sheet) schedulePreview(row.n, 0);
   } else if (f === "main") $("main-list").focus({ preventScroll: true });
@@ -455,7 +453,8 @@ function cycleFocus(/** @type {number} */ dir) {
 }
 
 function renderHints() {
-  const hints = (pickingSet ? HINTS.sets : focus === "chat" && chat.typing ? HINTS.chatInput : HINTS[focus]) ?? [];
+  let hints = (pickingSet ? HINTS.sets : focus === "chat" && chat.typing ? HINTS.chatInput : HINTS[focus]) ?? [];
+  if (focus === "sheets" && !pickingSet && find.value.trim()) hints = [...hints, ["Esc", "show all sheets"]];
   $("hints").innerHTML = hints.map(([k, v]) => `<span><kbd>${esc(k)}</kbd> ${esc(v)}</span>`).join("");
 }
 
@@ -473,31 +472,34 @@ const finder = new Finder(
 
 function startFinding() {
   stopPickingSet();
-  finding = true;
   setFocus("sheets");
   find.focus();
   find.select();
 }
 
-/** @param {boolean} keep keep the matches listed */
-function stopFinding(keep) {
-  finding = false;
-  if (!keep) {
-    find.value = "";
-    void finder.search("");
-  }
+/** Shows every sheet again. */
+function clearFind() {
+  find.value = "";
+  void finder.search("");
+  renderHints();
 }
 
 find.addEventListener("focus", () => {
-  finding = true;
   if (focus !== "sheets") setFocus("sheets");
 });
-find.addEventListener("input", () => void finder.search(find.value));
+find.addEventListener("input", () => {
+  void finder.search(find.value);
+  renderHints();
+});
 find.addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    // The arrows go into the matches, which stay listed until Esc or the filter is emptied.
     e.preventDefault();
     const dir = e.key === "ArrowDown" ? 1 : -1;
-    void finder.after(() => sheetList.move(dir));
+    void finder.after(() => {
+      $("sheet-list").focus({ preventScroll: true });
+      sheetList.move(dir);
+    });
   } else if (e.key === "Enter") {
     e.preventDefault();
     void finder.after(() => {
@@ -507,7 +509,7 @@ find.addEventListener("keydown", (e) => {
   } else if (e.key === "Escape") {
     e.preventDefault();
     e.stopPropagation();
-    stopFinding(false);
+    clearFind();
     find.blur();
     setFocus(state?.sheet ? "main" : "sheets");
   }
@@ -568,10 +570,7 @@ $("set-list").addEventListener("click", (e) => {
 /** Moves the arrows into the list of sets, starting at the open one. */
 function startPickingSet() {
   if (folderSets.length < 2 || !setsOpen) return;
-  if (finding) {
-    stopFinding(true);
-    find.blur();
-  }
+  find.blur();
   setFocus("sheets");
   pickingSet = true;
   setSelected = Math.max(0, folderSets.findIndex((s) => s.open));
@@ -1111,7 +1110,7 @@ let authNote;
 /** Whether a newer aecdo is out, from the server's daily check. @type {UpdateState | undefined} */
 let updateState;
 
-const SETTINGS_TITLE = "Settings: AI models and API credentials (,)";
+const SETTINGS_TITLE = "Settings (,)";
 
 /**
  * The dot on the Settings buttons while an update is waiting to be installed.
@@ -1150,25 +1149,25 @@ function sinceText(ms) {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-/** The Updates part of Settings: the version, and a button to check or install. */
-function updatePart() {
+/** The Version row of Settings: the version, and a button to check or install. */
+function versionRow() {
   const u = updateState;
   if (!u) return "";
   const error = u.error && !u.installing ? `<p class="warn">${esc(u.error)}</p>` : "";
   const notes = u.latest ? ` <a href="https://github.com/jeff-carmichael/aecdo/releases/tag/v${esc(u.latest)}" target="_blank" rel="noreferrer">What's new</a>` : "";
   let status;
   if (u.installed) {
-    status = `<div class="update-row"><span class="ok">Installed aecdo v${esc(u.installed)}. Quit and open aecdo again to use it.${notes}</span><button data-quit>Quit aecdo</button></div>`;
+    status = `<span class="ok">Installed v${esc(u.installed)}. Quit and open aecdo again to use it.${notes}</span><button data-quit>Quit aecdo</button>`;
   } else if (u.installing) {
-    status = `<p>Downloading and installing aecdo v${esc(u.latest ?? "")}…</p>`;
+    status = `<span>Installing v${esc(u.latest ?? "")}…</span>`;
   } else if (u.available) {
-    status = `<div class="update-row"><span class="update-dot"></span><span><strong>aecdo v${esc(u.latest ?? "")} is out.</strong> You have v${esc(u.current)}.${notes}</span>${u.npmCommand ? "" : `<button class="primary" data-update="install">Install v${esc(u.latest ?? "")}</button>`}</div>
-${u.npmCommand ? `<p class="dim">aecdo was installed with npm. To update it, run <code>${esc(u.npmCommand)}</code> in a terminal.</p>` : ""}`;
+    status = `<span class="update-dot"></span><span><strong>v${esc(u.latest ?? "")} is out.</strong> You have v${esc(u.current)}.${notes}</span>${u.npmCommand ? "" : `<button class="primary" data-update="install">Install v${esc(u.latest ?? "")}</button>`}${u.npmCommand ? `<p class="dim">Installed with npm: run <code>${esc(u.npmCommand)}</code> to update.</p>` : ""}`;
   } else {
-    const checked = u.checkedAt ? ` Checked ${sinceText(u.checkedAt)}.` : "";
-    status = `<div class="update-row"><span class="dim">aecdo v${esc(u.current)}${u.latest && !u.error ? " is the latest version" : ""}.${checked}</span><button data-update="check"${u.checking ? " disabled" : ""}>${u.checking ? "Checking…" : "Check for updates"}</button></div>`;
+    const latest = u.latest && !u.error ? ", the latest" : "";
+    const checked = u.checkedAt ? ` · checked ${sinceText(u.checkedAt)}` : "";
+    status = `<span>v${esc(u.current)}<span class="dim">${latest}${checked}</span></span><button data-update="check"${u.checking ? " disabled" : ""}>${u.checking ? "Checking…" : "Check for updates"}</button>`;
   }
-  return `<h3>Updates</h3>${status}${error}`;
+  return `<span class="pref-label">Version</span><div class="pref-value">${status}${error}</div>`;
 }
 
 /**
@@ -1190,15 +1189,18 @@ async function settingsModal(info) {
   let editing;
   let busy = false;
 
+  /** The @names a route reaches, shown under its name. */
+  const reaches = (/** @type {string} */ id) => {
+    const names = info.ai.assistants.filter((/** @type {any} */ m) => m.possible.includes(id));
+    return names.length === info.ai.assistants.length ? "every @name" : names.map((/** @type {any} */ m) => `@${m.name}`).join(" ");
+  };
+
   const routeRow = (/** @type {any} */ r) => {
     const a = /** @type {any} */ (ROUTE_ACTIONS)[r.id] ?? {};
-    const buttons = [
-      a.signIn ? `<button data-sign-in="${r.id}">${esc(a.signIn)}</button>` : "",
-      a.key ? `<button data-edit="${r.id}">${r.configured ? "New " : ""}${esc(a.key)}</button>` : "",
-      a.form ? `<button data-edit="${r.id}">${r.configured ? "Change" : "Set up"}</button>` : "",
-      r.configured ? `<button data-sign-out="${r.id}" title="Remove the saved sign-in">Remove</button>` : "",
-    ].join("");
-    return `<li><span class="route-name">${esc(r.label)}</span><span class="${r.configured ? "ok" : "dim"}">${r.configured ? "✓ set up" : "not set up"}</span><span class="row-actions">${buttons}</span>${editing === r.id ? routeForm(r.id) : ""}</li>`;
+    const buttons = r.configured
+      ? `<button data-edit="${r.id}">Change</button><button data-sign-out="${r.id}" title="Remove the saved sign-in">Remove</button>`
+      : `${a.signIn ? `<button data-sign-in="${r.id}">${esc(a.signIn)}</button>` : ""}<button data-edit="${r.id}">${esc(a.key ?? "Set up")}</button>`;
+    return `<li><span class="route-name">${esc(r.label)}${r.configured ? ' <span class="ok" title="Set up">✓</span>' : ""}<small class="dim">${esc(reaches(r.id))}</small></span><span class="row-actions">${buttons}</span>${editing === r.id ? routeForm(r.id) : ""}</li>`;
   };
 
   const routeForm = (/** @type {string} */ id) => {
@@ -1225,10 +1227,6 @@ ${models}
   };
 
   const assistantRow = (/** @type {any} */ m) => {
-    if (!m.available.length) {
-      const how = m.possible.map((/** @type {string} */ r) => info.ai.routes.find((/** @type {any} */ x) => x.id === r)?.label ?? r).join(", ");
-      return `<tr><td>@${esc(m.name)}</td><td colspan="2" class="dim">needs one of: ${esc(how)}</td></tr>`;
-    }
     const routes = m.available.map((/** @type {string} */ r) => `<option value="${r}"${r === m.route ? " selected" : ""}>${esc(info.ai.routes.find((/** @type {any} */ x) => x.id === r)?.label ?? r)}</option>`).join("");
     return `<tr data-name="${m.name}"><td>@${esc(m.name)}</td><td><select data-route aria-label="How @${esc(m.name)} is reached">${routes}</select></td><td><select data-model aria-label="@${esc(m.name)} model"><option>${esc(m.model ?? "")}</option></select></td></tr>`;
   };
@@ -1238,28 +1236,29 @@ ${models}
     const auth = authNote
       ? `<div class="auth-note">${esc(authNote.text)}${authNote.code ? ` <code>${esc(authNote.code)}</code>` : ""}${authNote.url ? `<br><a href="${esc(authNote.url)}" target="_blank" rel="noreferrer">${esc(authNote.url)}</a>` : ""}</div>`
       : "";
+    const ready = ai.assistants.filter((/** @type {any} */ m) => m.available.length);
     const aiPart = ai.supported
-      ? `<p class="dim">Sign in or add a key for at least one of these. Saved in <code>${esc(ai.path)}</code>.</p>
+      ? `${ready.length ? "" : `<p class="dim">Sign in or add a key for one of these to use the AI chat.</p>`}
 <ul class="routes">${ai.routes.map(routeRow).join("")}</ul>
-<h3>Which model each @name uses</h3>
-<table class="assistants">${ai.assistants.map(assistantRow).join("")}</table>`
+${ready.length ? `<h3>Models</h3><table class="assistants">${ready.map(assistantRow).join("")}</table>` : ""}`
       : `<p class="warn">The AI chat needs Node.js 22.19 or newer. Use the standalone aecdo, or update Node.js.</p>`;
     const themes = /** @type {Theme[]} */ (Object.keys(THEME_LABELS))
       .map((t) => `<button data-theme="${t}" aria-pressed="${t === theme()}">${THEME_LABELS[t]}</button>`)
       .join("");
-    const updates = updatePart();
-    const first = updateState?.available || updateState?.installing || updateState?.installed;
-    body.innerHTML = `${auth}${first ? updates : ""}<h3>Look</h3><div class="theme-choice" role="group" aria-label="Light or dark">${themes}</div>
-<h3>AI models</h3>${aiPart}
-<h3>DrawingBot API</h3>
-${info.api.available ? `<p class="dim">Turns PDFs into drawing sets: pick one on the home screen. ${info.api.configured ? "Set up." : "Not set up."} Saved in <code>${esc(info.api.path)}</code>.</p>
+    const pdfPart = info.api.available
+      ? `<h3>PDF processing</h3>
+<p class="dim">DrawingBot API credentials, for turning PDFs into drawing sets.${info.api.configured ? ' <span class="ok">✓ Set up</span>' : ""}</p>
 <form class="settings-form" data-form="api">
 <label>Client ID <input name="clientId" placeholder="${esc(info.api.clientId ?? "")}" autocomplete="off" spellcheck="false"${info.api.configured ? "" : " required"}></label>
 <label>Client Secret <input name="clientSecret" type="password" placeholder="${info.api.configured ? "leave blank to keep the saved one" : ""}" autocomplete="off"${info.api.configured ? "" : " required"}></label>
 <label>Region <select name="region">${info.api.regions.map((/** @type {string} */ r) => `<option${r === info.api.region ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
-<div class="actions"><button class="primary">Save</button></div></form>` : `<p class="dim">Turning PDFs into drawing sets is coming soon.</p>`}
-${first ? "" : updates}
-<div class="actions"><button data-close>Done <kbd>Esc</kbd></button></div>`;
+<div class="actions"><button class="primary">Save</button></div></form>`
+      : "";
+    const folder = ai.path.replace(/[\\/][^\\/]*$/, "");
+    body.innerHTML = `${auth}<div class="prefs"><span class="pref-label">Look</span><div class="pref-value"><div class="theme-choice" role="group" aria-label="Light or dark">${themes}</div></div>${versionRow()}</div>
+<h3>AI sign-ins</h3>${aiPart}
+${pdfPart}
+<div class="actions settings-foot"><span class="dim">Saved in <code>${esc(folder)}</code></span><button data-close>Done <kbd>Esc</kbd></button></div>`;
     body.querySelectorAll("button").forEach((b) => (b.disabled ||= busy && !b.hasAttribute("data-close")));
     void loadModelChoices();
   };
@@ -1839,6 +1838,7 @@ function onKey(e) {
       return void back();
     case "Escape":
       handled();
+      if (focus === "sheets" && find.value.trim()) return clearFind();
       if (focus === "pdf" || focus === "chat") return setFocus(state?.sheet ? "main" : "sheets");
       return void back();
     case "u":
