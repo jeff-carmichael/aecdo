@@ -32,7 +32,6 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 /** @type {any} */ let state = null;
 /** @type {any} */ let shown = null;
 /** @type {"sheets" | "main" | "pdf" | "chat"} */ let focus = "sheets";
-let finding = false;
 let quitting = false;
 /** @type {any} */ let pdfInfo = null;
 /** Selected row for each place, so "back" lands where you were. */
@@ -141,6 +140,7 @@ async function start(boot) {
   $("set-title").textContent = set.title;
   $("set-title").title = set.path;
   cursors.clear();
+  find.value = "";
   buildSheetRows();
   void refreshSets();
   void loadPdf();
@@ -374,7 +374,6 @@ function applyState(s) {
 
 /** @param {string} sheet */
 async function openSheet(sheet) {
-  if (finding) stopFinding(false);
   applyState(await api("api/sheet", { sheet }));
   setFocus("main");
 }
@@ -384,7 +383,6 @@ async function openSheet(sheet) {
  * @param {string} id
  */
 async function openSource(id) {
-  if (finding) stopFinding(false);
   const s = await api("api/id", { id });
   applyState(s);
   if (s.target?.id !== id) return;
@@ -432,7 +430,7 @@ function setFocus(f) {
     render(state);
   }
   if (f === "sheets") {
-    if (!finding) $("sheet-list").focus({ preventScroll: true });
+    if (document.activeElement !== find) $("sheet-list").focus({ preventScroll: true });
     const row = sheetList.selectedRow;
     if (row && state && !state.sheet) schedulePreview(row.n, 0);
   } else if (f === "main") $("main-list").focus({ preventScroll: true });
@@ -455,7 +453,8 @@ function cycleFocus(/** @type {number} */ dir) {
 }
 
 function renderHints() {
-  const hints = (pickingSet ? HINTS.sets : focus === "chat" && chat.typing ? HINTS.chatInput : HINTS[focus]) ?? [];
+  let hints = (pickingSet ? HINTS.sets : focus === "chat" && chat.typing ? HINTS.chatInput : HINTS[focus]) ?? [];
+  if (focus === "sheets" && !pickingSet && find.value.trim()) hints = [...hints, ["Esc", "show all sheets"]];
   $("hints").innerHTML = hints.map(([k, v]) => `<span><kbd>${esc(k)}</kbd> ${esc(v)}</span>`).join("");
 }
 
@@ -473,31 +472,34 @@ const finder = new Finder(
 
 function startFinding() {
   stopPickingSet();
-  finding = true;
   setFocus("sheets");
   find.focus();
   find.select();
 }
 
-/** @param {boolean} keep keep the matches listed */
-function stopFinding(keep) {
-  finding = false;
-  if (!keep) {
-    find.value = "";
-    void finder.search("");
-  }
+/** Shows every sheet again. */
+function clearFind() {
+  find.value = "";
+  void finder.search("");
+  renderHints();
 }
 
 find.addEventListener("focus", () => {
-  finding = true;
   if (focus !== "sheets") setFocus("sheets");
 });
-find.addEventListener("input", () => void finder.search(find.value));
+find.addEventListener("input", () => {
+  void finder.search(find.value);
+  renderHints();
+});
 find.addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    // The arrows go into the matches, which stay listed until Esc or the filter is emptied.
     e.preventDefault();
     const dir = e.key === "ArrowDown" ? 1 : -1;
-    void finder.after(() => sheetList.move(dir));
+    void finder.after(() => {
+      $("sheet-list").focus({ preventScroll: true });
+      sheetList.move(dir);
+    });
   } else if (e.key === "Enter") {
     e.preventDefault();
     void finder.after(() => {
@@ -507,7 +509,7 @@ find.addEventListener("keydown", (e) => {
   } else if (e.key === "Escape") {
     e.preventDefault();
     e.stopPropagation();
-    stopFinding(false);
+    clearFind();
     find.blur();
     setFocus(state?.sheet ? "main" : "sheets");
   }
@@ -568,10 +570,7 @@ $("set-list").addEventListener("click", (e) => {
 /** Moves the arrows into the list of sets, starting at the open one. */
 function startPickingSet() {
   if (folderSets.length < 2 || !setsOpen) return;
-  if (finding) {
-    stopFinding(true);
-    find.blur();
-  }
+  find.blur();
   setFocus("sheets");
   pickingSet = true;
   setSelected = Math.max(0, folderSets.findIndex((s) => s.open));
@@ -1839,6 +1838,7 @@ function onKey(e) {
       return void back();
     case "Escape":
       handled();
+      if (focus === "sheets" && find.value.trim()) return clearFind();
       if (focus === "pdf" || focus === "chat") return setFocus(state?.sheet ? "main" : "sheets");
       return void back();
     case "u":
