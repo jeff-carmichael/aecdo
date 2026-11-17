@@ -11,7 +11,7 @@ export const SHORTCUTS = [
       ["u", "go up a level"],
       ["1 2 3 …", "pick a row by its number"],
       ["/", "find a sheet by number or title"],
-      ["s", "switch to another drawing set in this folder"],
+      ["s", "show or hide the other drawing sets in this folder"],
       ["Tab", "switch between the sheet list, the contents, and the PDF"],
       ["Home  End  PgUp  PgDn", "jump in the list"],
     ],
@@ -58,7 +58,7 @@ export const SHORTCUTS = [
 /** The short hints along the bottom, for where the focus is. */
 export const HINTS = {
   sheets: [["↑↓", "move"], ["Enter", "open"], ["/", "find"], ["s", "sets"], ["a", "ask AI"], ["?", "keys"]],
-  sets: [["↑↓", "move"], ["Enter", "open this set"], ["Esc", "back to the sheets"]],
+  sets: [["↑↓", "move"], ["Enter", "open this set"], ["Esc", "back to the sheets"], ["s", "hide"]],
   main: [["↑↓", "move"], ["Enter", "open"], ["←", "back"], ["u", "up"], ["z", "zoom to it"], ["a", "ask AI"], ["?", "keys"]],
   pdf: [["arrows", "pan"], ["+ −", "zoom"], ["f", "fit"], ["z", "zoom to selection"], ["Tab", "back to lists"], ["?", "keys"]],
   chat: [["type", "ask"], ["[ ]", "switch chats"], ["Ctrl+T", "new chat"], ["Delete", "close chat"], ["↑", "scroll"], ["↓", "scroll, then type"], ["Esc", "leave"]],

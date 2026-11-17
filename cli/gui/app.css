@@ -266,14 +266,20 @@ code {
 
 #set-switcher {
   border-bottom: 1px solid var(--line);
-  padding: 6px 0 4px;
+  padding: 4px 0;
 }
 
 .switcher-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 10px 2px 13px;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  padding: 2px 10px 2px 13px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -283,6 +289,38 @@ code {
 
 .switcher-head kbd {
   text-transform: none;
+}
+
+.switcher-head:hover {
+  color: var(--text);
+}
+
+.switcher-head .chev {
+  display: inline-block;
+  width: 10px;
+  transition: transform 0.12s;
+}
+
+#set-switcher.open .chev {
+  transform: rotate(90deg);
+}
+
+#sets-current {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 12px;
+}
+
+#set-switcher.open #sets-current {
+  color: var(--dim);
+  font-weight: 400;
 }
 
 #set-list {

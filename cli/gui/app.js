@@ -504,6 +504,8 @@ let folderSets = [];
 /** True while the arrows move in the list of drawing sets rather than the sheets. */
 let pickingSet = false;
 let setSelected = 0;
+/** Whether the list of sets is shown; folded, its heading names the open set. Kept while the app is open. */
+let setsOpen = false;
 
 /** Lists the folder's drawing sets that have a PDF of the same name above the sheets, when there's more than one. */
 async function refreshSets() {
@@ -519,13 +521,28 @@ async function refreshSets() {
 
 function drawSets() {
   $("set-switcher").hidden = folderSets.length < 2;
+  $("set-switcher").classList.toggle("open", setsOpen);
   $("sheets-pane").classList.toggle("picking-set", pickingSet);
+  $("sets-toggle").setAttribute("aria-expanded", String(setsOpen));
+  $("sets-current").textContent = setsOpen ? `${folderSets.length}` : (folderSets.find((s) => s.open)?.name ?? "");
   const list = $("set-list");
+  list.hidden = !setsOpen;
   list.innerHTML = folderSets
     .map((s, i) => `<li class="${s.open ? "open" : ""}${i === setSelected ? " selected" : ""}" data-i="${i}" title="${esc(s.open ? `${s.file} is open` : `Open ${s.file}`)}"><span class="name">${esc(s.name)}</span></li>`)
     .join("");
   list.querySelector(".selected")?.scrollIntoView({ block: "nearest" });
 }
+
+/** Shows or folds the list of sets; showing it from the keyboard puts the arrows in it. */
+function toggleSets(pick = false) {
+  if (folderSets.length < 2) return message("There's only one drawing set in this folder with a PDF of the same name.");
+  setsOpen = !setsOpen;
+  if (setsOpen && pick) return startPickingSet();
+  if (!setsOpen) stopPickingSet();
+  drawSets();
+}
+
+$("sets-toggle").addEventListener("click", () => toggleSets());
 
 $("set-list").addEventListener("click", (e) => {
   const li = /** @type {HTMLElement | null} */ (/** @type {HTMLElement} */ (e.target).closest("li[data-i]"));
@@ -534,7 +551,7 @@ $("set-list").addEventListener("click", (e) => {
 
 /** Moves the arrows into the list of sets, starting at the open one. */
 function startPickingSet() {
-  if (folderSets.length < 2) return message("There's only one drawing set in this folder with a PDF of the same name.");
+  if (folderSets.length < 2 || !setsOpen) return;
   if (finding) {
     stopFinding(true);
     find.blur();
@@ -593,8 +610,10 @@ function setKey(k) {
     case "ArrowLeft":
     case "h":
     case "Backspace":
-    case "s":
       stopPickingSet();
+      return true;
+    case "s":
+      toggleSets();
       return true;
   }
   stopPickingSet();
@@ -1716,7 +1735,7 @@ function onKey(e) {
 
   if (pickingSet && focus === "sheets") {
     if (setKey(k)) return handled();
-  } else if (focus === "sheets" && (k === "ArrowUp" || k === "k") && folderSets.length > 1 && sheetList.selected <= sheetList.firstSelectable()) {
+  } else if (focus === "sheets" && (k === "ArrowUp" || k === "k") && setsOpen && folderSets.length > 1 && sheetList.selected <= sheetList.firstSelectable()) {
     // ↑ from the first sheet goes up into the list of sets.
     handled();
     return startPickingSet();
@@ -1813,7 +1832,7 @@ function onKey(e) {
       return startFinding();
     case "s":
       handled();
-      return startPickingSet();
+      return toggleSets(true);
     case "a":
       handled();
       return setFocus("chat");
