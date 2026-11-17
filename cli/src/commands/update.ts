@@ -1,9 +1,9 @@
-import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { access, chmod, mkdtemp, readFile, rename, rm, unlink, writeFile, constants } from "node:fs/promises";
 import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
+import { sha256 } from "../lib/hash.js";
 import { fetchLatestVersion, isNewerVersion, NPM_UPDATE_COMMAND, writeCache } from "../lib/update-check.js";
 
 const REPO = "jeff-carmichael/aecdo";
@@ -54,10 +54,6 @@ export function expectedChecksum(checksums: string, file: string): string {
     if (name === file && hash) return hash.toLowerCase();
   }
   throw new Error(`checksums.txt does not list ${file}`);
-}
-
-export function sha256(data: Uint8Array): string {
-  return createHash("sha256").update(data).digest("hex");
 }
 
 // The old binary is moved aside on Windows because a running .exe cannot be

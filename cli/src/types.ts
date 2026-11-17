@@ -72,6 +72,8 @@ export interface DrawingSet {
   "@type": "DrawingSet";
   "@id": string;
   filename: string;
+  /** SHA-256 (hex) of the source PDF's bytes. */
+  sourcePdfSha256?: string;
   processedDate: string;
   sheets: Sheet[];
 }
@@ -81,7 +83,7 @@ export interface CommandOptions {
   pretty?: boolean;
   output?: string;
   schema?: string;
-  /** gui: the source PDF */
+  /** gui: the source PDF; validate: the PDF to check against the set */
   pdf?: string;
 }
 

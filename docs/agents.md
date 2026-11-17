@@ -28,7 +28,7 @@ An `AGENTS.md` in the folder guides both the [app's assistant](assistant.md#agen
 
 | Command | Prints |
 |---------|--------|
-| `aecdo validate <file>` | Schema errors; exits 1 if invalid |
+| `aecdo validate <file>` | Schema errors; exits 1 if invalid. With `--pdf <file>`, also whether that PDF is the one the set was made from |
 | `aecdo summary <file>` | Counts of sheets, drawings, items, tables |
 | `aecdo sheets <file>` | One line per sheet |
 | `aecdo page <file> <sheet>` | Everything on one sheet (`A101` or page index) |

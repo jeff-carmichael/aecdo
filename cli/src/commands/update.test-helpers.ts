@@ -4,7 +4,8 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sha256, systemTar } from "./update.js";
+import { systemTar } from "./update.js";
+import { sha256 } from "../lib/hash.js";
 import { RELEASES_URL } from "../lib/update-check.js";
 
 export const tmp = () => mkdtempSync(join(tmpdir(), "aecdo-update-test-"));

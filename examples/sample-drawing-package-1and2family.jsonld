@@ -4,6 +4,7 @@
   "@type": "DrawingSet",
   "processedDate": "2026-10-27T18:00:00Z",
   "filename": "sample-drawing-package-1and2family.pdf",
+  "sourcePdfSha256": "c6513fda8a6fde14066dc13323ad52724b268fc4da3f49a6abffee0724b8e7de",
   "sheets": [
     {
       "@id": "urn:uuid:5c77e185-cc61-5c34-89ec-5a057db45f68",

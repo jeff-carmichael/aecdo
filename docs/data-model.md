@@ -21,6 +21,7 @@ classDiagram
 		    +uuid4 @id
 		    +Date processedDate
 		    +String filename
+		    +String sourcePdfSha256
     }
     class Sheet {
 		    +uuid4 @id
@@ -80,7 +81,7 @@ classDiagram
 
 | Type | Description |
 |------|-------------|
-| **DrawingSet** | Root — source filename, processed date, and sheets |
+| **DrawingSet** | Root — source filename, the PDF's SHA-256 (optional), processed date, and sheets |
 | **Sheet** | A page from the PDF with sheet number, title, and page index |
 | **Drawing** | A view on a sheet (plan, section, elevation, detail) with scale and layers |
 | **Layer** | Groups related items (e.g. "Walls", "Doors & Windows", "Annotations") |
@@ -100,6 +101,7 @@ Every object has an `@id` (`urn:uuid:…`) and an `@type`. `references` lists ot
   "@type": "DrawingSet",
   "processedDate": "2026-04-10T14:30:00Z",
   "filename": "Example_Building_Plans.pdf",
+  "sourcePdfSha256": "33777aa3b672010af2f61033d0b788ccc735ebc08919b169f25fc2074b8e61fc",
   "sheets": [
     {
       "@id": "urn:uuid:11111111-1111-1111-1111-111111111111",
@@ -156,10 +158,10 @@ To draw one on a page image rendered at a given DPI, multiply by `DPI / 72`. If 
 
 ## Making your own files
 
-Any tool can write AECDO files. Give every object a unique `@id`, write bboxes as above, set `filename` to the PDF's name, and save the `.jsonld` beside that PDF. Then check it:
+Any tool can write AECDO files. Give every object a unique `@id`, write bboxes as above, set `filename` to the PDF's name, and save the `.jsonld` beside that PDF. Add `sourcePdfSha256`, the PDF's SHA-256 (`shasum -a 256 plans.pdf`), so the app can warn when someone opens the set with a different PDF. Then check it:
 
 ```bash
-aecdo validate my-file.jsonld
+aecdo validate my-file.jsonld --pdf my-file.pdf
 ```
 
-It exits with 1 if the file doesn't match. Schema changes: see [CONTRIBUTING.md](https://github.com/jeff-carmichael/aecdo/blob/main/CONTRIBUTING.md#contributing-to-the-ontologyschema).
+It exits with 1 if the file doesn't match the schema, or the PDF isn't the one in `sourcePdfSha256`. Schema changes: see [CONTRIBUTING.md](https://github.com/jeff-carmichael/aecdo/blob/main/CONTRIBUTING.md#contributing-to-the-ontologyschema).
