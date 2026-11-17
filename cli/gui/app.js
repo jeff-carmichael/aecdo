@@ -181,18 +181,16 @@ function buildSheetRows(query) {
   if (!rows.length) $("sheet-list").dataset.empty = query ? "No sheets match." : "This set has no sheets.";
 }
 
-/** "sample-drawing-pa…markups-code-review.pdf": keeps the end, where the set's name is. */
-const middleCut = (/** @type {string} */ s, /** @type {number} */ max) => (s.length <= max ? s : `${s.slice(0, Math.floor(max / 3))}…${s.slice(s.length - Math.ceil((max * 2) / 3) + 1)}`);
-
 async function loadPdf() {
   const info = pdfInfo;
   $("pdf-missing").hidden = info.available;
   $("pdf-stage").hidden = !info.available;
   $("pdf-bar").hidden = !info.available;
-  $("pdf-note").textContent = info.savedCopy ? middleCut(info.name ?? "", 30) : "original PDF";
-  $("pdf-note").title = info.savedCopy
+  $("markup-set").title = info.savedCopy
     ? `Showing ${info.name}, the copy with ${info.markupSet ?? "these"} markups. The original PDF isn't changed.`
-    : `Showing ${info.name ?? "the original PDF"}. ${info.markupSet ?? "This set"} has no markups yet; its copy is made with the first one.`;
+    : info.original
+      ? `Showing the original PDF, ${info.name}. New markups go to ${info.markupSet ?? "the current set"}.`
+      : `Showing the original PDF, ${info.name}. ${info.markupSet ?? "This set"} has no markups yet; its copy is made with the first one.`;
   if (!info.available) {
     showMissingPdf(info);
     return;
@@ -669,7 +667,7 @@ function toggleChat() {
 /**
  * @typedef {{ slug: string, name: string, file: string, exists: boolean, current: boolean }} MarkupSet
  * @typedef {{ step: number, text: string, time?: string, current: boolean }} HistoryEntry
- * @typedef {{ file?: string, set?: string, sets: MarkupSet[], suggested: string[], markups: { describe: string, sheetNumber: string }[], history: HistoryEntry[], historyNote?: string, error?: string }} MarkupsInfo
+ * @typedef {{ file?: string, set?: string, sets: MarkupSet[], original?: boolean, suggested: string[], markups: { describe: string, sheetNumber: string }[], history: HistoryEntry[], historyNote?: string, error?: string }} MarkupsInfo
  */
 
 /** @type {MarkupsInfo} */
@@ -685,7 +683,8 @@ async function refreshMarkups() {
   badge.textContent = String(info.markups.length);
   const picker = /** @type {HTMLSelectElement} */ ($("markup-set"));
   fillSetSelect(picker, info, false);
-  picker.title = info.file ? `Switch markup set. New markups go to ${info.set}, saved in ${info.file}` : "Switch markup set";
+  picker.insertAdjacentHTML("afterbegin", `<option value="">Original</option>`);
+  if (info.original) picker.value = "";
   $("pdf-sets").hidden = info.sets.length === 0 && !!info.error;
   if (modal?.kind === "markups") modal.update?.(info);
 }
@@ -709,10 +708,10 @@ function fillSetSelect(select, info, withSuggested) {
   ].join("");
 }
 
-/** @param {string} name */
-async function useSet(name) {
+/** @param {string} name  a markup set, or "" for the original PDF */
+async function showVersion(name) {
   try {
-    toast((await api("api/markups", { action: "set", name })).message);
+    toast((await api("api/markups", name ? { action: "set", name } : { action: "original" })).message);
   } catch (err) {
     toast(/** @type {Error} */ (err).message, "warn");
   }
@@ -1948,7 +1947,7 @@ $("chat-input").addEventListener("blur", renderHints);
 $("markups-btn").addEventListener("click", markupsPanel);
 $("markup-set").addEventListener("change", (e) => {
   const select = /** @type {HTMLSelectElement} */ (e.target);
-  void useSet(select.value);
+  void showVersion(select.value);
   select.blur();
 });
 $("markup-new").addEventListener("click", newSetDialog);

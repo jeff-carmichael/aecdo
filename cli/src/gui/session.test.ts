@@ -125,6 +125,18 @@ test("markups: added from the selection go straight into a copy the pane shows",
   assert.equal(await s.markupsAction("undo"), "Undone.");
   assert.equal((await s.markupsInfo()).markups.length, 1);
   await assert.rejects(s.markupsAction("explode"), /Unknown markups action/);
+
+  const copy = s.pdfFile();
+  assert.equal(await s.markupsAction("original"), "Showing the original PDF");
+  assert.equal(s.pdfFile(), join(dir, "sample-drawing-package-1and2family.pdf"));
+  assert.equal((await s.pdfInfo()).original, true);
+  assert.equal((await s.markupsInfo()).original, true);
+  await s.markupsAction("set", { name: "Markups" });
+  assert.equal(s.pdfFile(), copy, "picking the set again shows its copy");
+  await s.markupsAction("original");
+  await s.addMarkup({ kind: "note", text: "More" });
+  assert.equal(s.pdfFile(), copy, "a new markup shows the copy it went to");
+  assert.equal((await s.markupsInfo()).original, undefined);
 });
 
 test("picking another PDF", async () => {
