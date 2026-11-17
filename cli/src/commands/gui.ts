@@ -118,4 +118,5 @@ export async function gui(file: string | undefined, opts: GuiOptions = {}): Prom
   clearTimeout(idle);
   kill.current?.();
   await server.close();
+  await app.session?.chatsSaved();
 }

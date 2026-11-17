@@ -1,4 +1,5 @@
 import { basename, dirname } from "node:path";
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { Explorer, PdfLocator, AssistantBridge, findSheetRows, parseMention, notSetUpMessage, sheetEntries, buildRefIndex, groupSheets, SHEET_GROUP_THRESHOLD, type ScreenModel, type ViewTarget, type AssistantOutput } from "../commands/explore.js";
 import { MarkupSession, SUGGESTED_SETS, type HistoryEntry, type MarkupRequest, type MarkupSet } from "../commands/markups.js";
@@ -10,6 +11,10 @@ import { ASSISTANTS, type AssistantName } from "../lib/llm.js";
 import { MARKUP_KINDS, type Markup, type MarkupKind } from "../lib/markup.js";
 import type { DrawingSet, Sheet } from "../types.js";
 import type { UpdateState } from "./updates.js";
+import { ChatStore, type ChatEntry, type ChatRecord, type SavedChat, type SavedChatSummary } from "./chat-history.js";
+import type { ConversationLog } from "../commands/explore.js";
+
+export type { ChatEntry, ChatRole } from "./chat-history.js";
 
 /** Something on the page a row or box points at. */
 export interface PageBox {
@@ -100,13 +105,6 @@ export interface BootInfo {
   markupKinds: readonly MarkupKind[];
 }
 
-export type ChatRole = "user" | "assistant" | "status" | "tool";
-
-export interface ChatEntry {
-  role: ChatRole;
-  text: string;
-}
-
 export interface ThreadInfo {
   id: string;
   title: string;
@@ -140,6 +138,14 @@ export interface GuiSessionOptions {
   confirm: (question: string, thread?: string) => Promise<boolean>;
   /** Makes the assistant for a chat thread; tests pass a fake. */
   bridge?: (out: AssistantOutput, hooks: BridgeHooks) => ChatBridge;
+  /** Where chats are saved, one folder per set (the app uses ~/.aecdo/projects); unset, chats aren't saved. */
+  chatsDir?: string;
+}
+
+/** A saved chat as the app's list shows it. */
+export interface PastChat extends SavedChatSummary {
+  modelLabel: string;
+  open: boolean;
 }
 
 /** What a chat thread needs from the assistant (AssistantBridge in the app). */
@@ -149,6 +155,8 @@ export interface BridgeHooks {
   onNavigate: () => void;
   onTool: (name: string, args: unknown) => void;
   showPage: () => Promise<string>;
+  /** Each model's side of the chat, saved with it. */
+  conversation?: ConversationLog;
 }
 
 const MAX_ENTRY_CHARS = 200_000;
@@ -159,13 +167,68 @@ class ChatThread {
   title = "New chat";
 
   readonly bridge: ChatBridge;
+  private saved = 0;
+  /** Whether the chat has a file yet: it's started with the first question. */
+  private started = false;
+  private messages: SavedChat["messages"] = {};
 
   constructor(
     readonly id: string,
     public model: AssistantName,
-    makeBridge: (thread: ChatThread) => ChatBridge
+    makeBridge: (thread: ChatThread) => ChatBridge,
+    private store?: ChatStore,
+    from?: SavedChat
   ) {
+    if (from) {
+      this.entries = from.entries;
+      this.title = from.title;
+      this.messages = from.messages;
+      this.saved = from.entries.length;
+      this.started = true;
+    }
     this.bridge = makeBridge(this);
+  }
+
+  readonly conversation: ConversationLog = {
+    messages: (name) => this.messages[name],
+    save: (name, message) => this.record({ type: "message", model: name, message }),
+  };
+
+  private record(...records: ChatRecord[]): void {
+    if (!this.store || !this.started) return;
+    this.store.append(this.id, records).catch(() => undefined);
+  }
+
+  /** Adds a line to the chat; the one before it is finished, so it's saved. */
+  add(entry: ChatEntry): void {
+    this.entries.push(entry);
+    this.save(false);
+  }
+
+  /** Saves the finished lines; `all` once the answer is done. */
+  save(all = true): void {
+    const end = this.entries.length - (all ? 0 : 1);
+    if (!this.started || end <= this.saved) return;
+    this.record(...this.entries.slice(this.saved, end).map((e): ChatRecord => ({ type: "entry", role: e.role, text: e.text })));
+    this.saved = end;
+  }
+
+  /** Starts the chat's file with what's in the chat so far. */
+  start(): void {
+    if (this.started || !this.store) return;
+    this.started = true;
+    this.record({ type: "chat", set: this.store.setPath }, { type: "title", title: this.title }, { type: "model", model: this.model });
+  }
+
+  setModel(model: AssistantName): void {
+    if (model === this.model) return;
+    this.model = model;
+    this.record({ type: "model", model });
+  }
+
+  setTitle(title: string): void {
+    this.title = title;
+    this.record({ type: "title", title });
   }
 
   info(): Omit<ThreadInfo, "entries"> {
@@ -263,7 +326,7 @@ export class GuiSession {
   private pdfVersion = 1;
   private refIndex?: ReturnType<typeof buildRefIndex>;
   private threads = new Map<string, ChatThread>();
-  private threadSeq = 0;
+  private chats?: ChatStore;
   private seq = 0;
   private defaultModel?: Promise<AssistantName>;
 
@@ -274,6 +337,7 @@ export class GuiSession {
   ) {
     this.explorer = new Explorer(data, (line = "") => this.log.push(line), { fileName: basename(filePath) });
     this.locator = new PdfLocator(data, filePath, opts.pdf);
+    if (opts.chatsDir) this.chats = new ChatStore(opts.chatsDir, filePath);
     this.pdfPath = findSourcePdf(sourcePdfCandidates(filePath, data, opts.pdf));
     this.markups = new GuiMarkups(data, {
       locatePdf: () => ({ path: this.pdfPath, looked: sourcePdfCandidates(filePath, data, opts.pdf) }),
@@ -579,14 +643,14 @@ export class GuiSession {
         const t = thread();
         const last = t.entries.at(-1);
         if (last?.role === "assistant" && last.text.length < MAX_ENTRY_CHARS) last.text += text;
-        else t.entries.push({ role: "assistant", text });
+        else t.add({ role: "assistant", text });
         this.opts.emit({ type: "chat", thread: t.id, op: "delta", text });
       },
       print: (line = "") => {
         const text = line.trim();
         if (!text) return;
         const entry: ChatEntry = { role: "status", text };
-        thread().entries.push(entry);
+        thread().add(entry);
         emitEntry(entry);
       },
       confirm: (q) => this.opts.confirm(q.replace(/\s*\[y\/N\]\s*$/i, ""), thread().id),
@@ -598,12 +662,17 @@ export class GuiSession {
       },
       onTool: (name, args) => {
         const entry: ChatEntry = { role: "tool", text: toolNote(name, args) };
-        thread().entries.push(entry);
+        thread().add(entry);
         emitEntry(entry);
       },
       showPage: () => Promise.resolve(this.showPage()),
     };
-    if (this.opts.bridge) return this.opts.bridge(out, hooks);
+    // Bound lazily: the probes that only ask what's set up have no thread.
+    const conversation: ConversationLog = {
+      messages: (name) => thread().conversation.messages(name),
+      save: (name, message) => thread().conversation.save(name, message),
+    };
+    if (this.opts.bridge) return this.opts.bridge(out, { ...hooks, conversation });
     return new AssistantBridge({
       data: this.data,
       filePath: this.filePath,
@@ -611,6 +680,7 @@ export class GuiSession {
       out,
       markups: this.markups,
       ...hooks,
+      conversation,
     });
   }
 
@@ -644,8 +714,25 @@ export class GuiSession {
   }
 
   async newThread(model?: AssistantName): Promise<ThreadInfo> {
-    const id = `t${++this.threadSeq}`;
-    const thread = new ChatThread(id, model ?? (await this.firstModel()), (t) => this.makeBridge(() => t));
+    const id = randomUUID();
+    const thread = new ChatThread(id, model ?? (await this.firstModel()), (t) => this.makeBridge(() => t), this.chats);
+    this.threads.set(id, thread);
+    return { ...thread.info(), entries: thread.entries };
+  }
+
+  /** This set's saved chats, most recent first. */
+  async pastChats(): Promise<PastChat[]> {
+    const list = (await this.chats?.list()) ?? [];
+    return list.map((c) => ({ ...c, modelLabel: ASSISTANTS[c.model].label, open: this.threads.has(c.id) }));
+  }
+
+  /** Opens a saved chat again, with what each model said, so it carries on where it stopped. */
+  async resumeThread(id: string): Promise<ThreadInfo> {
+    const open = this.threads.get(id);
+    if (open) return { ...open.info(), entries: open.entries };
+    const saved = await this.chats?.load(id);
+    if (!saved) throw new Error("That chat isn't saved anymore.");
+    const thread = new ChatThread(id, saved.model, (t) => this.makeBridge(() => t), this.chats, saved);
     this.threads.set(id, thread);
     return { ...thread.info(), entries: thread.entries };
   }
@@ -657,6 +744,7 @@ export class GuiSession {
   closeThread(id: string): void {
     const t = this.threads.get(id);
     t?.bridge.active?.abort();
+    t?.save();
     this.threads.delete(id);
   }
 
@@ -674,26 +762,29 @@ export class GuiSession {
     const mention = parseMention(trimmed.startsWith("@") ? trimmed : `@${t.model} ${trimmed}`)!;
     const emitThread = () => this.opts.emit({ type: "chat", thread: t.id, op: "thread", info: t.info() });
     const say = (entry: ChatEntry) => {
-      t.entries.push(entry);
+      t.add(entry);
       this.opts.emit({ type: "chat", thread: t.id, op: "entry", entry });
     };
 
-    if (mention.assistant) t.model = mention.assistant.name;
+    if (mention.assistant) t.setModel(mention.assistant.name);
     if (mention.assistant && !mention.text) {
       const ai = await t.bridge.describe(mention.assistant.name);
       emitThread();
       say({ role: "status", text: ai.detail === "not set up" ? notSetUpMessage(mention.assistant) : `Questions in this chat now go to ${ai.label}${ai.detail ? ` (${ai.detail})` : ""}.` });
+      t.save();
       return;
     }
 
+    t.start();
     say({ role: "user", text: trimmed });
-    if (t.title === "New chat") t.title = mention.text.length > 40 ? `${mention.text.slice(0, 39)}…` : mention.text || t.title;
+    if (t.title === "New chat") t.setTitle(mention.text.length > 40 ? `${mention.text.slice(0, 39)}…` : mention.text || t.title);
     t.busy = true;
     emitThread();
     try {
       await t.bridge.run(mention);
     } finally {
       t.busy = false;
+      t.save();
       emitThread();
     }
   }
@@ -706,6 +797,14 @@ export class GuiSession {
 
   /** Stops every answer in progress, e.g. before closing. */
   stopAll(): void {
-    for (const t of this.threads.values()) t.bridge.active?.abort();
+    for (const t of this.threads.values()) {
+      t.bridge.active?.abort();
+      t.save();
+    }
+  }
+
+  /** Waits until every chat line so far is on disk. */
+  async chatsSaved(): Promise<void> {
+    await this.chats?.flushed();
   }
 }

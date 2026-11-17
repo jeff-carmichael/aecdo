@@ -1,7 +1,7 @@
 import { appendFile, access, readdir, readFile } from "node:fs/promises";
 import { resolve, relative, isAbsolute, extname, basename } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { AgentTool, AgentToolResult, AgentEvent } from "@earendil-works/pi-agent-core";
+import type { AgentTool, AgentToolResult, AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
 import type { MutableModels, Model, Api, TSchema } from "@earendil-works/pi-ai";
 import type { DrawingSet } from "../types.js";
 import {
@@ -42,6 +42,10 @@ export interface AssistantHost {
   markups?: AssistantMarkups;
   /** Called when a tool starts, so the screen can show what the assistant is doing. */
   onTool?(name: string, args: unknown): void;
+  /** The conversation so far, when picking up a saved chat. */
+  history?: AgentMessage[];
+  /** Called with each message added to the conversation (not system messages), so it can be saved. */
+  onMessage?(message: AgentMessage): void;
 }
 
 export interface AssistantMarkups {
@@ -456,6 +460,7 @@ export async function createAssistantSession(
       systemPrompt: withFolderInstructions(buildSystemPrompt(host, info), instructions),
       model,
       tools: buildTools(host, pi.Type),
+      ...(host.history?.length ? { messages: host.history.filter((m) => m.role !== "system") } : {}),
     },
     streamFn: models.streamSimple.bind(models),
     identity: { attribution: { name: "aecdo", url: "https://github.com/jeff-carmichael/aecdo" } },
@@ -489,6 +494,7 @@ export async function createAssistantSession(
         }
         break;
       case "message_end": {
+        if (event.message.role !== "system") host.onMessage?.(event.message);
         const m = event.message as { role?: string; stopReason?: string; errorMessage?: string };
         if (m.role === "assistant" && m.stopReason === "error") line(`  ⚠ ${info.label} error: ${m.errorMessage ?? "request failed"}`);
         if (m.role === "assistant" && midLine) line("");

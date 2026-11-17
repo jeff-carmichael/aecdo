@@ -33,6 +33,7 @@ export const SHORTCUTS = [
     [
       ["a  or  @", "go to the chat; then just type your question"],
       ["t  or  Ctrl+T", "start another chat"],
+      ["r", "past chats of this set: pick one to carry on"],
       ["[  ]", "switch chats (also in the chat until you type)"],
       ["↑  ↓", "in the chat: ↑ leaves the input to scroll the answers, ↓ at the end goes back in"],
       ["Alt + ↑ ↓", "bring back a question you sent (while typing)"],

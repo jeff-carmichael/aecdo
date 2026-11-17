@@ -371,3 +371,15 @@ test("lists the folder's sets that have a PDF of the same name, and switches bet
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("past chats are listed per set and reopen by id", async () => {
+  const { server, url } = await start();
+  try {
+    assert.deepEqual((await json(`${url}api/chat/past`)).data, []);
+    const missing = await json<{ error: string }>(`${url}api/chat/resume`, { thread: "11111111-1111-4111-8111-111111111111" });
+    assert.equal(missing.status, 404);
+    assert.match(missing.data.error, /isn't saved/);
+  } finally {
+    await server.close();
+  }
+});

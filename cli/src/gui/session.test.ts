@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { copyFileSync, mkdtempSync, readFileSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { GuiSession, type ChatBridge, type BridgeHooks, type GuiEvent } from "./session.js";
@@ -203,4 +203,61 @@ test("show_page in the app zooms the PDF pane instead of opening a viewer", asyn
   const shown = await hooks!.showPage();
   assert.match(shown, /zoomed to drawing Upper Floor Plan outlined in red, in the PDF pane/);
   assert.ok(events.some((e) => e.type === "focus"));
+});
+
+test("chats are saved per set as JSONL and pick up where they left off", async () => {
+  const chatsDir = mkdtempSync(join(tmpdir(), "aecdo-chats-"));
+  const file = "/work/maple-grove-library.jsonld";
+  /** A model that remembers: it says how many earlier messages it was given and saves the new ones. */
+  const remembering = (out: AssistantOutput, hooks: BridgeHooks): ChatBridge => ({
+    ...fakeBridge(out, hooks),
+    run: (m: Mention) => {
+      const name = m.assistant!.name;
+      const before = hooks.conversation?.messages(name)?.length ?? 0;
+      out.write(`I had ${before} messages before.`);
+      hooks.conversation?.save(name, { role: "user", content: m.text, timestamp: 1 });
+      hooks.conversation?.save(name, { role: "assistant", content: [{ type: "text", text: "ok" }] } as never);
+      return Promise.resolve();
+    },
+  });
+  const open = () => new GuiSession(maple, file, { emit: () => undefined, confirm: () => Promise.resolve(true), bridge: remembering, chatsDir });
+
+  const first = open();
+  const empty = await first.newThread();
+  assert.deepEqual(await first.pastChats(), [], "a chat with no question isn't saved");
+  await first.send(empty.id, "@claude");
+  await first.send(empty.id, "where is door 209B?");
+  await first.chatsSaved();
+
+  const [dir] = readdirSync(chatsDir);
+  assert.equal(dir, "-work-maple-grove-library-jsonld", "one folder per set, named after its path");
+  const lines = readFileSync(join(chatsDir, dir, `${empty.id}.jsonl`), "utf-8").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
+  assert.deepEqual(lines.slice(0, 3).map((l) => l.type), ["chat", "title", "model"]);
+  assert.ok(lines.every((l) => l.sessionId === empty.id && typeof l.timestamp === "string"));
+  assert.ok(lines.some((l) => l.type === "message" && l.model === "claude"));
+
+  const second = open();
+  const past = await second.pastChats();
+  assert.equal(past.length, 1);
+  assert.equal(past[0].title, "where is door 209B?");
+  assert.equal(past[0].model, "claude");
+  assert.equal(past[0].questions, 1);
+  assert.equal(past[0].open, false);
+
+  const t = await second.resumeThread(past[0].id);
+  assert.deepEqual(t.entries.map((e) => e.role), ["status", "user", "assistant"]);
+  assert.equal(t.entries[2].text, "I had 0 messages before.");
+  await second.send(t.id, "and 105A?");
+  assert.equal(second.threadList()[0].entries.at(-1)?.text, "I had 2 messages before.", "the model gets its side of the chat back");
+  assert.equal((await second.pastChats())[0].open, true);
+  await second.chatsSaved();
+
+  const third = open();
+  const again = await third.resumeThread(past[0].id);
+  assert.equal(again.entries.filter((e) => e.role === "user").length, 2);
+  assert.equal(again.title, "where is door 209B?");
+  await assert.rejects(third.resumeThread("../../etc/passwd"), /isn't saved/);
+
+  const other = new GuiSession(maple, "/work/other.jsonld", { emit: () => undefined, confirm: () => Promise.resolve(true), bridge: remembering, chatsDir });
+  assert.deepEqual(await other.pastChats(), [], "another set has its own chats");
 });

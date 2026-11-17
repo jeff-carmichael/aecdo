@@ -12,7 +12,7 @@ Open **aecdo** from the Start menu, Applications, or your app menu. The home scr
 
 Notes and spreadsheets the [AI](assistant.md) writes go in this folder.
 
-A folder can hold several sets. Each `.jsonld` with a PDF of the same name (`house.jsonld` and `house.pdf`) is listed above the sheets under **Drawing sets**, folded to the open one's name. Press <kbd>s</kbd> (or click) to show them, pick one, and press <kbd>Enter</kbd>; <kbd>s</kbd> folds the list again. One set is open at a time, so switching closes its chats.
+A folder can hold several sets. Each `.jsonld` with a PDF of the same name (`house.jsonld` and `house.pdf`) is listed above the sheets under **Drawing sets**, folded to the open one's name. Press <kbd>s</kbd> (or click) to show them, pick one, and press <kbd>Enter</kbd>; <kbd>s</kbd> folds the list again. One set is open at a time. Each set keeps its own [chats](assistant.md#chats), so switching shows that set's past chats.
 
 ## Move around
 

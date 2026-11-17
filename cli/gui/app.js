@@ -1761,6 +1761,7 @@ function onKey(e) {
     return startPickingSet();
   }
 
+  if (focus === "chat" && chat.pastKey(k)) return handled();
   if (focus === "chat") {
     // In the chat, [ ] switch chats, ↓ at the end and Enter go into the input, and Esc leaves; any other character starts typing.
     switch (k) {
@@ -1864,6 +1865,10 @@ function onKey(e) {
       handled();
       setFocus("chat");
       return void chat.newThread();
+    case "r":
+      handled();
+      setFocus("chat");
+      return void chat.showPast();
     case "[":
     case "]":
       handled();
