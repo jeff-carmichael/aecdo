@@ -77,6 +77,10 @@ test("following a link says how to come back, and openId opens anything by its @
   const opened = s.openId(table["@id"]);
   assert.equal(opened.kind, "entry");
   assert.ok(opened.table && opened.table.length > 1, "tables come as rows");
+  assert.equal(opened.copy?.what, "table");
+  assert.equal(opened.copy?.text.split("\n")[0], opened.table[0].join("\t"), "tables copy as tab-separated rows");
+  const note = maple.sheets.flatMap((sh) => sh.notes ?? [])[0];
+  assert.deepEqual(s.openId(note["@id"]).copy, { what: "note", text: note.content });
   assert.match(s.openId("urn:uuid:nope").message ?? "", /Nothing with id/);
 });
 
