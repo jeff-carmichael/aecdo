@@ -36,6 +36,7 @@ There's no "Sign in with Claude": Anthropic doesn't allow Claude plans in other 
 
 - **Move around** the set. The app follows.
 - **Show you** something on the PDF.
+- **Link its sources.** Answers link the doors, tables, and notes they're based on, marked ⌖. Click one to open it and zoom the PDF to it, outlined in red. Sheet numbers link to the sheet.
 - **[Mark up the PDF](markups.md)** with clouds, callouts, and notes.
 - **Write notes and spreadsheets** to your folder.
 

@@ -34,13 +34,25 @@ export function linkFiles(html) {
 }
 
 /**
- * Light Markdown (paragraphs, "- " lists, **bold**, `code`) with sheet numbers and file:// links turned into links.
+ * Turns Markdown links to an @id in escaped HTML, [door 209B](urn:uuid:…), into links that open
+ * that item, table, note, drawing, or layer and zoom the PDF to it.
+ * @param {string} html
+ */
+export function linkSources(html) {
+  return html.replace(
+    /`?\[([^\]\n]+)\]\(#?(urn:[^)\s]+)\)`?/g,
+    (_m, label, id) => `<a href="#" class="source-link" data-id="${id}" title="Show on the drawing">${label}</a>`
+  );
+}
+
+/**
+ * Light Markdown (paragraphs, "- " lists, **bold**, `code`) with sheet numbers, @id sources, and file:// links turned into links.
  * @param {string} text
  * @param {Set<string>} sheets upper-cased sheet numbers
  */
 export function renderMarkdown(text, sheets) {
   const inline = (/** @type {string} */ line) => {
-    let html = linkFiles(escapeHtml(line));
+    let html = linkFiles(linkSources(escapeHtml(line)));
     html = html.replace(/(<a [^>]*>.*?<\/a>)|`([^`]+)`/g, (m, a, code) => (a ? m : `<code>${code}</code>`));
     html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     // Sheet numbers like A101 or S-201 become links; skip text inside tags, links and code.
@@ -99,6 +111,7 @@ export class ChatPanel {
    * @param {{
    *   api: (path: string, body?: unknown) => Promise<any>,
    *   onSheetLink: (sheet: string) => void,
+   *   onSourceLink: (id: string) => void,
    *   onLeave: () => void,
    *   openSettings: () => void,
    *   openFile: (url: string) => void,
@@ -143,6 +156,11 @@ export class ChatPanel {
       if (file) {
         e.preventDefault();
         return this.deps.openFile(file.dataset.url ?? "");
+      }
+      const source = /** @type {HTMLElement | null} */ (/** @type {HTMLElement} */ (e.target).closest("a.source-link"));
+      if (source) {
+        e.preventDefault();
+        return this.deps.onSourceLink(source.dataset.id ?? "");
       }
       const a = /** @type {HTMLElement} */ (e.target).closest("a.sheet-link");
       if (!a) return;

@@ -103,6 +103,7 @@ export function buildSystemPrompt(host: Pick<AssistantHost, "filePath" | "cwd" |
   const saving = `Each markup is saved right away to a copy of the PDF next to the original (the original is never changed) and shows on the PDF pane at once; the user can undo or delete markups, and go back through their history, in the Markups panel (press m). Markups are kept in sets, one copy per purpose (e.g. "Code review", "Coordination", "QA"); new ones go to the set on the PDF pane. When the user names a purpose or set ("start a QA set", "in the code review markups"), pass it as set (or call use_markup_set first); otherwise leave set out. list_markups says which set is showing and what others exist.`;
   const otherCommands = `AI models and API keys are set up in the app's Settings (press "," or click Settings). Other aecdo commands (such as "aecdo update") can't run inside the app. When you suggest one, tell the user to run it in a terminal.`;
   const style = `Answer in short paragraphs or simple lists. **bold**, \`code\` and "- " lists are shown formatted, and sheet numbers become links; avoid tables and headings.`;
+  const sources = `Link the sources of your answer so the user can check them: a Markdown link whose target is the "@id" from the data, e.g. [door 209B](urn:uuid:…) or [door schedule](urn:uuid:…). Clicking one opens it and zooms the PDF to it, outlined in red. Link items, tables, notes, images, drawings, or layers, whichever the answer rests on. Copy ids exactly from the data (the current view, navigate, and read_sheet include them); never make one up, and leave the link out when you don't have the id.`;
   return `You are ${info.label}, working inside ${where}.
 
 The open file is ${basename(host.filePath)} (${sheetCount} sheets), data extracted from a PDF drawing set.
@@ -125,7 +126,8 @@ Each of these tools returns the file's file:// link. Whenever you create or chan
 ${otherCommands}
 
 ${style}
-Base answers on the drawing data; say so when the data does not contain something rather than guessing. Cite sheet numbers.`;
+${sources}
+Base answers on the drawing data; say so when the data does not contain something rather than guessing. Cite sheet numbers, and link the sources.`;
 }
 
 export interface FolderInstructions {

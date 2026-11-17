@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createModels, fauxProvider, fauxAssistantMessage, fauxToolCall, fauxText, Type } from "@earendil-works/pi-ai";
 import { Explorer } from "../commands/explore.js";
-import { buildTools, createAssistantSession, loadFolderInstructions, resolveInCwd, withFolderInstructions, wrapPrompt, type AssistantHost } from "./assistant.js";
+import { buildSystemPrompt, buildTools, createAssistantSession, loadFolderInstructions, resolveInCwd, withFolderInstructions, wrapPrompt, type AssistantHost } from "./assistant.js";
 import { ASSISTANTS } from "./llm.js";
 import type { DrawingSet } from "../types.js";
 import type { Markup } from "./markup.js";
@@ -52,6 +52,14 @@ test("wraps prompts with the current explore view", () => {
   assert.match(prompt, /"view": "sheet"/);
   assert.match(prompt, /"location": "A101"/);
   assert.match(prompt, /what is here\?$/);
+});
+
+test("the system prompt asks for source links by @id, and the current view carries the ids", () => {
+  const { explorer } = setup();
+  const prompt = buildSystemPrompt({ filePath: "set.jsonld", cwd: "/tmp", data }, ASSISTANTS.claude);
+  assert.match(prompt, /\[door 209B\]\(urn:uuid:…\)/);
+  explorer.handle("A101");
+  assert.match(wrapPrompt(explorer, "?"), /"@id": "urn:uuid:/);
 });
 
 test("the assistant can navigate, take notes and fill a spreadsheet", async () => {

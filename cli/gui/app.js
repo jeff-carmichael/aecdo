@@ -97,6 +97,7 @@ const mainList = new VirtualList($("main-list"), {
 const chat = new ChatPanel($("chat-pane"), {
   api,
   onSheetLink: (sheet) => void openSheet(sheet),
+  onSourceLink: (id) => void openSource(id),
   onLeave: () => setFocus(state?.sheet ? "main" : "sheets"),
   openSettings: () => void settingsModal(),
   openFile: (url) =>
@@ -374,6 +375,19 @@ async function openSheet(sheet) {
   if (finding) stopFinding(false);
   applyState(await api("api/sheet", { sheet }));
   setFocus("main");
+}
+
+/**
+ * A source link in an AI answer: opens what it names and zooms the PDF to it, as the AI's show_page does.
+ * @param {string} id
+ */
+async function openSource(id) {
+  if (finding) stopFinding(false);
+  const s = await api("api/id", { id });
+  applyState(s);
+  if (s.target?.id !== id) return;
+  setFocus("main");
+  setTimeout(() => pdf.flash(), 200);
 }
 
 /** @param {any} row */
