@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### CLI
+- The app's panels can be resized: drag the line between two panels (sheets, contents, PDF, AI chat) to make one wider or narrower, or double-click it for the default width. The app remembers the widths for next time (in `~/.aecdo/gui.json`) and narrows them when the window is too small, so the PDF always keeps some room.
 - The app's AI chat links the sources of its answers: the door, table, note, or drawing an answer is based on shows as a link (marked ⌖). Clicking it opens that thing and zooms the PDF to it, outlined in red, the way the assistant's own "show me" does; <kbd>←</kbd> comes back. The assistant writes these as Markdown links to the thing's `@id`, e.g. `[door 209B](urn:uuid:…)`.
 - The app lists the other drawing sets in the folder above the sheets: each `.jsonld` with a PDF of the same name (`house.jsonld` + `house.pdf`; markup copies don't count). The list is folded to the open set's name: press <kbd>s</kbd> (or click it) to show the sets, move with the arrows, and press <kbd>Enter</kbd> to switch; <kbd>s</kbd> folds it again. One set is open at a time. The list shows when the folder has more than one.
 - In the app's AI chat, <kbd>↑</kbd> in the question box (on its first line) leaves it, so the arrows scroll the answers; <kbd>↓</kbd> scrolls back down and, at the end, steps into the box again. Bringing back a question you sent moved from <kbd>↑</kbd> <kbd>↓</kbd> to <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd>.

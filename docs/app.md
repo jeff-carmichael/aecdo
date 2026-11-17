@@ -4,7 +4,7 @@ title: Use the app
 
 # Use the app
 
-Sheets on the left, contents in the middle, the PDF on the right.
+Sheets on the left, contents in the middle, the PDF on the right. Drag the line between two panels to resize them, or double-click it for the default width; the app remembers the sizes.
 
 ## Open a drawing set
 

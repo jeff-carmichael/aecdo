@@ -48,11 +48,27 @@ export interface GuiAppOptions {
 export type Theme = "system" | "light" | "dark";
 export const THEMES: readonly Theme[] = ["system", "light", "dark"];
 
+/** Widths in CSS pixels of the panes a person dragged; a missing one keeps the default. */
+export type PaneWidths = Partial<Record<(typeof PANES)[number], number>>;
+export const PANES = ["sheets", "main", "chat"] as const;
+
+/** Keeps only sane widths, so a hand-edited gui.json can't break the layout. */
+export function paneWidths(value: unknown): PaneWidths {
+  const v = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+  const out: PaneWidths = {};
+  for (const pane of PANES) {
+    const w = v[pane];
+    if (typeof w === "number" && Number.isFinite(w) && w >= 100 && w <= 4000) out[pane] = Math.round(w);
+  }
+  return out;
+}
+
 /** What `~/.aecdo/gui.json` remembers. */
 interface Remembered {
   recent: string[];
   folders: string[];
   theme: Theme;
+  panes: PaneWidths;
 }
 
 /** A PDF in the current folder with no drawing set next to it yet. */
@@ -308,9 +324,9 @@ export class GuiApp {
       const saved = JSON.parse(await readFile(this.settingsPath(), "utf-8")) as Partial<Record<keyof Remembered, unknown>>;
       const strings = (v: unknown) => (Array.isArray(v) ? v.filter((p): p is string => typeof p === "string") : []);
       const theme = THEMES.find((t) => t === saved.theme) ?? "system";
-      return { recent: strings(saved.recent), folders: strings(saved.folders), theme };
+      return { recent: strings(saved.recent), folders: strings(saved.folders), theme, panes: paneWidths(saved.panes) };
     } catch {
-      return { recent: [], folders: [], theme: "system" };
+      return { recent: [], folders: [], theme: "system", panes: {} };
     }
   }
 
@@ -348,6 +364,14 @@ export class GuiApp {
 
   async setTheme(theme: Theme): Promise<void> {
     await this.saveRemembered({ ...(await this.remembered()), theme });
+  }
+
+  async paneWidths(): Promise<PaneWidths> {
+    return (await this.remembered()).panes;
+  }
+
+  async setPaneWidths(panes: PaneWidths): Promise<void> {
+    await this.saveRemembered({ ...(await this.remembered()), panes });
   }
 
   /** Works in another folder from now on, like "Open Folder" in an editor. */

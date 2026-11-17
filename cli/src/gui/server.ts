@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import { assetPath, contentType } from "./assets.js";
 import { MARKUP_KINDS, type MarkupKind } from "../lib/markup.js";
 import { ASSISTANTS, ROUTE_ORDER, type AssistantName, type CustomApi, type RouteId } from "../lib/llm.js";
-import { THEMES, type GuiApp, type Theme } from "./app.js";
+import { PANES, THEMES, paneWidths, type GuiApp, type PaneWidths, type Theme } from "./app.js";
 import type { GuiSession } from "./session.js";
 import type { BBox } from "../lib/pdf-page.js";
 
@@ -102,9 +102,12 @@ async function sendFile(req: IncomingMessage, res: ServerResponse, path: string,
 
 const DARK_MEDIA: Record<Theme, string> = { system: "(prefers-color-scheme: dark)", light: "not all", dark: "all" };
 
-/** The page with the saved light or dark choice already in place, so it doesn't flash the other one. */
-export function themedIndex(html: string, theme: Theme): string {
-  return html.replace(/(<link id="dark-css"[^>]*media=")[^"]*"/, `$1${DARK_MEDIA[theme]}"`);
+/** The page with the saved light or dark choice and pane widths already in place, so it doesn't flash the defaults. */
+export function preparedIndex(html: string, theme: Theme, panes: PaneWidths = {}): string {
+  const widths = PANES.filter((p) => panes[p]).map((p) => `--w-${p}:${panes[p]}px`).join(";");
+  return html
+    .replace(/(<link id="dark-css"[^>]*media=")[^"]*"/, `$1${DARK_MEDIA[theme]}"`)
+    .replace('<main id="panes">', widths ? `<main id="panes" style="${widths}">` : "$&");
 }
 
 function session(app: GuiApp): GuiSession {
@@ -232,6 +235,11 @@ function routes(app: GuiApp): Record<string, Handler> {
       await app.setTheme(theme);
       return { theme };
     },
+    "POST /api/panes": async (b) => {
+      const panes = paneWidths(b.panes);
+      await app.setPaneWidths(panes);
+      return { panes };
+    },
     "GET /api/settings": () => settingsInfo(app),
     "GET /api/update": () => app.updates.state(),
     "POST /api/update": async (b) => {
@@ -338,7 +346,7 @@ export async function startGuiServer(app: GuiApp, opts: { token?: string; port?:
         const index = assetPath("app/index.html");
         if (!index) throw new HttpError(500, "The app's files are missing");
         res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
-        return void res.end(themedIndex(await readFile(index, "utf-8"), await app.theme()));
+        return void res.end(preparedIndex(await readFile(index, "utf-8"), await app.theme(), await app.paneWidths()));
       }
       if (path === "/api/events" && method === "GET") {
         openEvents(app, req, res);
