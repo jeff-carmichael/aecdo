@@ -1040,6 +1040,17 @@ button.icon {
   border-bottom: 1px dotted var(--accent);
 }
 
+.source-link {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+
+.source-link::after {
+  content: " ⌖";
+  font-size: 11px;
+}
+
 .chat-empty {
   color: var(--dim);
 }
