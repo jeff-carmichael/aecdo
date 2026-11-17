@@ -770,11 +770,19 @@ export class GuiSession {
     return [...this.threads.values()].map((t) => ({ ...t.info(), entries: t.entries }));
   }
 
-  closeThread(id: string): void {
+  /** The open chats, starting an empty one when there are none, so the Ask AI panel always has a tab. */
+  async openThreads(): Promise<ThreadInfo[]> {
+    if (!this.threads.size) await this.newThread();
+    return this.threadList();
+  }
+
+  /** Closes a chat; closing the last one opens a fresh one with the same model, which it returns. */
+  async closeThread(id: string): Promise<ThreadInfo | undefined> {
     const t = this.threads.get(id);
     t?.bridge.active?.abort();
     t?.save();
     this.threads.delete(id);
+    if (!this.threads.size) return this.newThread(t?.model);
   }
 
   stop(id: string): void {

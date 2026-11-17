@@ -1770,7 +1770,7 @@ function onKey(e) {
         return chat.focus();
       case "Delete":
         handled();
-        if (chat.current) void chat.close(chat.current).then(() => chat.ensureThread());
+        if (chat.current) void chat.close(chat.current);
         return;
       case "ArrowDown":
         handled();

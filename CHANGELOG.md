@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - `aecdo validate <file> --pdf <pdf>` also checks the PDF against the set's `sourcePdfSha256` (a markup copy by its original) and exits 1 if it doesn't match; `--format json` adds `pdf: {file, matches}` (`matches` is `null` when there's nothing to compare).
 - `aecdo process` (and the app's processing) adds `sourcePdfSha256` to the result when the API didn't include it.
 - The example set records its PDF's hash.
+- The app's Ask AI panel always has at least one chat tab. Opening or switching drawing sets starts an empty chat when none is open, and closing the last chat opens a fresh one with the same model. A lone empty chat has no × to close.
 
 ## [0.6.6] - 2026-11-17
 

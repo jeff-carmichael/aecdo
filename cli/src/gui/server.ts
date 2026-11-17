@@ -211,7 +211,7 @@ function routes(app: GuiApp): Record<string, Handler> {
       }
     },
     "GET /api/assistants": () => session(app).assistants(),
-    "GET /api/chat": () => session(app).threadList(),
+    "GET /api/chat": () => session(app).openThreads(),
     "POST /api/chat/new": (b) => session(app).newThread(assistantName(b.model)),
     "GET /api/chat/past": () => session(app).pastChats(),
     "POST /api/chat/resume": async (b) => {
@@ -233,10 +233,7 @@ function routes(app: GuiApp): Record<string, Handler> {
       session(app).stop(str(b, "thread"));
       return { ok: true };
     },
-    "POST /api/chat/close": (b) => {
-      session(app).closeThread(str(b, "thread"));
-      return { ok: true };
-    },
+    "POST /api/chat/close": async (b) => ({ ok: true, opened: await session(app).closeThread(str(b, "thread")) }),
     "POST /api/theme": async (b) => {
       const theme = THEMES.find((t) => t === b.theme);
       if (!theme) throw new HttpError(400, `Pick a theme: ${THEMES.join(", ")}`);

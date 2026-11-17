@@ -250,13 +250,23 @@ export class ChatPanel {
     if (focus) this.focus();
   }
 
+  /** A lone empty chat has nothing to close: closing it would only open another. */
+  loneBlank() {
+    const [only, ...rest] = this.threads.values();
+    return Boolean(only && !rest.length && !only.entries.length && !only.busy);
+  }
+
   /** @param {string} id */
   async close(id) {
-    await this.deps.api("api/chat/close", { thread: id });
+    if (this.loneBlank()) return;
+    /** @type {{ opened?: Thread }} */
+    const { opened } = await this.deps.api("api/chat/close", { thread: id });
     const ids = [...this.threads.keys()];
     const at = ids.indexOf(id);
     this.threads.delete(id);
-    if (this.current === id) this.current = ids[at + 1] ?? ids[at - 1];
+    // Closing the last chat leaves a fresh one, so there is always a tab.
+    if (opened) this.threads.set(opened.id, opened);
+    if (this.current === id) this.current = ids[at + 1] ?? ids[at - 1] ?? opened?.id;
     this.renderTabs();
     this.renderLog();
     this.renderModel();
@@ -507,10 +517,13 @@ export class ChatPanel {
   }
 
   renderTabs() {
-    const parts = [...this.threads.values()].map((t, i) => {
+    const all = [...this.threads.values()];
+    const lone = this.loneBlank();
+    const parts = all.map((t, i) => {
       const cls = t.id === this.current ? "tab active" : "tab";
       const busy = t.busy ? '<span class="dot busy" aria-label="answering"></span>' : "";
-      return `<div class="${cls}" role="tab" aria-selected="${t.id === this.current}" data-thread="${t.id}" title="${escapeHtml(t.title)} (${t.modelLabel})">${busy}<span class="tab-n">${i + 1}</span><span class="tab-title">${escapeHtml(t.title)}</span><button class="x" data-close="${t.id}" title="Close this chat (x)" aria-label="Close chat ${i + 1}">×</button></div>`;
+      const x = lone ? "" : `<button class="x" data-close="${t.id}" title="Close this chat (x)" aria-label="Close chat ${i + 1}">×</button>`;
+      return `<div class="${cls}" role="tab" aria-selected="${t.id === this.current}" data-thread="${t.id}" title="${escapeHtml(t.title)} (${t.modelLabel})">${busy}<span class="tab-n">${i + 1}</span><span class="tab-title">${escapeHtml(t.title)}</span>${x}</div>`;
     });
     parts.push('<button class="tab new" data-new title="New chat (Ctrl+T, or t)">+</button>');
     this.tabs.innerHTML = parts.join("");
