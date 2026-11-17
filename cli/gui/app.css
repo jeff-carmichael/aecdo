@@ -817,13 +817,12 @@ body.resizing #pdf-stage {
 }
 
 #pdf-bar > :not(#pdf-where, .spacer),
-#pdf-sets > :not(#pdf-note) {
+#pdf-sets > * {
   flex-shrink: 0;
 }
 
-@container (max-width: 760px) {
-  #pdf-sets .label,
-  #pdf-note {
+@container (max-width: 640px) {
+  #pdf-sets .label {
     display: none;
   }
 }
@@ -840,14 +839,6 @@ body.resizing #pdf-stage {
 
 #pdf-sets .label,
 #markup-new {
-  white-space: nowrap;
-}
-
-#pdf-note {
-  max-width: 260px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

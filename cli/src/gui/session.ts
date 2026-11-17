@@ -86,6 +86,8 @@ export interface PdfInfo {
   version: number;
   /** True when showing a markup set's copy (<name>-markups.pdf or <name>-markups-<set>.pdf). */
   savedCopy?: boolean;
+  /** True when the original PDF was picked to view, though the current set has a copy. */
+  original?: boolean;
   /** The markup set new markups go to. */
   markupSet?: string;
   /** Why the PDF wasn't found, and PDFs in the folder to pick from. */
@@ -282,6 +284,8 @@ export interface MarkupsInfo {
   file?: string;
   set?: string;
   sets: MarkupSet[];
+  /** The pane shows the original PDF, picked in its version menu. */
+  original?: boolean;
   suggested: string[];
   markups: { describe: string; sheetNumber: string; pageIndex: number }[];
   history: HistoryEntry[];
@@ -323,6 +327,8 @@ export class GuiSession {
   private locator: PdfLocator;
   private log: string[] = [];
   private pdfPath?: string;
+  /** The original PDF was picked in the pane's version menu. */
+  private showOriginal = false;
   private pdfVersion = 1;
   private refIndex?: ReturnType<typeof buildRefIndex>;
   private threads = new Map<string, ChatThread>();
@@ -344,8 +350,8 @@ export class GuiSession {
       target: () => this.explorer.viewTarget(),
     });
     this.markups.onChange = () => {
-      opts.emit({ type: "markups" });
-      this.pdfChanged();
+      this.showOriginal = false;
+      this.markupsChanged();
     };
   }
 
@@ -374,7 +380,7 @@ export class GuiSession {
   /** The PDF the pane shows: the copy with markups when there is one, else the source. */
   pdfFile(): string | undefined {
     if (!this.pdfPath) return undefined;
-    return this.markups.savedCopy() ?? this.pdfPath;
+    return (this.showOriginal ? undefined : this.markups.savedCopy()) ?? this.pdfPath;
   }
 
   async pdfInfo(): Promise<PdfInfo> {
@@ -386,6 +392,7 @@ export class GuiSession {
         version: this.pdfVersion,
         markupSet: this.markups.setName(),
         ...(file !== this.pdfPath ? { savedCopy: true } : {}),
+        ...(this.showOriginal ? { original: true } : {}),
       };
     }
     let choices: string[] = [];
@@ -406,8 +413,14 @@ export class GuiSession {
     if (!found || !existsSync(found)) throw new Error(`Can't find "${path}".`);
     this.pdfPath = found;
     this.markups.forgetSets();
+    this.showOriginal = false;
     this.pdfVersion++;
     return this.pdfInfo();
+  }
+
+  private markupsChanged(): void {
+    this.opts.emit({ type: "markups" });
+    this.pdfChanged();
   }
 
   private pdfChanged(): void {
@@ -596,6 +609,7 @@ export class GuiSession {
         file: basename(this.markups.outPath()),
         set: this.markups.setName(),
         sets: this.markups.sets(),
+        ...(this.showOriginal ? { original: true } : {}),
         markups,
         history: history.steps,
         ...(history.note ? { historyNote: history.note } : {}),
@@ -607,7 +621,8 @@ export class GuiSession {
 
   /**
    * "undo"; "delete" markup `index` (1-based; every markup when left out); "set" to switch to (or
-   * start) the set called `name`; "rename" the current set to `name`; "restore" history `step`.
+   * start) the set called `name`; "original" to show the source PDF until a set is picked or a
+   * markup changes; "rename" the current set to `name`; "restore" history `step`.
    */
   async markupsAction(action: string, opts: { index?: number; name?: string; step?: number } = {}): Promise<string> {
     switch (action) {
@@ -615,8 +630,17 @@ export class GuiSession {
         return this.markups.undo();
       case "delete":
         return this.markups.remove(opts.index);
+      case "original":
+        if (!this.showOriginal) {
+          this.showOriginal = true;
+          this.markupsChanged();
+        }
+        return "Showing the original PDF";
       case "set": {
+        const wasOriginal = this.showOriginal;
+        const before = this.markups.outPath();
         const set = this.markups.useSet(opts.name ?? "");
+        if (wasOriginal && this.markups.outPath() === before) this.markups.onChange();
         return set.exists ? `Showing ${set.name}` : `Started ${set.name}. Markups you add now go to ${set.file}`;
       }
       case "rename":

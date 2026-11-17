@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- The bar under the app's PDF now reads **Current PDF version:** with a menu of **Original** and each markup set (Markups, QA, …), then **+ New**. Picking **Original** shows the PDF without markups; picking a set shows its copy, and new markups go to the last set picked. The file name moved from the bar into the menu's tooltip.
+
 ## [0.6.5] - 2026-11-17
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.
