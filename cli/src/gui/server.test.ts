@@ -321,3 +321,36 @@ test("Settings shows whether an update is out, and checks on request", async () 
     await server.close();
   }
 });
+
+test("lists the folder's sets that have a PDF of the same name, and switches between them", async () => {
+  const { server, url, dir } = await start();
+  try {
+    copyFileSync(join(dir, "sample-drawing-package-1and2family.jsonld"), join(dir, "Garage.jsonld"));
+    copyFileSync(join(dir, "sample-drawing-package-1and2family.pdf"), join(dir, "garage.PDF"));
+    copyFileSync(join(dir, "sample-drawing-package-1and2family.jsonld"), join(dir, "no-pdf.jsonld"));
+    copyFileSync(join(dir, "sample-drawing-package-1and2family.pdf"), join(dir, "sample-drawing-package-1and2family-markups.pdf"));
+    const sets = await json(`${url}api/sets`);
+    assert.deepEqual(sets.data, [
+      { name: "Garage", file: "Garage.jsonld" },
+      { name: "sample-drawing-package-1and2family", file: "sample-drawing-package-1and2family.jsonld", open: true },
+    ]);
+
+    const opened = await json<{ set: BootInfo }>(`${url}api/open`, { path: "Garage.jsonld" });
+    assert.equal(opened.data.set.file, "Garage.jsonld");
+    assert.equal(opened.data.set.pdf.available, true);
+    assert.deepEqual(
+      (await json<{ file: string; open?: boolean }[]>(`${url}api/sets`)).data.map((s) => `${s.file}${s.open ? " (open)" : ""}`),
+      ["Garage.jsonld (open)", "sample-drawing-package-1and2family.jsonld"]
+    );
+
+    // A set opened without its PDF is still listed, so you can see where you are.
+    await json(`${url}api/open`, { path: "no-pdf.jsonld" });
+    assert.deepEqual(
+      (await json<{ file: string; open?: boolean }[]>(`${url}api/sets`)).data.map((s) => `${s.file}${s.open ? " (open)" : ""}`),
+      ["Garage.jsonld", "no-pdf.jsonld (open)", "sample-drawing-package-1and2family.jsonld"]
+    );
+  } finally {
+    await server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

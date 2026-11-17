@@ -27,6 +27,10 @@
   </header>
   <main id="panes">
     <section id="sheets-pane" class="pane" data-focus="sheets">
+      <div id="set-switcher" hidden>
+        <div class="switcher-head"><span>Drawing sets</span><kbd title="Switch drawing set (s)">s</kbd></div>
+        <ul id="set-list" aria-label="Drawing sets in this folder"></ul>
+      </div>
       <div class="find-row">
         <input id="find" type="search" placeholder="Find a sheet" aria-label="Find a sheet" autocomplete="off" spellcheck="false">
         <kbd>/</kbd>

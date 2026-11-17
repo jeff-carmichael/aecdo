@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { basename, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { getConfigDir, processingAvailable } from "../lib/config.js";
-import { listJsonld, listPdfs } from "../lib/files.js";
+import { listFolderSets, listJsonld, listPdfs } from "../lib/files.js";
 import { defaultResultPath, runJob, JobFailedError, type JobOptions } from "../commands/process.js";
 import { statusLine } from "../lib/progress.js";
 import { isValid } from "../commands/validate.js";
@@ -75,6 +75,14 @@ export interface HomeInfo {
   recent: string[];
   /** Recently used folders, other than the current one. */
   folders: string[];
+}
+
+/** A drawing set in the current folder, for the switcher at the top of the sheet list. */
+export interface FolderSetInfo {
+  name: string;
+  file: string;
+  /** The set that's open now. */
+  open?: boolean;
 }
 
 const RECENT_LIMIT = 10;
@@ -390,6 +398,25 @@ export class GuiApp {
       recent: saved.recent.filter((_, i) => exists[i]),
       folders: saved.folders.filter((f) => f !== this.cwd),
     };
+  }
+
+  /**
+   * The drawing sets in the current folder that have a PDF of the same name, so a folder of sets
+   * can be switched between. The open set is listed even without its PDF, so you see where you are.
+   */
+  async folderSets(): Promise<FolderSetInfo[]> {
+    let sets: FolderSetInfo[] = [];
+    try {
+      sets = await listFolderSets(this.cwd);
+    } catch {
+      // an unreadable folder lists nothing
+    }
+    const open = this.session?.filePath;
+    if (!open || dirname(open) !== this.cwd) return sets.map(({ name, file }) => ({ name, file }));
+    const current = basename(open);
+    const list = sets.map(({ name, file }) => ({ name, file, ...(file === current ? { open: true } : {}) }));
+    if (!list.some((s) => s.open)) list.push({ name: current.replace(/\.jsonld$/i, ""), file: current, open: true });
+    return list.sort((a, b) => a.file.localeCompare(b.file, undefined, { sensitivity: "base", numeric: true }));
   }
 
   /** PDFs in the current folder without a .jsonld of the same name, and ones being processed. */

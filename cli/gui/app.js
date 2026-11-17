@@ -66,6 +66,7 @@ const sheetList = new VirtualList($("sheet-list"), {
     el.innerHTML = `<span class="num${current}">${esc(row.n)}</span><span class="label">${esc(row.t)}</span>`;
   },
   onSelect: (row) => {
+    stopPickingSet();
     if (focus === "sheets") schedulePreview(row.n);
   },
   onOpen: (row) => {
@@ -136,6 +137,7 @@ async function start(boot) {
   $("set-title").title = set.path;
   cursors.clear();
   buildSheetRows();
+  void refreshSets();
   void loadPdf();
   void refreshMarkups();
   await chat.reset(set);
@@ -405,6 +407,7 @@ function schedulePreview(sheet, delay = 50) {
 function setFocus(f) {
   if (f === "main" && !state?.sheet) f = "sheets";
   if (f === "chat") openChat();
+  if (f !== "sheets") stopPickingSet();
   const leavingPreview = focus === "sheets" && f !== "sheets";
   focus = f;
   for (const p of document.querySelectorAll(".pane")) p.classList.toggle("focused", /** @type {HTMLElement} */ (p).dataset.focus === f);
@@ -436,7 +439,7 @@ function cycleFocus(/** @type {number} */ dir) {
 }
 
 function renderHints() {
-  const hints = (focus === "chat" && chat.typing ? HINTS.chatInput : HINTS[focus]) ?? [];
+  const hints = (pickingSet ? HINTS.sets : focus === "chat" && chat.typing ? HINTS.chatInput : HINTS[focus]) ?? [];
   $("hints").innerHTML = hints.map(([k, v]) => `<span><kbd>${esc(k)}</kbd> ${esc(v)}</span>`).join("");
 }
 
@@ -453,6 +456,7 @@ const finder = new Finder(
 );
 
 function startFinding() {
+  stopPickingSet();
   finding = true;
   setFocus("sheets");
   find.focus();
@@ -491,6 +495,114 @@ find.addEventListener("keydown", (e) => {
     find.blur();
     setFocus(state?.sheet ? "main" : "sheets");
   }
+});
+
+// ── Drawing sets in the folder ───────────────────────────
+
+/** @type {{ name: string, file: string, open?: boolean }[]} */
+let folderSets = [];
+/** True while the arrows move in the list of drawing sets rather than the sheets. */
+let pickingSet = false;
+let setSelected = 0;
+
+/** Lists the folder's drawing sets that have a PDF of the same name above the sheets, when there's more than one. */
+async function refreshSets() {
+  try {
+    folderSets = await api("api/sets");
+  } catch {
+    folderSets = [];
+  }
+  if (folderSets.length < 2) stopPickingSet();
+  setSelected = Math.min(setSelected, Math.max(0, folderSets.length - 1));
+  drawSets();
+}
+
+function drawSets() {
+  $("set-switcher").hidden = folderSets.length < 2;
+  $("sheets-pane").classList.toggle("picking-set", pickingSet);
+  const list = $("set-list");
+  list.innerHTML = folderSets
+    .map((s, i) => `<li class="${s.open ? "open" : ""}${i === setSelected ? " selected" : ""}" data-i="${i}" title="${esc(s.open ? `${s.file} is open` : `Open ${s.file}`)}"><span class="name">${esc(s.name)}</span></li>`)
+    .join("");
+  list.querySelector(".selected")?.scrollIntoView({ block: "nearest" });
+}
+
+$("set-list").addEventListener("click", (e) => {
+  const li = /** @type {HTMLElement | null} */ (/** @type {HTMLElement} */ (e.target).closest("li[data-i]"));
+  if (li) void switchSet(Number(li.dataset.i));
+});
+
+/** Moves the arrows into the list of sets, starting at the open one. */
+function startPickingSet() {
+  if (folderSets.length < 2) return message("There's only one drawing set in this folder with a PDF of the same name.");
+  if (finding) {
+    stopFinding(true);
+    find.blur();
+  }
+  setFocus("sheets");
+  pickingSet = true;
+  setSelected = Math.max(0, folderSets.findIndex((s) => s.open));
+  drawSets();
+  renderHints();
+}
+
+function stopPickingSet() {
+  if (!pickingSet) return;
+  pickingSet = false;
+  drawSets();
+  renderHints();
+}
+
+/** @param {number} i */
+async function switchSet(i) {
+  const target = folderSets[i];
+  stopPickingSet();
+  if (!target) return;
+  if (target.open) return setFocus(state?.sheet ? "main" : "sheets");
+  await openSet(target.file);
+}
+
+/**
+ * Keys while picking a set: ↑↓ move, Enter opens, ↓ past the last one or Esc goes back to the sheets.
+ * @param {string} k
+ * @returns {boolean} whether the key was used
+ */
+function setKey(k) {
+  switch (k) {
+    case "ArrowDown":
+    case "j":
+      if (setSelected >= folderSets.length - 1) stopPickingSet();
+      else setSelected++, drawSets();
+      return true;
+    case "ArrowUp":
+    case "k":
+      setSelected = Math.max(0, setSelected - 1);
+      drawSets();
+      return true;
+    case "Home":
+    case "End":
+      setSelected = k === "Home" ? 0 : folderSets.length - 1;
+      drawSets();
+      return true;
+    case "Enter":
+    case "ArrowRight":
+    case "l":
+      void switchSet(setSelected);
+      return true;
+    case "Escape":
+    case "ArrowLeft":
+    case "h":
+    case "Backspace":
+    case "s":
+      stopPickingSet();
+      return true;
+  }
+  stopPickingSet();
+  return false;
+}
+
+window.addEventListener("focus", () => {
+  if (set) void refreshSets();
 });
 
 // ── Chat ─────────────────────────────────────────────────
@@ -1602,6 +1714,14 @@ function onKey(e) {
   const list = focus === "sheets" ? sheetList : mainList;
   const handled = () => e.preventDefault();
 
+  if (pickingSet && focus === "sheets") {
+    if (setKey(k)) return handled();
+  } else if (focus === "sheets" && (k === "ArrowUp" || k === "k") && folderSets.length > 1 && sheetList.selected <= sheetList.firstSelectable()) {
+    // ↑ from the first sheet goes up into the list of sets.
+    handled();
+    return startPickingSet();
+  }
+
   if (focus === "chat") {
     // In the chat, [ ] switch chats, ↓ at the end and Enter go into the input, and Esc leaves; any other character starts typing.
     switch (k) {
@@ -1691,6 +1811,9 @@ function onKey(e) {
     case "/":
       handled();
       return startFinding();
+    case "s":
+      handled();
+      return startPickingSet();
     case "a":
       handled();
       return setFocus("chat");

@@ -138,6 +138,7 @@ function routes(app: GuiApp): Record<string, Handler> {
   return {
     "GET /api/boot": async () => (app.session ? { set: await app.session.boot() } : { home: await app.home() }),
     "GET /api/home": () => app.home(),
+    "GET /api/sets": () => app.folderSets(),
     "POST /api/open-file": async (b) => {
       try {
         return { path: await app.openFile(str(b, "url")) };

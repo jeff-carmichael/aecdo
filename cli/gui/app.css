@@ -262,6 +262,78 @@ code {
   pointer-events: none;
 }
 
+/* ── Drawing sets in the folder ────────────────────── */
+
+#set-switcher {
+  border-bottom: 1px solid var(--line);
+  padding: 6px 0 4px;
+}
+
+.switcher-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px 2px 13px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.switcher-head kbd {
+  text-transform: none;
+}
+
+#set-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+#set-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#set-list li:hover {
+  background: var(--panel-2);
+}
+
+#set-list .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#set-list li.open .name {
+  font-weight: 600;
+}
+
+#set-list li.open::after {
+  content: "●";
+  color: var(--gold);
+  font-size: 11px;
+}
+
+#sheets-pane.picking-set #set-list li.selected {
+  background: var(--select);
+  border-left-color: var(--select-strong);
+}
+
+#sheets-pane.picking-set .vlist .row.selected {
+  border-left-color: transparent;
+}
+
 .find-row {
   display: flex;
   align-items: center;

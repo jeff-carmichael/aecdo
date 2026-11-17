@@ -12,6 +12,8 @@ Open **aecdo** from the Start menu, Applications, or your app menu. The home scr
 
 Notes and spreadsheets the [AI](assistant.md) writes go in this folder.
 
+A folder can hold several sets. Each `.jsonld` with a PDF of the same name (`house.jsonld` and `house.pdf`) is listed above the sheets, with a dot on the open one. Click one, or press <kbd>s</kbd>, pick it, and press <kbd>Enter</kbd>. One set is open at a time, so switching closes its chats.
+
 ## Move around
 
 Open a sheet, then a drawing, a layer, an item. What you pick is outlined on the PDF. Press <kbd>?</kbd> for every key.
@@ -22,6 +24,7 @@ Open a sheet, then a drawing, a layer, an item. What you pick is outlined on the
 | <kbd>Enter</kbd> | Open |
 | <kbd>←</kbd> | Back |
 | <kbd>/</kbd> | Find a sheet |
+| <kbd>s</kbd> | Switch drawing set |
 | <kbd>z</kbd> / <kbd>f</kbd> | Zoom to selection / fit page |
 | <kbd>a</kbd> | Ask the AI |
 | <kbd>M</kbd> / <kbd>m</kbd> | Mark up / list markups |
