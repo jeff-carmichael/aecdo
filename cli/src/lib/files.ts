@@ -17,3 +17,23 @@ export function listPdfs(dir: string): Promise<string[]> {
 export function listJsonld(dir: string): Promise<string[]> {
   return listFiles(dir, ".jsonld");
 }
+
+/** A drawing set that has its source PDF next to it: `house.jsonld` with `house.pdf`. */
+export interface FolderSet {
+  /** The shared name, without an extension. */
+  name: string;
+  file: string;
+  pdf: string;
+}
+
+const stem = (file: string) => file.replace(/\.[^.]+$/, "").toLowerCase();
+
+/** The `.jsonld` files in `dir` that have a `.pdf` of the same name (any case), in reading order. */
+export async function listFolderSets(dir: string): Promise<FolderSet[]> {
+  const [sets, pdfs] = await Promise.all([listJsonld(dir), listPdfs(dir)]);
+  const pdfByStem = new Map(pdfs.map((p) => [stem(p), p]));
+  return sets.flatMap((file) => {
+    const pdf = pdfByStem.get(stem(file));
+    return pdf ? [{ name: file.replace(/\.jsonld$/i, ""), file, pdf }] : [];
+  });
+}
