@@ -6,6 +6,7 @@ import { Finder } from "./find.js";
 import { PdfView, loadPdfjs } from "./pdf-view.js";
 import { ChatPanel } from "./chat.js";
 import { SHORTCUTS, HINTS, typing } from "./keys.js";
+import { Splitter } from "./split.js";
 
 void loadPdfjs();
 
@@ -41,6 +42,9 @@ let previewSeq = 0;
 let messageTimer = 0;
 
 const app = $("app");
+const splitter = new Splitter($("panes"), (panes) => {
+  api("api/panes", { panes }).catch((err) => toast(`Couldn't save the pane sizes: ${/** @type {Error} */ (err).message}`, "warn"));
+});
 const pdf = new PdfView($("pdf-stage"), {
   onBoxClick: (box) => {
     if (box.command) void openRow({ command: box.command, box });
@@ -645,6 +649,7 @@ function openChat() {
   $("chat-pane").hidden = false;
   app.classList.add("chat-open");
   $("chat-btn").textContent = "Hide AI";
+  splitter.fit();
 }
 
 function toggleChat() {
@@ -654,6 +659,7 @@ function toggleChat() {
     pane.hidden = true;
     app.classList.remove("chat-open");
     $("chat-btn").textContent = "Ask AI";
+    splitter.fit();
     if (focus === "chat") setFocus(state?.sheet ? "main" : "sheets");
   }
 }

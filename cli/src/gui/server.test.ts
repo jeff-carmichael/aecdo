@@ -297,6 +297,23 @@ test("the light or dark choice is saved and written into the page", async () => 
   }
 });
 
+test("dragged pane widths are saved and written into the page", async () => {
+  const { server, url, dir } = await start(false);
+  const panesStyle = async () => /<main id="panes"(?: style="([^"]*)")?>/.exec(await (await fetch(url)).text())?.[1];
+  try {
+    assert.equal(await panesStyle(), undefined);
+    const saved = await json(`${url}api/panes`, { panes: { sheets: 260.4, chat: 410, main: "wide", pdf: 500 } });
+    assert.deepEqual(saved.data, { panes: { sheets: 260, chat: 410 } });
+    assert.equal(await panesStyle(), "--w-sheets:260px;--w-chat:410px");
+    assert.deepEqual((JSON.parse(readFileSync(join(dir, "gui.json"), "utf-8")) as { panes?: unknown }).panes, { sheets: 260, chat: 410 });
+    await json(`${url}api/panes`, { panes: { main: 5 } });
+    assert.equal(await panesStyle(), undefined);
+  } finally {
+    await server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("Settings shows whether an update is out, and checks on request", async () => {
   const dir = mkdtempSync(join(tmpdir(), "aecdo-gui-update-"));
   const fetchImpl: typeof fetch = () => Promise.resolve(Response.json({ tag_name: "v99.0.0" }));

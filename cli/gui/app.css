@@ -233,14 +233,64 @@ code {
 
 /* ── Panes ─────────────────────────────────────────── */
 
+/* --w-* are widths the person dragged (split.js); without one a pane keeps its default. */
 #panes {
   display: grid;
-  grid-template-columns: minmax(200px, 17%) minmax(300px, 27%) 1fr;
+  grid-template-columns: var(--w-sheets, minmax(200px, 17%)) var(--w-main, minmax(300px, 27%)) minmax(0, 1fr);
   min-height: 0;
+  overflow: hidden;
 }
 
 .chat-open #panes {
-  grid-template-columns: minmax(190px, 15%) minmax(280px, 24%) 1fr minmax(320px, 27%);
+  grid-template-columns: var(--w-sheets, minmax(190px, 15%)) var(--w-main, minmax(280px, 24%)) minmax(0, 1fr) var(--w-chat, minmax(320px, 27%));
+}
+
+.divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -4px;
+  width: 8px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.divider.left {
+  right: auto;
+  left: -4px;
+}
+
+.divider::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background: var(--gold);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.divider:hover::after,
+.divider.active::after {
+  opacity: 1;
+  transition-delay: 0.15s;
+}
+
+.divider.active::after {
+  transition-delay: 0s;
+}
+
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+body.resizing iframe,
+body.resizing #pdf-stage {
+  pointer-events: none;
 }
 
 .pane {

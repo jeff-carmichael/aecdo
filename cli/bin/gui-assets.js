@@ -10,6 +10,7 @@ import app_chat_js from "../gui/chat.js" with { type: "file" };
 import app_list_js from "../gui/list.js" with { type: "file" };
 import app_find_js from "../gui/find.js" with { type: "file" };
 import app_keys_js from "../gui/keys.js" with { type: "file" };
+import app_split_js from "../gui/split.js" with { type: "file" };
 import app_icon_svg from "../gui/icon.svg" with { type: "file" };
 import app_icon_ico from "../gui/icon.ico" with { type: "file" };
 import app_icon_icns from "../gui/icon.icns" with { type: "file" };
@@ -43,6 +44,7 @@ export const guiAssets = {
   "app/list.js": app_list_js,
   "app/find.js": app_find_js,
   "app/keys.js": app_keys_js,
+  "app/split.js": app_split_js,
   "app/icon.svg": app_icon_svg,
   "app/icon.ico": app_icon_ico,
   "app/icon.icns": app_icon_icns,
