@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-11-17
+
+No schema changes; the CLI still validates against `ontology/v0.3.0`.
+
 ### CLI
 - The app saves AI chats with their drawing set, so you can come back to one later: **Past chats** at the top of the chat (or <kbd>r</kbd>) lists this set's chats, newest first, and picking one opens it in a tab where it stopped; the AI gets the earlier conversation back too. A new chat also offers the last few. Chats are stored the way Claude Code stores its sessions: one folder per set under `~/.aecdo/projects/` (named after the set's path), with one `<chat id>.jsonl` file per chat, one JSON line per event (what was said, the title, model switches, and each model's own messages), appended as it happens. A chat is saved once you ask something in it. Switching sets now shows the other set's past chats.
 - The app's panels can be resized: drag the line between two panels (sheets, contents, PDF, AI chat) to make one wider or narrower, or double-click it for the default width. The app remembers the widths for next time (in `~/.aecdo/gui.json`) and narrows them when the window is too small, so the PDF always keeps some room.
@@ -18,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Fixed: when the AI assistant asked for a whole sheet ("all"), the sheet was printed to the terminal the app was started from and the assistant got nothing back. It now gets the sheet, and also sees errors such as a sheet number that doesn't exist.
 - Code cleanup: removed what was left of the old terminal UI (typed-command hints and help, `quit`, `ls`, leftover color wrappers), the unused `cli/src/index.ts` (the package never exported it), and unused helpers; `process`, `status --wait`, and `download` now share one job-polling loop and `--then` handler.
 - Removed `aecdo explore`, which had become another name for `gui`. Use `aecdo gui` to open the app, or `aecdo sheets` to list sheets.
+- The app icon's ruler tick marks are brighter and thicker, so they show at small sizes.
 
 ## [0.6.4] - 2026-11-15
 
