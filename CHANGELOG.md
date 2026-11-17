@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- The app's Ask AI panel always has at least one chat tab. Opening or switching drawing sets starts an empty chat when none is open, and closing the last chat opens a fresh one with the same model. A lone empty chat has no × to close.
+
 ## [0.6.6] - 2026-11-17
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.

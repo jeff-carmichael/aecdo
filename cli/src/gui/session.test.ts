@@ -196,9 +196,23 @@ test("chat threads are separate conversations that start with the first model se
   assert.equal(s.threadList()[1].model, "chatgpt");
   assert.match(s.threadList()[1].entries[0].text, /now go to ChatGPT/);
 
-  s.closeThread(a.id);
+  assert.equal(await s.closeThread(a.id), undefined);
   assert.deepEqual(s.threadList().map((t) => t.id), [b.id]);
   await assert.rejects(s.send("t99", "hi"), /No chat/);
+});
+
+test("there is always a chat open: one starts with the set, and closing the last opens a fresh one", async () => {
+  const { s } = session(maple, "/work/maple-grove-library.jsonld", fakeBridge);
+  const [first] = await s.openThreads();
+  assert.equal(first.entries.length, 0);
+  assert.deepEqual((await s.openThreads()).map((t) => t.id), [first.id], "no second empty chat");
+
+  await s.send(first.id, "@claude");
+  const fresh = await s.closeThread(first.id);
+  assert.ok(fresh && fresh.id !== first.id);
+  assert.equal(fresh.model, "claude", "keeps the closed chat's model");
+  assert.equal(fresh.entries.length, 0);
+  assert.deepEqual(s.threadList().map((t) => t.id), [fresh.id]);
 });
 
 test("show_page in the app zooms the PDF pane instead of opening a viewer", async () => {
