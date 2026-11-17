@@ -295,6 +295,7 @@ export class GuiApp {
       emit: (e) => this.emit(e),
       confirm: (q, thread) => this.confirm(q, thread),
       bridge: this.opts.bridge,
+      chatsDir: join(this.opts.configDir ?? getConfigDir(), "projects"),
     });
     await this.remember({ file: full, folder: this.cwd });
     void this.checkValid(data, full);

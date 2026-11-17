@@ -4,6 +4,7 @@
  * @typedef {{ role: "user" | "assistant" | "status" | "tool", text: string }} Entry
  * @typedef {{ id: string, title: string, model: string, modelLabel: string, busy: boolean, entries: Entry[] }} Thread
  * @typedef {{ name: string, label: string, words: string[] }} Mention
+ * @typedef {{ id: string, title: string, model: string, modelLabel: string, created: string, updated: string, questions: number, open: boolean }} PastChat
  */
 
 /** @param {string} s */
@@ -105,6 +106,14 @@ export function renderMarkdown(text, sheets) {
   return out.join("");
 }
 
+/** "4:12 PM" today, "Nov 16" this year, else "Nov 16, 2025". */
+export function when(/** @type {string} */ iso, now = new Date()) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return d.toLocaleDateString(undefined, d.getFullYear() === now.getFullYear() ? { month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" });
+}
+
 export class ChatPanel {
   /**
    * @param {HTMLElement} root
@@ -133,16 +142,22 @@ export class ChatPanel {
     /** @type {string[]} */
     this.sent = [];
     this.recall = -1;
+    /** This set's saved chats, newest first. @type {PastChat[]} */
+    this.past = [];
+    this.pastOpen = false;
+    this.pastPick = 0;
 
     this.tabs = /** @type {HTMLElement} */ (root.querySelector("#thread-tabs"));
     this.log = /** @type {HTMLElement} */ (root.querySelector("#chat-log"));
     this.input = /** @type {HTMLTextAreaElement} */ (root.querySelector("#chat-input"));
     this.modelLine = /** @type {HTMLElement} */ (root.querySelector("#chat-model"));
     this.stopButton = /** @type {HTMLButtonElement} */ (root.querySelector("#chat-stop"));
+    this.pastButton = /** @type {HTMLButtonElement} */ (root.querySelector("#chat-past"));
 
     this.input.addEventListener("keydown", (e) => this.onKey(e));
     this.input.addEventListener("input", () => this.autosize());
     this.stopButton.addEventListener("click", () => this.stop());
+    this.pastButton.addEventListener("click", () => void (this.pastOpen ? this.hidePast() : this.showPast()));
     this.tabs.addEventListener("click", (e) => {
       const t = /** @type {HTMLElement} */ (e.target);
       const close = t.closest("[data-close]");
@@ -152,6 +167,11 @@ export class ChatPanel {
       if (tab) this.switchTo(tab.dataset.thread ?? "");
     });
     this.log.addEventListener("click", (e) => {
+      const target = /** @type {HTMLElement} */ (e.target);
+      const resume = /** @type {HTMLElement | null} */ (target.closest("[data-resume]"));
+      if (resume) return void this.resume(resume.dataset.resume ?? "");
+      if (target.closest("[data-past]")) return void this.showPast();
+      if (target.closest("[data-past-close]")) return this.hidePast();
       const file = /** @type {HTMLElement | null} */ (/** @type {HTMLElement} */ (e.target).closest("a.file-link"));
       if (file) {
         e.preventDefault();
@@ -185,9 +205,11 @@ export class ChatPanel {
     this.mentions = set.mentions;
     this.threads.clear();
     this.current = undefined;
-    /** @type {Thread[]} */
-    const list = await this.deps.api("api/chat");
+    this.pastOpen = false;
+    /** @type {[Thread[], PastChat[]]} */
+    const [list, past] = await Promise.all([this.deps.api("api/chat"), this.deps.api("api/chat/past").catch(() => [])]);
     for (const t of list) this.threads.set(t.id, t);
+    this.past = past;
     this.current = list[0]?.id;
     this.renderTabs();
     this.renderLog();
@@ -221,6 +243,7 @@ export class ChatPanel {
     const t = await this.deps.api("api/chat/new", { model: this.thread?.model });
     this.threads.set(t.id, t);
     this.current = t.id;
+    this.pastOpen = false;
     this.renderTabs();
     this.renderLog();
     this.renderModel();
@@ -239,11 +262,101 @@ export class ChatPanel {
     this.renderModel();
   }
 
+  /** Lists this set's saved chats in place of the chat. */
+  async showPast() {
+    try {
+      this.past = await this.deps.api("api/chat/past");
+    } catch {
+      // Keeps the list from before.
+    }
+    this.pastOpen = true;
+    this.pastPick = 0;
+    this.renderLog();
+    this.log.focus({ preventScroll: true });
+  }
+
+  hidePast() {
+    if (!this.pastOpen) return;
+    this.pastOpen = false;
+    this.renderLog();
+  }
+
+  /** Opens a saved chat in a tab (or goes to its tab), to carry on where it stopped. */
+  async resume(/** @type {string} */ id) {
+    /** @type {Thread} */
+    const t = await this.deps.api("api/chat/resume", { thread: id });
+    if (!this.threads.has(t.id)) this.threads.set(t.id, t);
+    // An empty chat nobody typed in gives its place to the one picked.
+    const blank = this.thread;
+    if (blank && blank.id !== t.id && !blank.entries.length && !blank.busy) {
+      void this.deps.api("api/chat/close", { thread: blank.id });
+      this.threads.delete(blank.id);
+    }
+    this.pastOpen = false;
+    this.current = t.id;
+    this.renderTabs();
+    this.renderLog();
+    this.renderModel();
+    this.focus();
+  }
+
+  /**
+   * Keys in the list of past chats: ↑ ↓ pick, Enter opens, Esc goes back to the chat.
+   * @param {string} k
+   * @returns {boolean} whether the key was used
+   */
+  pastKey(k) {
+    if (!this.pastOpen) return false;
+    const n = this.past.length;
+    switch (k) {
+      case "ArrowDown":
+      case "j":
+      case "ArrowUp":
+      case "k":
+        if (n) this.pastPick = Math.min(n - 1, Math.max(0, this.pastPick + (k === "ArrowDown" || k === "j" ? 1 : -1)));
+        this.renderLog();
+        return true;
+      case "Enter": {
+        const pick = this.past[this.pastPick];
+        if (pick) void this.resume(pick.id);
+        return true;
+      }
+      case "Escape":
+      case "ArrowLeft":
+      case "Backspace":
+        this.hidePast();
+        return true;
+    }
+    return false;
+  }
+
+  /**
+   * @param {PastChat} c
+   * @param {boolean} picked
+   */
+  pastRow(c, picked) {
+    const asked = `${c.questions} question${c.questions === 1 ? "" : "s"}`;
+    const open = c.open ? ' <span class="past-open">open</span>' : "";
+    return `<button class="past-row${picked ? " picked" : ""}" data-resume="${escapeHtml(c.id)}" title="Carry on with this chat"><span class="past-title">${escapeHtml(c.title)}${open}</span><span class="dim">${escapeHtml(c.modelLabel)} · ${asked} · ${escapeHtml(when(c.updated))}</span></button>`;
+  }
+
+  renderPast() {
+    const wrap = document.createElement("div");
+    wrap.className = "past";
+    const rows = this.past.map((c, i) => this.pastRow(c, i === this.pastPick)).join("");
+    wrap.innerHTML = `<div class="past-head"><strong>Past chats</strong><span class="dim">in this drawing set</span><button class="chip" data-past-close title="Back to the chat (Esc)">Back</button></div>${
+      rows || '<p class="dim">No saved chats for this set yet. Each chat is saved as you ask, so you can come back to it here.</p>'
+    }`;
+    this.log.append(wrap);
+    wrap.querySelector(".picked")?.scrollIntoView({ block: "nearest" });
+  }
+
   /** @param {string} id */
   switchTo(id) {
     if (!this.threads.has(id)) return;
     const typing = document.activeElement === this.input;
     this.current = id;
+    this.pastOpen = false;
     this.renderTabs();
     this.renderLog();
     this.renderModel();
@@ -288,6 +401,7 @@ export class ChatPanel {
 
   /** @param {string} text */
   async send(text) {
+    this.hidePast();
     await this.ensureThread();
     const id = this.current;
     if (!id) return;
@@ -381,14 +495,14 @@ export class ChatPanel {
     }
     if (ev.op === "entry") {
       t.entries.push(ev.entry);
-      if (ev.thread === this.current) this.appendEntry(ev.entry);
+      if (ev.thread === this.current && !this.pastOpen) this.appendEntry(ev.entry);
       return;
     }
     if (ev.op === "delta") {
       const last = t.entries.at(-1);
       if (last?.role === "assistant") last.text += ev.text;
       else t.entries.push({ role: "assistant", text: ev.text });
-      if (ev.thread === this.current) this.updateLastAssistant(t);
+      if (ev.thread === this.current && !this.pastOpen) this.updateLastAssistant(t);
     }
   }
 
@@ -435,13 +549,23 @@ export class ChatPanel {
 
   renderLog() {
     this.log.textContent = "";
+    this.pastButton.classList.toggle("on", this.pastOpen);
+    this.pastButton.setAttribute("aria-pressed", String(this.pastOpen));
+    if (this.pastOpen) {
+      this.renderPast();
+      this.updateWorking();
+      return;
+    }
     const t = this.thread;
     if (!t || t.entries.length === 0) {
       const empty = document.createElement("div");
       empty.className = "chat-empty";
+      const recent = this.past.filter((c) => !c.open).slice(0, 3);
+      const more = this.past.length > recent.length ? `<button class="chip" data-past>All ${this.past.length} past chats</button>` : "";
+      const pickUp = recent.length ? `<div class="past"><p class="past-label">Or carry on with a past chat:</p>${recent.map((c) => this.pastRow(c, false)).join("")}${more}</div>` : "";
       empty.innerHTML = `<p>Ask about what you're looking at. The AI sees the open sheet, can move around the set, point things out on the PDF, propose markups, and take notes.</p>
 <ul><li>What's on this sheet?</li><li>Check the door schedule against the plans</li><li>Cloud anything that looks wrong here</li></ul>
-<p class="dim">Each chat is its own conversation. Ctrl+T opens another; [ and ] switch between them.</p>`;
+${pickUp}<p class="dim">Each chat is its own conversation, saved with this drawing set. Ctrl+T opens another; [ and ] switch between them; r shows past chats.</p>`;
       this.log.append(empty);
       this.updateWorking();
       return;

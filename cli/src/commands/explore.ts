@@ -41,6 +41,7 @@ import {
 } from "../lib/pdf-page.js";
 import type { MarkupSession } from "./markups.js";
 import type { MutableModels } from "@earendil-works/pi-ai";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { DrawingSet, Sheet, Drawing, Layer, Item, Table, Note, Image } from "../types.js";
 
 type SheetEntry =
@@ -1038,6 +1039,14 @@ export interface AssistantBridgeOptions {
   onTool?: (name: string, args: unknown) => void;
   /** Models to use instead of the ones set up in Settings (tests). */
   models?: MutableModels;
+  /** Where each model's side of the conversation is saved and read back from. */
+  conversation?: ConversationLog;
+}
+
+/** Keeps each model family's transcript, so a saved chat picks up where it left off. */
+export interface ConversationLog {
+  messages(name: AssistantName): AgentMessage[] | undefined;
+  save(name: AssistantName, message: AgentMessage): void;
 }
 
 /** Runs @mentions: one conversation per model family, kept for the session. */
@@ -1117,7 +1126,7 @@ export class AssistantBridge {
     const existing = this.sessions.get(info.name);
     if (existing) return existing;
 
-    const { data, filePath, explorer, out, markups, onNavigate, onTool, showPage } = this.opts;
+    const { data, filePath, explorer, out, markups, onNavigate, onTool, showPage, conversation } = this.opts;
     this.models ??= await createLlmModels();
     const route = await pickRoute(this.models, info.name);
     if (!route) {
@@ -1145,6 +1154,8 @@ export class AssistantBridge {
         print: (line) => out.print(line),
         confirm: (q) => out.confirm(q),
         onTool,
+        history: conversation?.messages(info.name),
+        onMessage: conversation ? (m) => conversation.save(info.name, m) : undefined,
       },
       info,
       this.models,

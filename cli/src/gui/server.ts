@@ -213,6 +213,14 @@ function routes(app: GuiApp): Record<string, Handler> {
     "GET /api/assistants": () => session(app).assistants(),
     "GET /api/chat": () => session(app).threadList(),
     "POST /api/chat/new": (b) => session(app).newThread(assistantName(b.model)),
+    "GET /api/chat/past": () => session(app).pastChats(),
+    "POST /api/chat/resume": async (b) => {
+      try {
+        return await session(app).resumeThread(str(b, "thread"));
+      } catch (err) {
+        throw new HttpError(404, (err as Error).message);
+      }
+    },
     "POST /api/chat/send": (b) => {
       const s = session(app);
       const thread = str(b, "thread");
