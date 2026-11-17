@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### CLI
+- The app's Settings screen is tidier. **Look** and **Version** (with Check for updates or Install) sit on two short rows at the top. **AI sign-ins** lists each way to reach the models with the `@names` it covers and a ✓ once it's set up; a set-up one only offers **Change** and **Remove**. **Models** lists only the `@names` that are ready, instead of a "needs one of" line for each that isn't. The long file paths are now one "Saved in `~/.aecdo`" line at the bottom, and the DrawingBot section is hidden until PDF processing is available.
+
 ## [0.6.5] - 2026-11-17
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.

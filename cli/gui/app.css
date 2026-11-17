@@ -197,19 +197,7 @@ code {
   display: none;
 }
 
-.settings .update-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  margin: 6px 0 10px;
-}
-
-.settings .update-row > button {
-  margin-left: auto;
-}
-
-.settings .update-row .update-dot {
+.settings .pref-value .update-dot {
   flex: none;
   margin-left: 0;
   vertical-align: 0;
@@ -1588,11 +1576,59 @@ button.primary kbd {
 
 .settings .routes > li {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) 90px auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 6px 12px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+}
+
+.settings .routes > li:first-child {
+  border-top: 0;
+}
+
+.settings .route-name small {
+  display: block;
+  font-size: 12px;
+}
+
+.settings .prefs {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: baseline;
+  gap: 10px 12px;
+  margin-bottom: 4px;
+}
+
+.settings .pref-label {
+  color: var(--dim);
+}
+
+.settings .pref-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.settings .pref-value > button {
+  margin-left: auto;
+}
+
+.settings .pref-value > p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.settings .settings-foot {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.settings .settings-foot > span {
+  margin-right: auto;
+  font-size: 12px;
 }
 
 .settings .routes > li > .settings-form {
@@ -1623,13 +1659,24 @@ button.primary kbd {
 
 .theme-choice {
   display: inline-flex;
-  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.settings .theme-choice button {
+  border: 0;
+  border-radius: 0;
+}
+
+.settings .theme-choice button + button {
+  border-left: 1px solid var(--line);
 }
 
 .settings .theme-choice button[aria-pressed="true"] {
-  border-color: var(--gold);
-  box-shadow: inset 0 0 0 1px var(--gold);
+  background: var(--select);
   color: var(--gold-text);
+  font-weight: 600;
 }
 
 .settings button:disabled {
