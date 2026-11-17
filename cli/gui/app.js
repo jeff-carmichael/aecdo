@@ -32,7 +32,6 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 /** @type {any} */ let state = null;
 /** @type {any} */ let shown = null;
 /** @type {"sheets" | "main" | "pdf" | "chat"} */ let focus = "sheets";
-let finding = false;
 let quitting = false;
 /** @type {any} */ let pdfInfo = null;
 /** Selected row for each place, so "back" lands where you were. */
@@ -141,6 +140,7 @@ async function start(boot) {
   $("set-title").textContent = set.title;
   $("set-title").title = set.path;
   cursors.clear();
+  find.value = "";
   buildSheetRows();
   void refreshSets();
   void loadPdf();
@@ -181,18 +181,16 @@ function buildSheetRows(query) {
   if (!rows.length) $("sheet-list").dataset.empty = query ? "No sheets match." : "This set has no sheets.";
 }
 
-/** "sample-drawing-pa…markups-code-review.pdf": keeps the end, where the set's name is. */
-const middleCut = (/** @type {string} */ s, /** @type {number} */ max) => (s.length <= max ? s : `${s.slice(0, Math.floor(max / 3))}…${s.slice(s.length - Math.ceil((max * 2) / 3) + 1)}`);
-
 async function loadPdf() {
   const info = pdfInfo;
   $("pdf-missing").hidden = info.available;
   $("pdf-stage").hidden = !info.available;
   $("pdf-bar").hidden = !info.available;
-  $("pdf-note").textContent = info.savedCopy ? middleCut(info.name ?? "", 30) : "original PDF";
-  $("pdf-note").title = info.savedCopy
+  $("markup-set").title = info.savedCopy
     ? `Showing ${info.name}, the copy with ${info.markupSet ?? "these"} markups. The original PDF isn't changed.`
-    : `Showing ${info.name ?? "the original PDF"}. ${info.markupSet ?? "This set"} has no markups yet; its copy is made with the first one.`;
+    : info.original
+      ? `Showing the original PDF, ${info.name}. New markups go to ${info.markupSet ?? "the current set"}.`
+      : `Showing the original PDF, ${info.name}. ${info.markupSet ?? "This set"} has no markups yet; its copy is made with the first one.`;
   if (!info.available) {
     showMissingPdf(info);
     return;
@@ -376,7 +374,6 @@ function applyState(s) {
 
 /** @param {string} sheet */
 async function openSheet(sheet) {
-  if (finding) stopFinding(false);
   applyState(await api("api/sheet", { sheet }));
   setFocus("main");
 }
@@ -386,7 +383,6 @@ async function openSheet(sheet) {
  * @param {string} id
  */
 async function openSource(id) {
-  if (finding) stopFinding(false);
   const s = await api("api/id", { id });
   applyState(s);
   if (s.target?.id !== id) return;
@@ -434,7 +430,7 @@ function setFocus(f) {
     render(state);
   }
   if (f === "sheets") {
-    if (!finding) $("sheet-list").focus({ preventScroll: true });
+    if (document.activeElement !== find) $("sheet-list").focus({ preventScroll: true });
     const row = sheetList.selectedRow;
     if (row && state && !state.sheet) schedulePreview(row.n, 0);
   } else if (f === "main") $("main-list").focus({ preventScroll: true });
@@ -457,7 +453,8 @@ function cycleFocus(/** @type {number} */ dir) {
 }
 
 function renderHints() {
-  const hints = (pickingSet ? HINTS.sets : focus === "chat" && chat.typing ? HINTS.chatInput : HINTS[focus]) ?? [];
+  let hints = (pickingSet ? HINTS.sets : focus === "chat" && chat.typing ? HINTS.chatInput : HINTS[focus]) ?? [];
+  if (focus === "sheets" && !pickingSet && find.value.trim()) hints = [...hints, ["Esc", "show all sheets"]];
   $("hints").innerHTML = hints.map(([k, v]) => `<span><kbd>${esc(k)}</kbd> ${esc(v)}</span>`).join("");
 }
 
@@ -475,31 +472,34 @@ const finder = new Finder(
 
 function startFinding() {
   stopPickingSet();
-  finding = true;
   setFocus("sheets");
   find.focus();
   find.select();
 }
 
-/** @param {boolean} keep keep the matches listed */
-function stopFinding(keep) {
-  finding = false;
-  if (!keep) {
-    find.value = "";
-    void finder.search("");
-  }
+/** Shows every sheet again. */
+function clearFind() {
+  find.value = "";
+  void finder.search("");
+  renderHints();
 }
 
 find.addEventListener("focus", () => {
-  finding = true;
   if (focus !== "sheets") setFocus("sheets");
 });
-find.addEventListener("input", () => void finder.search(find.value));
+find.addEventListener("input", () => {
+  void finder.search(find.value);
+  renderHints();
+});
 find.addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    // The arrows go into the matches, which stay listed until Esc or the filter is emptied.
     e.preventDefault();
     const dir = e.key === "ArrowDown" ? 1 : -1;
-    void finder.after(() => sheetList.move(dir));
+    void finder.after(() => {
+      $("sheet-list").focus({ preventScroll: true });
+      sheetList.move(dir);
+    });
   } else if (e.key === "Enter") {
     e.preventDefault();
     void finder.after(() => {
@@ -509,7 +509,7 @@ find.addEventListener("keydown", (e) => {
   } else if (e.key === "Escape") {
     e.preventDefault();
     e.stopPropagation();
-    stopFinding(false);
+    clearFind();
     find.blur();
     setFocus(state?.sheet ? "main" : "sheets");
   }
@@ -570,10 +570,7 @@ $("set-list").addEventListener("click", (e) => {
 /** Moves the arrows into the list of sets, starting at the open one. */
 function startPickingSet() {
   if (folderSets.length < 2 || !setsOpen) return;
-  if (finding) {
-    stopFinding(true);
-    find.blur();
-  }
+  find.blur();
   setFocus("sheets");
   pickingSet = true;
   setSelected = Math.max(0, folderSets.findIndex((s) => s.open));
@@ -669,7 +666,7 @@ function toggleChat() {
 /**
  * @typedef {{ slug: string, name: string, file: string, exists: boolean, current: boolean }} MarkupSet
  * @typedef {{ step: number, text: string, time?: string, current: boolean }} HistoryEntry
- * @typedef {{ file?: string, set?: string, sets: MarkupSet[], suggested: string[], markups: { describe: string, sheetNumber: string }[], history: HistoryEntry[], historyNote?: string, error?: string }} MarkupsInfo
+ * @typedef {{ file?: string, set?: string, sets: MarkupSet[], original?: boolean, suggested: string[], markups: { describe: string, sheetNumber: string }[], history: HistoryEntry[], historyNote?: string, error?: string }} MarkupsInfo
  */
 
 /** @type {MarkupsInfo} */
@@ -685,7 +682,8 @@ async function refreshMarkups() {
   badge.textContent = String(info.markups.length);
   const picker = /** @type {HTMLSelectElement} */ ($("markup-set"));
   fillSetSelect(picker, info, false);
-  picker.title = info.file ? `Switch markup set. New markups go to ${info.set}, saved in ${info.file}` : "Switch markup set";
+  picker.insertAdjacentHTML("afterbegin", `<option value="">Original</option>`);
+  if (info.original) picker.value = "";
   $("pdf-sets").hidden = info.sets.length === 0 && !!info.error;
   if (modal?.kind === "markups") modal.update?.(info);
 }
@@ -709,10 +707,10 @@ function fillSetSelect(select, info, withSuggested) {
   ].join("");
 }
 
-/** @param {string} name */
-async function useSet(name) {
+/** @param {string} name  a markup set, or "" for the original PDF */
+async function showVersion(name) {
   try {
-    toast((await api("api/markups", { action: "set", name })).message);
+    toast((await api("api/markups", name ? { action: "set", name } : { action: "original" })).message);
   } catch (err) {
     toast(/** @type {Error} */ (err).message, "warn");
   }
@@ -1840,6 +1838,7 @@ function onKey(e) {
       return void back();
     case "Escape":
       handled();
+      if (focus === "sheets" && find.value.trim()) return clearFind();
       if (focus === "pdf" || focus === "chat") return setFocus(state?.sheet ? "main" : "sheets");
       return void back();
     case "u":
@@ -1948,7 +1947,7 @@ $("chat-input").addEventListener("blur", renderHints);
 $("markups-btn").addEventListener("click", markupsPanel);
 $("markup-set").addEventListener("change", (e) => {
   const select = /** @type {HTMLSelectElement} */ (e.target);
-  void useSet(select.value);
+  void showVersion(select.value);
   select.blur();
 });
 $("markup-new").addEventListener("click", newSetDialog);
