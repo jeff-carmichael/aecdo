@@ -7,6 +7,7 @@ import {
   listSavedMarkups,
   markupCopyPath,
   markupHistory,
+  readMarkupCopyInfo,
   markupSetFiles,
   markupSetSlug,
   newMarkupId,
@@ -128,7 +129,7 @@ export class MarkupSession {
       const key = `${st.size}:${st.mtimeMs}`;
       const hit = this.nameCache.get(path);
       if (hit?.key === key) return hit.name;
-      const name = markupHistory(readFileSync(path)).steps.reduce<string | undefined>((last, s) => s.set ?? last, undefined);
+      const name = readMarkupCopyInfo(path).set ?? markupHistory(readFileSync(path)).steps.reduce<string | undefined>((last, s) => s.set ?? last, undefined);
       this.nameCache.set(path, { key, name });
       return name;
     } catch {

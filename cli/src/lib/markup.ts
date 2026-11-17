@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { closeSync, existsSync, openSync, readSync, readdirSync, statSync } from "node:fs";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import type { PDFArray, PDFDocument, PDFFont, PDFObject, PDFPage, PDFRef, PDFDict, PDFContext } from "pdf-lib";
@@ -42,6 +42,9 @@ export const MARKUP_AUTHOR = "aecdo assistant";
 export const MARKUP_NAME_PREFIX = "aecdo-";
 const ITEM_KEY = "AECDO_Item";
 const SET_KEY = "AECDO_Set";
+/** Keys in a copy's document info (Acrobat: File → Properties → Custom), so the app and people can tell which version a PDF is without trusting its file name. */
+const INFO_SET = "AECDOMarkupSet";
+const INFO_SOURCE = "AECDOSourcePDF";
 const SUBJECTS: Record<MarkupKind, string> = { cloud: "Cloud", callout: "Callout", note: "Note" };
 /** "Code review: Cloud", so Bluebeam's and Acrobat's markup lists can sort and filter by set. */
 const subject = (kind: MarkupKind, set?: string) => (set ? `${set}: ${SUBJECTS[kind]}` : SUBJECTS[kind]);
@@ -624,6 +627,7 @@ async function update(
   const tail = readTail(base);
   const firstNew = reserveObjectNumbers(doc.context, tail);
   const changed = await edit(lib, doc);
+  if (note) changed.push(stampInfo(lib, doc, { [INFO_SET]: note.set }));
   const bytes = incrementalUpdate(lib, base, doc, tail, firstNew, changed, note);
   try {
     const check = await lib.PDFDocument.load(bytes, { updateMetadata: false });
@@ -634,6 +638,68 @@ async function update(
     if (!allowRewrite) throw new Error(`couldn't append to this PDF's structure (${(err as Error).message})`);
     return { bytes: await doc.save({ useObjectStreams: false }), rewritten: true };
   }
+}
+
+/** Sets text entries in the document info dictionary, making one if the PDF has none; returns its ref. */
+function stampInfo(lib: PdfLib, doc: PDFDocument, entries: Record<string, string>): PDFRef {
+  const ctx = doc.context;
+  const raw = ctx.trailerInfo.Info;
+  let ref = raw instanceof lib.PDFRef ? raw : undefined;
+  let dict = ref ? ctx.lookupMaybe(ref, lib.PDFDict) : raw instanceof lib.PDFDict ? raw : undefined;
+  if (!dict) {
+    dict = ctx.obj({});
+    ref = undefined;
+  }
+  for (const [key, value] of Object.entries(entries)) dict.set(lib.PDFName.of(key), lib.PDFHexString.fromText(value));
+  if (!ref) {
+    ref = ctx.register(dict);
+    ctx.trailerInfo.Info = ref;
+  }
+  return ref;
+}
+
+/** What a markup copy's document info says about it; empty for a PDF aecdo hasn't marked up. */
+export interface MarkupCopyInfo {
+  /** The markup set it holds. */
+  set?: string;
+  /** The file name of the original PDF it was copied from. */
+  source?: string;
+}
+
+const TAIL_BYTES = 64 * 1024;
+
+/**
+ * Reads the set and source that aecdo writes into a copy's document info. Our updates append the info
+ * at the end, so this reads only the file's last 64 KB; a copy another program re-saved is searched whole.
+ */
+export function readMarkupCopyInfo(path: string): MarkupCopyInfo {
+  const fd = openSync(path, "r");
+  let text: string;
+  try {
+    const size = statSync(path).size;
+    const read = (from: number) => {
+      const buf = Buffer.alloc(size - from);
+      readSync(fd, buf, 0, buf.length, from);
+      return buf.toString("latin1");
+    };
+    text = read(Math.max(0, size - TAIL_BYTES));
+    if (!text.includes(`/${INFO_SET}`) && size > TAIL_BYTES) text = read(0);
+  } finally {
+    closeSync(fd);
+  }
+  const value = (key: string) => {
+    const at = text.lastIndexOf(`/${key}`);
+    if (at < 0) return undefined;
+    const m = /^\s*(?:<([0-9A-Fa-f\s]*)>|\(((?:\\.|[^\\)])*)\))/.exec(text.slice(at + key.length + 1, at + key.length + 1 + 1024));
+    if (!m) return undefined;
+    if (m[2] !== undefined) return m[2].replace(/\\(.)/g, "$1");
+    const bytes = Buffer.from(m[1].replace(/\s/g, ""), "hex");
+    if (bytes[0] === 0xfe && bytes[1] === 0xff && bytes.length % 2 === 0) return bytes.subarray(2).swap16().toString("utf16le");
+    return bytes.toString("latin1");
+  };
+  const set = value(INFO_SET);
+  const source = value(INFO_SOURCE);
+  return { ...(set ? { set } : {}), ...(source ? { source } : {}) };
 }
 
 function annotsRef(lib: PdfLib, page: PDFPage): PDFRef {
@@ -665,6 +731,7 @@ export async function saveMarkups(opts: SaveOptions): Promise<SaveRecord> {
         addMarkupAnnotation(lib, doc, page, markup, font, opts.now);
         changed.push(before, annotsRef(lib, page));
       }
+      if (!exists) changed.push(stampInfo(lib, doc, { [INFO_SOURCE]: basename(opts.sourcePdf) }));
       return changed;
     },
     !inPlace,

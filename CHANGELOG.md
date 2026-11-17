@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### CLI
+- Each markup copy now says what it is in its PDF document info: `AECDOMarkupSet` (the set's name, e.g. QA) and `AECDOSourcePDF` (the original PDF's file name), updated with every change. Acrobat shows them under File → Properties → Custom, and `pdfinfo -custom` lists them. The app reads the set's name from there (only the end of the file, so it's quick) instead of going by the file name, falling back to the notes in the file for older copies.
+
+### CLI
 - The bar under the app's PDF now reads **Current PDF version:** with a menu of **Original** and each markup set (Markups, QA, …), then **+ New**. Picking **Original** shows the PDF without markups; picking a set shows its copy, and new markups go to the last set picked. The file name moved from the bar into the menu's tooltip.
 
 ## [0.6.5] - 2026-11-17
