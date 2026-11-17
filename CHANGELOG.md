@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### CLI
 - The app's sheet filter (<kbd>/</kbd>) stays applied when you leave it: <kbd>↓</kbd> (or <kbd>↑</kbd>) moves into the matching sheets, and you can keep arrowing, open sheets, and come back to the same short list. <kbd>Esc</kbd> in the filter or the sheet list shows every sheet again, as does emptying the filter.
+- The bar under the app's PDF now reads **Current PDF version:** with a menu of **Original** and each markup set (Markups, QA, …), then **+ New**. Picking **Original** shows the PDF without markups; picking a set shows its copy, and new markups go to the last set picked. The file name moved from the bar into the menu's tooltip.
 
 ## [0.6.5] - 2026-11-17
 
