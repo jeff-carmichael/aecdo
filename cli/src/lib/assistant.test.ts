@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createModels, fauxProvider, fauxAssistantMessage, fauxToolCall, fauxText, Type } from "@earendil-works/pi-ai";
 import { Explorer } from "../commands/explore.js";
-import { buildSystemPrompt, buildTools, createAssistantSession, loadFolderInstructions, resolveInCwd, withFolderInstructions, wrapPrompt, type AssistantHost } from "./assistant.js";
+import { buildSystemPrompt, buildTools, cleanTitle, createAssistantSession, loadFolderInstructions, suggestTitle, resolveInCwd, withFolderInstructions, wrapPrompt, type AssistantHost } from "./assistant.js";
 import { ASSISTANTS } from "./llm.js";
 import type { DrawingSet } from "../types.js";
 import type { Markup } from "./markup.js";
@@ -275,4 +275,26 @@ test("every tool schema is valid JSON Schema draft 2020-12", () => {
     assert.ok(ajv.validateSchema(JSON.parse(JSON.stringify(tool.parameters)) as object), `${tool.name}: ${ajv.errorsText()}`);
   }
   assert.ok(buildTools(full, Type).some((t) => t.name === "add_markup"));
+});
+
+test("the model names a chat in a few words, and a failed request gives no title", async () => {
+  const { faux, models } = setup();
+  let asked = "";
+  faux.setResponses([
+    (context) => {
+      asked = lastUserText(context);
+      return fauxAssistantMessage([fauxText('Title: "Door 209B location."')]);
+    },
+    fauxAssistantMessage([], { stopReason: "error", errorMessage: "no" }),
+  ]);
+  assert.equal(await suggestTitle(models, faux.getModel(), "where is door 209B?"), "Door 209B location");
+  assert.equal(asked, "where is door 209B?");
+  assert.equal(await suggestTitle(models, faux.getModel(), "again"), undefined);
+});
+
+test("model titles are tidied to one short line", () => {
+  assert.equal(cleanTitle("\n  **Roof drainage**  \nmore"), "Roof drainage");
+  assert.equal(cleanTitle("“Stair 2 headroom”"), "Stair 2 headroom");
+  assert.equal(cleanTitle("  \n"), undefined);
+  assert.equal(cleanTitle("x".repeat(60))?.length, 40);
 });

@@ -302,3 +302,31 @@ test("chats are saved per set as JSONL and pick up where they left off", async (
   const other = new GuiSession(maple, "/work/other.jsonld", { emit: () => undefined, confirm: () => Promise.resolve(true), bridge: remembering, chatsDir });
   assert.deepEqual(await other.pastChats(), [], "another set has its own chats");
 });
+
+test("a chat is titled with its question, then with the model's few words", async () => {
+  let name!: (title: string | undefined) => void;
+  const asked: string[] = [];
+  const naming = (out: AssistantOutput, hooks: BridgeHooks): ChatBridge => ({
+    ...fakeBridge(out, hooks),
+    title: (model, question) => {
+      asked.push(`${model}: ${question}`);
+      return new Promise((r) => (name = r));
+    },
+  });
+  const { s, events } = session(maple, "/work/maple-grove-library.jsonld", naming);
+  const t = await s.newThread("claude");
+  await s.send(t.id, "where is door 209B on the second floor plan?");
+  assert.equal(s.threadList()[0].title, "where is door 209B on the second floor …");
+  name("Door 209B location");
+  await new Promise((r) => setImmediate(r));
+  assert.equal(s.threadList()[0].title, "Door 209B location");
+  assert.ok(events.some((e) => e.type === "chat" && e.op === "thread" && e.info.title === "Door 209B location"));
+  await s.send(t.id, "and 105A?");
+  assert.deepEqual(asked, ["claude: where is door 209B on the second floor plan?"], "only the first question names the chat");
+
+  const u = await s.newThread("claude");
+  await s.send(u.id, "roof drains");
+  name(undefined);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(s.threadList()[1].title, "roof drains", "the question stays when naming fails");
+});

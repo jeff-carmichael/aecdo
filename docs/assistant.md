@@ -32,7 +32,7 @@ There's no "Sign in with Claude": Anthropic doesn't allow Claude plans in other 
 - <kbd>t</kbd> starts another chat. Each has its own model and history.
 - <kbd>↑</kbd> leaves the question box to scroll the answers; <kbd>↓</kbd> goes back to it. <kbd>Alt</kbd>+<kbd>↑</kbd> brings back a question you sent.
 - <kbd>Esc</kbd> stops an answer or leaves the chat.
-- Chats are saved with the drawing set. <kbd>r</kbd> (or **Past chats**) lists them; pick one to carry on where it stopped. The AI gets the earlier conversation back too.
+- After your first question, the AI names the chat's tab in a few words. Chats are saved with the drawing set. <kbd>r</kbd> (or **Past chats**) lists them; pick one to carry on where it stopped. The AI gets the earlier conversation back too.
 
 ## What it can do
 

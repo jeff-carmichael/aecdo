@@ -434,6 +434,34 @@ function markupTools(host: AssistantHost, markups: AssistantMarkups, T: typeof i
   ];
 }
 
+const TITLE_PROMPT =
+  "Name this chat for a tab in a drawing viewer. Reply with only a title of 2 to 5 words that says what the question is about, " +
+  "in the question's language, sentence case, with no quotes, period, or emoji.";
+const MAX_TITLE_CHARS = 40;
+
+/** Tidies what a model gave as a chat title, or undefined when there's nothing usable. */
+export function cleanTitle(raw: string): string | undefined {
+  const line = raw
+    .split("\n")
+    .map((l) => l.trim())
+    .find(Boolean)
+    ?.replace(/^(title|name)\s*:\s*/i, "")
+    .replace(/^[\s"'`*#_“‘]+|[\s"'`*_”’.。!?:;]+$/g, "");
+  if (!line) return undefined;
+  return line.length > MAX_TITLE_CHARS ? `${line.slice(0, MAX_TITLE_CHARS - 1).trimEnd()}…` : line;
+}
+
+/** Asks the model for a few words naming a chat from its first question. */
+export async function suggestTitle(models: MutableModels, model: Model<Api>, question: string, signal?: AbortSignal): Promise<string | undefined> {
+  const reply = await models.completeSimple(
+    model,
+    { systemPrompt: TITLE_PROMPT, messages: [{ role: "user", content: question.slice(0, 2000), timestamp: Date.now() }] },
+    { maxTokens: 1024, signal }
+  );
+  if (reply.stopReason === "error" || reply.stopReason === "aborted") return undefined;
+  return cleanTitle(reply.content.map((c) => (c.type === "text" ? c.text : "")).join(""));
+}
+
 export interface AssistantSession {
   info: AssistantInfo;
   ask(text: string): Promise<void>;
