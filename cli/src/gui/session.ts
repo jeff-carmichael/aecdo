@@ -5,6 +5,7 @@ import { Explorer, PdfLocator, AssistantBridge, findSheetRows, parseMention, not
 import { MarkupSession, SUGGESTED_SETS, type HistoryEntry, type MarkupRequest, type MarkupSet } from "../commands/markups.js";
 import { fieldName, plainValue } from "../commands/page.js";
 import { parseTable } from "../lib/table.js";
+import { checkSourcePdf } from "../lib/source-pdf.js";
 import { findSourcePdf, sourcePdfCandidates, unionBBox, type BBox } from "../lib/pdf-page.js";
 import { listPdfs } from "../lib/files.js";
 import { ASSISTANTS, type AssistantName } from "../lib/llm.js";
@@ -90,6 +91,8 @@ export interface PdfInfo {
   original?: boolean;
   /** The markup set new markups go to. */
   markupSet?: string;
+  /** True when the set's `sourcePdfSha256` says this isn't the PDF it was made from. */
+  mismatch?: boolean;
   /** Why the PDF wasn't found, and PDFs in the folder to pick from. */
   missing?: string[];
   choices?: string[];
@@ -386,6 +389,7 @@ export class GuiSession {
   async pdfInfo(): Promise<PdfInfo> {
     const file = this.pdfFile();
     if (file) {
+      const check = await checkSourcePdf(this.data, file).catch(() => ({ matches: undefined }));
       return {
         available: true,
         name: basename(file),
@@ -393,6 +397,7 @@ export class GuiSession {
         markupSet: this.markups.setName(),
         ...(file !== this.pdfPath ? { savedCopy: true } : {}),
         ...(this.showOriginal ? { original: true } : {}),
+        ...(check.matches === false ? { mismatch: true } : {}),
       };
     }
     let choices: string[] = [];

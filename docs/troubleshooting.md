@@ -17,7 +17,7 @@ title: Troubleshooting
 : Pick it from the list in the PDF pane, or put it beside the set with the same name.
 
 **Boxes are in the wrong place**
-: The set's coordinates are off. See [bbox coordinates](data-model.md#bbox-coordinates).
+: If a strip above the PDF says it doesn't match the drawing data, the PDF isn't the one the set was made from (perhaps a later revision): open the right PDF, or process this one again. Otherwise the set's coordinates are off. See [bbox coordinates](data-model.md#bbox-coordinates).
 
 **Keys type into the chat**
 : Press <kbd>Esc</kbd>.

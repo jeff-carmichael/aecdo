@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Schema
+- `DrawingSet` has an optional `sourcePdfSha256`: the SHA-256 of the PDF the set was made from, as hex. Tools can use it to tell whether a PDF is the right one. It's optional, so existing files stay valid and it stays in `v0.3.0`.
+
+### CLI
+- The app warns when the PDF doesn't match the drawing data: a strip above the PDF says so when the set's `sourcePdfSha256` differs from the PDF's, since boxes may then be in the wrong place. Sets without a hash show no warning. A markup copy is checked by the original it was copied from: new copies record the original's hash in their document info (`AECDOSourceSHA256`), and older ones are checked by the original beside them.
+- `aecdo validate <file> --pdf <pdf>` also checks the PDF against the set's `sourcePdfSha256` (a markup copy by its original) and exits 1 if it doesn't match; `--format json` adds `pdf: {file, matches}` (`matches` is `null` when there's nothing to compare).
+- `aecdo process` (and the app's processing) adds `sourcePdfSha256` to the result when the API didn't include it.
+- The example set records its PDF's hash.
+
 ## [0.6.6] - 2026-11-17
 
 No schema changes; the CLI still validates against `ontology/v0.3.0`.

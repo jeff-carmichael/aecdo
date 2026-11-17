@@ -31,6 +31,11 @@
       "type": "string",
       "description": "The source filename that was processed."
     },
+    "sourcePdfSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "description": "SHA-256 of the source PDF's bytes, as hex, so tools can tell whether a PDF is the one this set was made from. Optional."
+    },
     "sheets": {
       "type": "array",
       "minItems": 1,

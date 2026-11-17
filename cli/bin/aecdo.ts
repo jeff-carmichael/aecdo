@@ -29,7 +29,9 @@ Usage:
   aecdo <command> [options] <file>
 
 Commands for scripts and agents (plain output, never wait for input):
-  validate <file>     Validate a JSON-LD file against the AECDO schema
+  validate <file>     Validate a JSON-LD file against the AECDO schema; with
+                      --pdf, also check that the PDF is the one the set was
+                      made from (exits 1 if it isn't)
   summary <file>      Print a concise summary of a drawing set
   sheets <file>       List all sheets
   page <file> <id>    Print one sheet by sheet number or page index
@@ -76,11 +78,13 @@ API Options:
   --stdout            process: print the result to stdout instead of saving it
   --force             examples: replace files that are already there
   --pdf <file>        gui: the source PDF (default: <name>.pdf next to the
-                      .jsonld, or the set's filename)
+                      .jsonld, or the set's filename); validate: the PDF to
+                      check against the set's sourcePdfSha256
   --browser           gui: open in your default browser instead of a window
 
 Examples:
   aecdo validate drawings.jsonld
+  aecdo validate drawings.jsonld --pdf drawings.pdf
   aecdo summary drawings.jsonld
   aecdo sheets drawings.jsonld --format json
   aecdo page drawings.jsonld A101
@@ -120,7 +124,7 @@ async function runOnFile(command: "validate" | "summary" | "sheets" | "page", fi
     fail(`Error: Invalid JSON in "${filePath}": ${(err as Error).message}`);
   }
 
-  const cmdOpts: CommandOptions = { format: opts.format, pretty: opts.pretty, output: opts.output, schema: opts.schema };
+  const cmdOpts: CommandOptions = { format: opts.format, pretty: opts.pretty, output: opts.output, schema: opts.schema, pdf: opts.pdf };
 
   switch (command) {
     case "validate":

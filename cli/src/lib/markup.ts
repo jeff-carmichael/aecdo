@@ -1,8 +1,9 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { closeSync, existsSync, openSync, readSync, readdirSync, statSync } from "node:fs";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import type { PDFArray, PDFDocument, PDFFont, PDFObject, PDFPage, PDFRef, PDFDict, PDFContext } from "pdf-lib";
+import { sha256 } from "./hash.js";
 import { bboxToUserSpace, displaySize, type BBox, type Box } from "./pdf-page.js";
 
 type PdfLib = typeof import("pdf-lib");
@@ -45,6 +46,7 @@ const SET_KEY = "AECDO_Set";
 /** Keys in a copy's document info (Acrobat: File → Properties → Custom), so the app and people can tell which version a PDF is without trusting its file name. */
 const INFO_SET = "AECDOMarkupSet";
 const INFO_SOURCE = "AECDOSourcePDF";
+const INFO_SOURCE_SHA = "AECDOSourceSHA256";
 const SUBJECTS: Record<MarkupKind, string> = { cloud: "Cloud", callout: "Callout", note: "Note" };
 /** "Code review: Cloud", so Bluebeam's and Acrobat's markup lists can sort and filter by set. */
 const subject = (kind: MarkupKind, set?: string) => (set ? `${set}: ${SUBJECTS[kind]}` : SUBJECTS[kind]);
@@ -597,8 +599,6 @@ export interface SaveOptions {
   note?: RevisionNote;
 }
 
-const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
-
 /** Writes to a temp file and renames it over the target, so a failure never leaves a half-written PDF. */
 async function replaceFile(path: string, bytes: Uint8Array): Promise<void> {
   const tmp = `${path}.aecdo-tmp`;
@@ -664,6 +664,8 @@ export interface MarkupCopyInfo {
   set?: string;
   /** The file name of the original PDF it was copied from. */
   source?: string;
+  /** The SHA-256 of the original PDF it was copied from; copies from older versions lack it. */
+  sourceSha256?: string;
 }
 
 const TAIL_BYTES = 64 * 1024;
@@ -699,7 +701,8 @@ export function readMarkupCopyInfo(path: string): MarkupCopyInfo {
   };
   const set = value(INFO_SET);
   const source = value(INFO_SOURCE);
-  return { ...(set ? { set } : {}), ...(source ? { source } : {}) };
+  const sourceSha256 = value(INFO_SOURCE_SHA);
+  return { ...(set ? { set } : {}), ...(source ? { source } : {}), ...(sourceSha256 ? { sourceSha256 } : {}) };
 }
 
 function annotsRef(lib: PdfLib, page: PDFPage): PDFRef {
@@ -731,7 +734,7 @@ export async function saveMarkups(opts: SaveOptions): Promise<SaveRecord> {
         addMarkupAnnotation(lib, doc, page, markup, font, opts.now);
         changed.push(before, annotsRef(lib, page));
       }
-      if (!exists) changed.push(stampInfo(lib, doc, { [INFO_SOURCE]: basename(opts.sourcePdf) }));
+      if (!exists) changed.push(stampInfo(lib, doc, { [INFO_SOURCE]: basename(opts.sourcePdf), [INFO_SOURCE_SHA]: sha256(base) }));
       return changed;
     },
     !inPlace,
