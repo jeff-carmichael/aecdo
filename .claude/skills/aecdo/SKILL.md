@@ -125,6 +125,14 @@ aecdo validate file.jsonld --format json
 
 Returns: `{"valid": true, "file": "...", "errors": []}`
 
+To check that a PDF is the one the set was made from (by the set's optional `sourcePdfSha256`; a markup copy is checked by its original):
+
+```bash
+aecdo validate file.jsonld --pdf file.pdf --format json
+```
+
+Adds `"pdf": {"file": "...", "matches": true|false|null}` (`null`: the set has no hash) and exits 1 when it doesn't match. If it doesn't, bboxes may not line up with that PDF.
+
 ### Get a summary
 
 ```bash
@@ -182,7 +190,7 @@ Every `bbox` is `[xmin, ymin, xmax, ymax]` in PDF points (1/72 inch) from the to
 | `--pretty` | Pretty-print JSON output |
 | `-o, --output <file>` | Write to file instead of stdout |
 | `--schema <path>` | Use a custom schema file for validation |
-| `--pdf <file>` | `gui` only: source PDF for the app (default: `<name>.pdf` next to the `.jsonld`, or the set's `filename`) |
+| `--pdf <file>` | `gui`: source PDF for the app (default: `<name>.pdf` next to the `.jsonld`, or the set's `filename`); `validate`: PDF to check against the set's `sourcePdfSha256` |
 | `--no-update-check` | Skip the daily background check for a newer release (or set `NO_UPDATE_CHECK=1`). Update notices go to stderr only, so stdout JSON is never affected. |
 
 ## API Options

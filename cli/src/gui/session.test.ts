@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { copyFileSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { GuiSession, type ChatBridge, type BridgeHooks, type GuiEvent } from "./session.js";
@@ -150,6 +151,16 @@ test("picking another PDF", async () => {
   assert.equal(after.available, true);
   assert.ok(after.version > before.version);
   await assert.rejects(s.setPdf("missing.pdf"), /Can't find/);
+});
+
+test("the PDF is flagged when it isn't the one the set was made from", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "aecdo-gui-"));
+  const pdf = new URL("sample-drawing-package-1and2family.pdf", examples);
+  copyFileSync(pdf, join(dir, "plans.pdf"));
+  const hash = createHash("sha256").update(readFileSync(pdf)).digest("hex");
+  assert.equal((await session({ ...house, sourcePdfSha256: hash }, join(dir, "plans.jsonld")).s.pdfInfo()).mismatch, undefined);
+  assert.equal((await session(house, join(dir, "plans.jsonld")).s.pdfInfo()).mismatch, undefined, "no hash, no warning");
+  assert.equal((await session({ ...house, sourcePdfSha256: "0".repeat(64) }, join(dir, "plans.jsonld")).s.pdfInfo()).mismatch, true);
 });
 
 /** Stands in for the assistant: echoes the question, moves the view, and shows the page. */

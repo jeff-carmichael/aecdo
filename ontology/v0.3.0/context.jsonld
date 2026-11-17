@@ -20,6 +20,7 @@
       "@type": "xsd:dateTime"
     },
     "filename": "aecdo:filename",
+    "sourcePdfSha256": "aecdo:sourcePdfSha256",
 
     "sheets": {
       "@id": "aecdo:sheets",

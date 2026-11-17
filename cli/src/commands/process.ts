@@ -3,6 +3,8 @@ import { writeFile } from "node:fs/promises";
 import { loadConfig } from "../lib/config.js";
 import { getToken } from "../lib/auth.js";
 import { getJobStatus, getJobResult, downloadResult } from "../lib/api.js";
+import { fileSha256 } from "../lib/hash.js";
+import { stampSourcePdf } from "../lib/source-pdf.js";
 import { JobProgress, errorLines } from "../lib/progress.js";
 import { uploadPdf, pdfSize } from "./upload.js";
 import { validate } from "./validate.js";
@@ -75,7 +77,7 @@ export async function runThen(content: string, jobId: string, opts: ProcessOptio
 }
 
 /**
- * Uploads a PDF, waits for the job, and returns the JSON-LD it produced. Shared by
+ * Uploads a PDF, waits for the job, and returns the JSON-LD it produced, with the PDF's hash added. Shared by
  * `aecdo process` and the app, so it prints nothing and never exits.
  */
 export async function runJob(path: string, opts: JobOptions = {}): Promise<{ jobId: string; status: JobStatus; content: string }> {
@@ -89,7 +91,8 @@ export async function runJob(path: string, opts: JobOptions = {}): Promise<{ job
   if (current.globalStatus === "Error") throw new JobFailedError(current);
 
   const result = await getJobResult(token, jobId, config.baseUrl);
-  return { jobId, status: current, content: await downloadResult(result.downloadUrl) };
+  const content = stampSourcePdf(await downloadResult(result.downloadUrl), await fileSha256(path));
+  return { jobId, status: current, content };
 }
 
 export async function processPdf(filePath: string, opts: ProcessOptions): Promise<void> {

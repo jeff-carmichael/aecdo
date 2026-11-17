@@ -23,6 +23,7 @@ import {
   type Markup,
 } from "./markup.js";
 import { bboxToUserSpace, type BBox } from "./pdf-page.js";
+import { sha256 } from "./hash.js";
 
 const ROTATIONS = [0, 90, 180, 270];
 
@@ -134,7 +135,7 @@ test("each change notes itself in the file; restore brings back an earlier step 
     assert.deepEqual(steps.map((s) => s.text), ["Added a", "Added b", "Deleted all"]);
     assert.equal(steps[0].set, "QA 100%", "the % survives the comment escaping");
     assert.equal((await readFile(out)).indexOf("%aecdo-rev"), start);
-    assert.deepEqual(readMarkupCopyInfo(out), { set: "QA 100%", source: "plans.pdf" }, "the copy says what it is");
+    assert.deepEqual(readMarkupCopyInfo(out), { set: "QA 100%", source: "plans.pdf", sourceSha256: sha256(original) }, "the copy says what it is");
     assert.deepEqual(readMarkupCopyInfo(src), {}, "the original isn't marked");
     const reread = await PDFDocument.load(await readFile(out), { updateMetadata: false });
     const info = reread.context.lookup(reread.context.trailerInfo.Info, PDFDict);
@@ -154,7 +155,7 @@ test("each change notes itself in the file; restore brings back an earlier step 
     const last = /startxref\s+(\d+)\s+%%EOF\s*$/.exec(bytes.subarray(bytes.length - 64).toString("latin1"))![1];
     await writeFile(out, Buffer.concat([bytes, Buffer.from(`startxref\n${last}\n%%EOF\n`)]));
     await renameMarkups(out, "Final QA – Révision", { ...note("rename", "Renamed"), set: "Final QA – Révision" });
-    assert.deepEqual(readMarkupCopyInfo(out), { set: "Final QA – Révision", source: "plans.pdf" });
+    assert.deepEqual(readMarkupCopyInfo(out), { set: "Final QA – Révision", source: "plans.pdf", sourceSha256: sha256(original) });
     ({ steps } = markupHistory(await readFile(out)));
     assert.deepEqual(steps.map((s) => s.op ?? (s.outside ? "outside" : "")), ["add", "add", "delete", "restore", "outside", "rename"]);
     assert.equal((await listSavedMarkups(out)).find((m) => m.name === a.id)?.set, "Final QA – Révision");

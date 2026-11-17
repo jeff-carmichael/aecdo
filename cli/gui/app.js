@@ -186,6 +186,7 @@ async function loadPdf() {
   $("pdf-missing").hidden = info.available;
   $("pdf-stage").hidden = !info.available;
   $("pdf-bar").hidden = !info.available;
+  $("pdf-mismatch").hidden = !(info.available && info.mismatch);
   $("markup-set").title = info.savedCopy
     ? `Showing ${info.name}, the copy with ${info.markupSet ?? "these"} markups. The original PDF isn't changed.`
     : info.original
@@ -209,6 +210,7 @@ function showMissingPdf(info) {
   box.hidden = false;
   $("pdf-stage").hidden = true;
   $("pdf-bar").hidden = true;
+  $("pdf-mismatch").hidden = true;
   const choices = (info.choices ?? []).map((/** @type {string} */ c) => `<button class="choice" data-pdf="${esc(c)}">${esc(c)}</button>`).join("");
   box.innerHTML = `<h2>No PDF to show</h2>
 <div class="lines">${(info.missing ?? []).map((/** @type {string} */ l) => `<div>${esc(l)}</div>`).join("")}</div>

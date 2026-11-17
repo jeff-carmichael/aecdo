@@ -4,6 +4,7 @@
   "@type": "DrawingSet",
   "processedDate": "2026-04-10T14:30:00Z",
   "filename": "Example_Building_Plans.pdf",
+  "sourcePdfSha256": "33777aa3b672010af2f61033d0b788ccc735ebc08919b169f25fc2074b8e61fc",
   "sheets": [
     {
       "@id": "urn:uuid:11111111-1111-1111-1111-111111111111",

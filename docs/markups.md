@@ -16,7 +16,7 @@ Markups save as you add them, to a copy beside your PDF: `plans-markups.pdf`. Yo
 
 ## Sets
 
-Keep markups for different purposes apart, such as QA or code review. The bar under the PDF shows the **Current PDF version**: **Original** or one of your markup sets. Pick one from its menu to see it, or press **+ New** and pick a suggested name (Code review, QA, Punch list…) or type your own. Each set is its own copy, like `plans-markups-qa.pdf`; hover the menu to see which file is showing. New markups go to the last set you picked. Each copy also records its set and original PDF in its document properties (Acrobat: File → Properties → Custom), so it can be told apart even if it's renamed.
+Keep markups for different purposes apart, such as QA or code review. The bar under the PDF shows the **Current PDF version**: **Original** or one of your markup sets. Pick one from its menu to see it, or press **+ New** and pick a suggested name (Code review, QA, Punch list…) or type your own. Each set is its own copy, like `plans-markups-qa.pdf`; hover the menu to see which file is showing. New markups go to the last set you picked. Each copy also records its set, its original PDF, and the original's SHA-256 in its document properties (Acrobat: File → Properties → Custom), so it can be told apart even if it's renamed.
 
 ## Undo and history
 

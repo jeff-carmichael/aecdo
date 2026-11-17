@@ -651,6 +651,14 @@ body.resizing #pdf-stage {
   container-type: inline-size;
 }
 
+#pdf-mismatch {
+  padding: 5px 10px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+
 #pdf-stage {
   position: relative;
   flex: 1;
