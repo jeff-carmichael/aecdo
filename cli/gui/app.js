@@ -248,6 +248,8 @@ function render(s) {
   $("main-title").textContent = s.title;
   $("main-subtitle").textContent = s.subtitle;
   renderBody(s);
+  $("copy-btn").hidden = preview || !s.copy;
+  $("copy-btn").textContent = s.copy?.what === "table" ? "Copy table" : "Copy note";
   /** @type {any[]} */
   const rows = [];
   for (const sec of s.sections) {
@@ -307,6 +309,45 @@ function renderBody(s) {
     body.append(text);
   }
   body.hidden = !body.childElementCount;
+}
+
+/** Puts the open note's text, or the open table as tab-separated rows, on the clipboard. */
+async function copyShown() {
+  const copy = shown?.kind === "preview" ? undefined : shown?.copy;
+  if (!copy) return false;
+  const ok = await writeClipboard(copy.text);
+  if (!ok) toast("Couldn't copy to the clipboard.", "warn");
+  else message(copy.what === "table" ? "Copied the table. It pastes into Excel or Sheets as cells." : "Copied the note.");
+  return true;
+}
+
+/**
+ * The Clipboard API, else the old copy command, which the desktop window's webview still allows
+ * when the Clipboard API is missing or refused.
+ * @param {string} text
+ */
+async function writeClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+    const active = /** @type {HTMLElement | null} */ (document.activeElement);
+    document.body.append(area);
+    area.select();
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch {
+      ok = false;
+    }
+    area.remove();
+    active?.focus();
+    return ok;
+  }
 }
 
 /** @param {any} s */
@@ -1747,6 +1788,10 @@ function onKey(e) {
     return startFinding();
   }
   if (typing(e)) return;
+  if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C") && !window.getSelection()?.toString() && shown?.copy) {
+    e.preventDefault();
+    return void copyShown();
+  }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
 
   const k = e.key;
@@ -1947,6 +1992,7 @@ $("chat-hide").addEventListener("click", toggleChat);
 $("chat-input").addEventListener("focus", renderHints);
 $("chat-input").addEventListener("blur", renderHints);
 $("markups-btn").addEventListener("click", markupsPanel);
+$("copy-btn").addEventListener("click", () => void copyShown());
 $("markup-set").addEventListener("change", (e) => {
   const select = /** @type {HTMLSelectElement} */ (e.target);
   void showVersion(select.value);

@@ -47,6 +47,7 @@ export const SHORTCUTS = [
   [
     "Other",
     [
+      ["Ctrl+C  or  ⌘C", "copy the open note, or the open table (pastes into Excel as cells)"],
       ["d", "show ids and coordinates"],
       ["o", "open another drawing set or folder"],
       [",", "Settings: AI models and API credentials"],

@@ -5,6 +5,7 @@ import { Explorer, PdfLocator, AssistantBridge, findSheetRows, parseMention, not
 import { MarkupSession, SUGGESTED_SETS, type HistoryEntry, type MarkupRequest, type MarkupSet } from "../commands/markups.js";
 import { fieldName, plainValue } from "../commands/page.js";
 import { parseTable } from "../lib/table.js";
+import { formatDelimited } from "../lib/spreadsheet.js";
 import { checkSourcePdf } from "../lib/source-pdf.js";
 import { findSourcePdf, sourcePdfCandidates, unionBBox, type BBox } from "../lib/pdf-page.js";
 import { listPdfs } from "../lib/files.js";
@@ -59,6 +60,8 @@ export interface GuiState {
   fields?: [string, string][];
   /** Header row first. */
   table?: string[][];
+  /** What the Copy button puts on the clipboard: a note's text, or a table as tab-separated rows for spreadsheets. */
+  copy?: { what: "note" | "table"; text: string };
   sections: GuiSection[];
   sheet?: { sheetNumber: string; title: string; pageIndex: number };
   /** What the PDF pane outlines in red. */
@@ -523,6 +526,9 @@ export class GuiSession {
     } else if (v.kind === "entry" && v.entry.kind === "table") {
       state.table = parseTable(v.entry.value.content);
       state.body = e.showingDetails ? [`id    ${v.entry.value["@id"]}`] : undefined;
+      state.copy = { what: "table", text: formatDelimited(state.table, "\t") };
+    } else if (v.kind === "entry" && v.entry.kind === "note") {
+      state.copy = { what: "note", text: v.entry.value.content };
     }
     return state;
   }

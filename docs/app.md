@@ -28,10 +28,13 @@ Open a sheet, then a drawing, a layer, an item. What you pick is outlined on the
 | <kbd>z</kbd> / <kbd>f</kbd> | Zoom to selection / fit page |
 | <kbd>a</kbd> | Ask the AI |
 | <kbd>M</kbd> / <kbd>m</kbd> | Mark up / list markups |
+| <kbd>Ctrl</kbd>+<kbd>C</kbd> (<kbd>⌘</kbd><kbd>C</kbd>) | Copy the open note or table |
 | <kbd>o</kbd> | Open another set |
 | <kbd>,</kbd> | Settings |
 
 The mouse works too. Click a box on the PDF to open it.
+
+An open note or table has a **Copy** button. A table copies as cells, so it pastes straight into Excel or Google Sheets.
 
 Links under **Links to other drawings** and **Related** jump to sections, details, and schedules. <kbd>←</kbd> brings you back.
 
