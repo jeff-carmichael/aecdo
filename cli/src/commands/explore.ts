@@ -31,7 +31,7 @@ import {
   type AssistantInfo,
   type AssistantName,
 } from "../lib/llm.js";
-import { createAssistantSession, type AssistantSession } from "../lib/assistant.js";
+import { createAssistantSession, suggestTitle, type AssistantSession } from "../lib/assistant.js";
 import {
   findSourcePdf,
   sourcePdfCandidates,
@@ -1089,6 +1089,19 @@ export class AssistantBridge {
     const route = await pickRoute(this.models, name);
     if (!route) return { label: info.label, detail: "not set up", others };
     return { label: info.label, detail: `${route.modelId} via ${routeLabel(route.route, await getCustomEndpoint())}`, others };
+  }
+
+  /** A few words naming a chat, from @name's model; undefined when it isn't set up or can't answer. */
+  async title(name: AssistantName, question: string): Promise<string | undefined> {
+    try {
+      if (!nodeSupportsAssistant()) return undefined;
+      this.models ??= await createLlmModels();
+      const route = await pickRoute(this.models, name);
+      if (!route) return undefined;
+      return await suggestTitle(this.models, resolveModel(this.models, name, route), question, AbortSignal.timeout(30_000));
+    } catch {
+      return undefined;
+    }
   }
 
   async run(mention: Mention): Promise<void> {

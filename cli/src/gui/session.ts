@@ -157,7 +157,7 @@ export interface PastChat extends SavedChatSummary {
 }
 
 /** What a chat thread needs from the assistant (AssistantBridge in the app). */
-export type ChatBridge = Pick<AssistantBridge, "run" | "setUp" | "describe" | "active"> & Partial<Pick<AssistantBridge, "reload">>;
+export type ChatBridge = Pick<AssistantBridge, "run" | "setUp" | "describe" | "active"> & Partial<Pick<AssistantBridge, "reload" | "title">>;
 
 export interface BridgeHooks {
   onNavigate: () => void;
@@ -820,7 +820,7 @@ export class GuiSession {
 
     t.start();
     say({ role: "user", text: trimmed });
-    if (t.title === "New chat") t.setTitle(mention.text.length > 40 ? `${mention.text.slice(0, 39)}…` : mention.text || t.title);
+    if (t.title === "New chat" && mention.text) this.nameThread(t, mention.text, emitThread);
     t.busy = true;
     emitThread();
     try {
@@ -830,6 +830,17 @@ export class GuiSession {
       t.save();
       emitThread();
     }
+  }
+
+  /** Titles a chat with its first question at once, then with the few words the model suggests, if it does. */
+  private nameThread(t: ChatThread, question: string, emitThread: () => void): void {
+    const fallback = question.length > 40 ? `${question.slice(0, 39)}…` : question;
+    t.setTitle(fallback);
+    void t.bridge.title?.(t.model, question).then((title) => {
+      if (!title || t.title !== fallback) return;
+      t.setTitle(title);
+      emitThread();
+    });
   }
 
   /** After the AI settings change: new questions and chats use what's set up now. */
