@@ -1278,9 +1278,13 @@ ${models}
 
   const serverRow = (/** @type {any} */ v) => {
     const signIn = v.signedIn === undefined ? "" : v.signedIn ? `<button data-server-sign-out="${esc(v.name)}" title="Forget the saved sign-in">Sign out</button>` : `<button class="primary" data-server-sign-in="${esc(v.name)}">Sign in</button>`;
-    const buttons = `${signIn}<button data-server-everywhere="${esc(v.name)}" aria-pressed="${v.everywhere}" title="On in every folder that hasn't picked its own connectors">${v.everywhere ? "✓ " : ""}Every folder</button><button data-server-edit="${esc(v.name)}">Change</button><button data-server-remove="${esc(v.name)}">Remove</button>`;
-    const detail = [v.target, v.note].filter(Boolean).join(" · ");
-    return `<li><span class="route-name">${esc(v.name)}${v.signedIn ? ' <span class="ok" title="Signed in">✓</span>' : ""}<small class="dim">${esc(detail)}</small></span><span class="row-actions">${buttons}</span>${editingServer === v.name ? serverForm(v) : ""}</li>`;
+    const own = v.source === "settings";
+    const buttons = own
+      ? `${signIn}<button data-server-everywhere="${esc(v.name)}" aria-pressed="${v.everywhere}" title="On in every folder that hasn't picked its own connectors">${v.everywhere ? "✓ " : ""}Every folder</button><button data-server-edit="${esc(v.name)}">Change</button><button data-server-remove="${esc(v.name)}">Remove</button>`
+      : signIn;
+    const detail = [own ? v.target : "listed in this folder's .mcp.json", v.note].filter(Boolean).join(" · ");
+    const box = info.tools.folder ? `<input type="checkbox" data-server-on="${esc(v.name)}"${v.on ? " checked" : ""} title="On in this folder"${busy ? " disabled" : ""}> ` : "";
+    return `<li><label class="route-name check">${box}${esc(v.name)}${v.signedIn ? ' <span class="ok" title="Signed in">✓</span>' : ""}<small class="dim">${esc(detail)}</small></label><span class="row-actions">${buttons}</span>${editingServer === v.name ? serverForm(v) : ""}</li>`;
   };
 
   const serverForm = (/** @type {any} */ v) => `<form class="settings-form" data-form="server"><p class="dim">Any MCP server. Paste its URL, or the command that starts it on this computer, and tell the AI what it's for.</p>
@@ -1325,10 +1329,14 @@ ${pdfPart}
   };
 
   const toolsPart = () => {
-    const own = (info.tools?.servers ?? []).filter((/** @type {any} */ v) => v.source === "settings");
+    const t = info.tools;
+    const all = t?.servers ?? [];
+    const where = all.length && t.folder
+      ? ` A check turns one on for <code>${esc(t.folder)}</code> and the folders in it.${t.sharedFile ? " Connectors listed in its .mcp.json stay off until you check them, and each person signs in with their own account." : ""}`
+      : "";
     return `<h3>Connectors</h3>
-<p class="dim">MCP servers the AI can use. Turn them on or off for a folder with <strong>Connectors</strong> above the chat.</p>
-${own.length ? `<ul class="routes">${own.map(serverRow).join("")}</ul>` : ""}
+<p class="dim">MCP servers the AI can use.${where}</p>
+${all.length ? `<ul class="routes">${all.map(serverRow).join("")}</ul>` : ""}
 ${editingServer === "" ? `<ul class="routes"><li>${serverForm(undefined)}</li></ul>` : `<div class="actions"><button data-server-add>Add a connector</button></div>`}`;
   };
 
@@ -1421,6 +1429,8 @@ ${editingServer === "" ? `<ul class="routes"><li>${serverForm(undefined)}</li></
     }
   });
   body.addEventListener("change", (e) => {
+    const box = /** @type {HTMLInputElement} */ (e.target);
+    if (box.dataset.serverOn) return void save({ action: "server-on", name: box.dataset.serverOn, on: box.checked });
     const t = /** @type {HTMLSelectElement} */ (e.target);
     const row = t.closest("tr[data-name]");
     if (!row) return;
@@ -1471,90 +1481,6 @@ ${editingServer === "" ? `<ul class="routes"><li>${serverForm(undefined)}</li></
     keys: () => false,
   });
   if (location.hash === "#settings") history.replaceState(null, "", location.pathname + location.search);
-}
-
-/**
- * Which connectors the AI uses in this folder: on/off for each, and sign-ins.
- * @param {any} [info]
- */
-async function toolsModal(info) {
-  if (!info) {
-    try {
-      info = await api("api/tools");
-    } catch (err) {
-      return toast(`Couldn't load the connectors: ${/** @type {Error} */ (err).message}`, "warn");
-    }
-  }
-  const body = document.createElement("div");
-  body.className = "settings";
-  let busy = false;
-
-  const row = (/** @type {any} */ v) => {
-    const from = v.source === "folder" ? "listed in this folder's .mcp.json" : v.target;
-    const detail = [from, v.note].filter(Boolean).join(" · ");
-    const signIn = v.signedIn === false ? `<button class="primary" data-sign-in="${esc(v.name)}">Sign in</button>` : "";
-    return `<li><label class="route-name check"><input type="checkbox" data-server="${esc(v.name)}"${v.on ? " checked" : ""}> ${esc(v.name)}${v.signedIn ? ' <span class="ok" title="Signed in">✓</span>' : ""}<small class="dim">${esc(detail)}</small></label><span class="row-actions">${signIn}</span></li>`;
-  };
-
-  const draw = () => {
-    const auth = authNote ? `<div class="auth-note">${esc(authNote.text)}${authNote.url ? `<br><a href="${esc(authNote.url)}" target="_blank" rel="noreferrer">${esc(authNote.url)}</a>` : ""}</div>` : "";
-    const list = info.servers.length
-      ? `<ul class="routes">${info.servers.map(row).join("")}</ul>`
-      : `<p class="dim">No connectors yet. Add an MCP server in Settings.</p>`;
-    body.innerHTML = `${auth}<p class="dim">Your choice applies to <code>${esc(info.folder)}</code> and the folders in it.${info.sharedFile ? " Connectors listed in its .mcp.json stay off until you turn them on, and each person signs in with their own account." : ""}</p>
-${list}
-<div class="actions settings-foot"><button data-settings>Add or change connectors in Settings</button><button data-close>Done <kbd>Esc</kbd></button></div>`;
-    body.querySelectorAll("button, input").forEach((b) => (/** @type {HTMLButtonElement} */ (b).disabled ||= busy && !b.hasAttribute("data-close")));
-  };
-
-  /** @param {Record<string, unknown>} change */
-  const send = async (change) => {
-    busy = true;
-    draw();
-    try {
-      const r = await api("api/tools", change);
-      info = r.tools;
-      authNote = undefined;
-      toast(r.message);
-    } catch (err) {
-      const text = /** @type {Error} */ (err).message;
-      if (!/^(Cancelled|aborted)$/i.test(text)) toast(text, "warn");
-    }
-    busy = false;
-    if (body.isConnected) draw();
-  };
-
-  body.addEventListener("click", (e) => {
-    const t = /** @type {HTMLElement} */ (e.target).closest("button");
-    if (!t || t.disabled) return;
-    if (t.dataset.close !== undefined) return closeModal();
-    if (t.dataset.settings !== undefined) return void settingsModal();
-    if (t.dataset.signIn) return void send({ action: "sign-in", name: t.dataset.signIn });
-  });
-  body.addEventListener("change", (e) => {
-    const box = /** @type {HTMLInputElement} */ (e.target);
-    if (box.dataset.server) void send({ action: box.checked ? "on" : "off", name: box.dataset.server });
-  });
-
-  draw();
-  openModal({
-    kind: "tools",
-    title: "Connectors for this folder",
-    body,
-    wide: true,
-    onClose: () => (authNote = undefined),
-    update: async () => {
-      // While a sign-in runs, only show its link; the list comes back with the answer.
-      if (busy) return void (body.isConnected && draw());
-      try {
-        info = await api("api/tools");
-      } catch {
-        return;
-      }
-      if (body.isConnected) draw();
-    },
-    keys: () => false,
-  });
 }
 
 function closeSettings() {
@@ -1838,11 +1764,11 @@ function listen() {
         break;
       case "auth":
         authNote = { text: ev.text, url: ev.url, code: ev.code };
-        if (modal?.kind === "settings" || modal?.kind === "tools") void modal.update?.(undefined);
+        if (modal?.kind === "settings") void modal.update?.(undefined);
         else toast(ev.code ? `${ev.text} ${ev.url ?? ""}` : ev.text);
         break;
       case "settings":
-        if (modal?.kind === "settings" || modal?.kind === "tools") void modal.update?.(undefined);
+        if (modal?.kind === "settings") void modal.update?.(undefined);
         if (set) void chat.loadModels();
         break;
       case "update":
@@ -2113,7 +2039,6 @@ $("settings-btn").addEventListener("click", () => void settingsModal());
 $("theme-btn").addEventListener("click", () => void toggleTheme());
 $("chat-btn").addEventListener("click", toggleChat);
 $("chat-hide").addEventListener("click", toggleChat);
-$("chat-tools").addEventListener("click", () => void toolsModal());
 $("chat-input").addEventListener("focus", renderHints);
 $("chat-input").addEventListener("blur", renderHints);
 $("markups-btn").addEventListener("click", markupsPanel);

@@ -346,7 +346,7 @@ function authProvider(store: McpAuthStore, url: string, name: string, ui: SignIn
 /** A server that needs the user to sign in before its tools can be used. */
 export class NeedsSignIn extends Error {
   constructor(readonly server: string) {
-    super(`${server} needs you to sign in. Open Connectors above the chat, or Settings, and press Sign in.`);
+    super(`${server} needs you to sign in. Open Settings, find it under Connectors, and press Sign in.`);
   }
 }
 

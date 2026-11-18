@@ -59,9 +59,9 @@ Connect any MCP server so the AI can use its tools while it reads the drawings: 
 
 1. In **Settings**, under **Connectors**, press **Add a connector**. Paste its URL, or the command that starts it on your computer. Use **Note for the AI** to say what it's for and when to use it.
 2. If it needs an account, press **Sign in** and finish in your browser.
-3. Press **Connectors** above the chat to turn them on or off for this folder. The choice covers the folders inside it too. Connectors marked **Every folder** are on wherever you haven't picked.
+3. Check a connector to turn it on for the open folder, and the folders inside it. Connectors marked **Every folder** are on wherever you haven't picked.
 
-A project folder can list connectors in a `.mcp.json` for the whole team (the same file Claude Code uses). They show up under **Connectors**, off until you turn them on, and each person signs in with their own account. Don't put keys in that file; the app ignores them.
+A project folder can list connectors in a `.mcp.json` for the whole team (the same file Claude Code uses). They show up under **Connectors** in Settings, off until you check them, and each person signs in with their own account. Don't put keys in that file; the app ignores them.
 
 To tell the AI how to weigh them against each other, write it in the notes or in `AGENTS.md`.
 

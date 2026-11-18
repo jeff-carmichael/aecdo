@@ -284,6 +284,8 @@ function routes(app: GuiApp): Record<string, Handler> {
               return s.signOut(route());
             case "server":
               return app.tools.save({ name: opt("name"), target: opt("target"), token: opt("token"), note: opt("note"), everywhere: b.everywhere === true });
+            case "server-on":
+              return app.tools.setOn(app.cwd, opt("name"), b.on === true);
             case "server-everywhere":
               return app.tools.setEverywhere(opt("name"), b.on === true);
             case "server-remove":
@@ -297,26 +299,6 @@ function routes(app: GuiApp): Record<string, Handler> {
           }
         });
         return { message, settings: await settingsInfo(app) };
-      } catch (err) {
-        if (err instanceof HttpError) throw err;
-        throw new HttpError(400, (err as Error).message);
-      }
-    },
-    "GET /api/tools": () => app.tools.info(app.cwd),
-    "POST /api/tools": async (b) => {
-      const name = str(b, "name");
-      try {
-        const action = str(b, "action");
-        const message =
-          action === "on" || action === "off"
-            ? await app.tools.setOn(app.cwd, name, action === "on")
-            : action === "sign-in"
-              ? await app.tools.signIn(app.cwd, name)
-              : action === "sign-out"
-                ? await app.tools.signOut(app.cwd, name)
-                : undefined;
-        if (message === undefined) throw new HttpError(400, `Unknown tools action "${action}"`);
-        return { message, tools: await app.tools.info(app.cwd) };
       } catch (err) {
         if (err instanceof HttpError) throw err;
         throw new HttpError(400, (err as Error).message);
