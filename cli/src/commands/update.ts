@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { access, chmod, mkdtemp, readFile, rename, rm, unlink, writeFile, constants } from "node:fs/promises";
+import { access, chmod, mkdtemp, readdir, readFile, rename, rm, unlink, writeFile, constants } from "node:fs/promises";
 import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -60,8 +60,7 @@ export function expectedChecksum(checksums: string, file: string): string {
 // overwritten; it is deleted on a later run by cleanupOldBinary.
 export async function replaceBinary(newPath: string, targetPath: string, platform: NodeJS.Platform): Promise<void> {
   if (platform === "win32") {
-    const old = `${targetPath}.old`;
-    await rm(old, { force: true });
+    const old = await asideName(targetPath);
     await rename(targetPath, old);
     try {
       await rename(newPath, targetPath);
@@ -117,11 +116,37 @@ export function adminMove(staged: string, target: string, platform: NodeJS.Platf
   });
 }
 
-export async function cleanupOldBinary(execPath = process.execPath): Promise<void> {
+/**
+ * Where the running binary goes aside: `<exe>.old`, or a new `<exe>.old-<time>` when an earlier
+ * one can't be deleted, as when a copy of aecdo started before the last update is still running.
+ */
+async function asideName(targetPath: string): Promise<string> {
+  const old = `${targetPath}.old`;
   try {
-    await unlink(`${execPath}.old`);
+    await unlink(old);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") return `${old}-${Date.now()}`;
+  }
+  return old;
+}
+
+/** Deletes the binaries earlier updates moved aside; any still running are left for a later run. */
+export async function cleanupOldBinary(execPath = process.execPath): Promise<void> {
+  const dir = dirname(execPath);
+  const old = `${basename(execPath)}.old`;
+  let names: string[];
+  try {
+    names = await readdir(dir);
   } catch {
-    // nothing to clean up
+    return;
+  }
+  for (const name of names) {
+    if (name !== old && !name.startsWith(`${old}-`)) continue;
+    try {
+      await unlink(join(dir, name));
+    } catch {
+      // still running
+    }
   }
 }
 
