@@ -10,7 +10,7 @@ import { getConfigDir, readJsonFile, writePrivateJson } from "./config.js";
 import { setDirName } from "../gui/chat-history.js";
 
 /**
- * A tool server, in the `mcpServers` shape Claude Desktop and Claude Code use: a program to start
+ * An MCP connector, in the `mcpServers` shape Claude Desktop and Claude Code use: a program to start
  * (`command`) or a URL. `note` and `everywhere` are ours.
  */
 export interface McpServerConfig {
@@ -20,7 +20,7 @@ export interface McpServerConfig {
   cwd?: string;
   url?: string;
   headers?: Record<string, string>;
-  /** Told to the AI with each of the server's tools, e.g. "Firm standards, 2025 edition. Advisory only." */
+  /** What the user says the connector is for, told to the AI with each of its tools. */
   note?: string;
   /** On in every folder that hasn't picked its own servers. */
   everywhere?: boolean;
@@ -57,7 +57,7 @@ export interface FolderServers {
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,39}$/;
 
-/** Where tool servers and their sign-ins are kept; tests point it at a temporary folder. */
+/** Where connectors and their sign-ins are kept; tests point it at a temporary folder. */
 export class McpConfig {
   constructor(private dir = getConfigDir()) {}
 
@@ -78,7 +78,7 @@ export class McpConfig {
   }
 
   async saveServer(name: string, config: McpServerConfig): Promise<void> {
-    if (!NAME.test(name)) throw new Error("Give the server a short name: letters, digits, spaces, - _ or . (up to 40).");
+    if (!NAME.test(name)) throw new Error("Give the connector a short name: letters, digits, spaces, - _ or . (up to 40).");
     checkConfig(config);
     const file = await readJsonFile<McpFile>(this.path, {});
     file.mcpServers = { ...file.mcpServers, [name]: config };
@@ -88,7 +88,7 @@ export class McpConfig {
   async removeServer(name: string): Promise<void> {
     const file = await readJsonFile<McpFile>(this.path, {});
     const config = file.mcpServers?.[name];
-    if (!config) throw new Error(`There's no server called ${name}.`);
+    if (!config) throw new Error(`There's no connector called ${name}.`);
     delete file.mcpServers![name];
     await writePrivateJson(this.path, file);
     if (config.url) await new McpAuthStore(this.authPath).forget(config.url);
@@ -127,7 +127,7 @@ export class McpConfig {
   async setOn(cwd: string, name: string, on: boolean): Promise<FolderServers> {
     const current = await this.folderServers(cwd);
     const entry = current.servers.find((s) => s.name === name);
-    if (!entry) throw new Error(`There's no server called ${name} here.`);
+    if (!entry) throw new Error(`There's no connector called ${name} here.`);
     const path = this.choicesPath(current.folder);
     const choices = await readJsonFile<FolderChoices>(path, { on: current.servers.filter((s) => s.on).map((s) => s.name) });
     choices.on = choices.on.filter((n) => n !== name);
@@ -200,7 +200,7 @@ interface SavedAuth {
   discovery?: OAuthDiscoveryState;
 }
 
-/** Sign-ins for tool servers, by server URL, in ~/.aecdo/mcp-auth.json. Shared folder servers use the same sign-in as ones in Settings. */
+/** Sign-ins for connectors, by server URL, in ~/.aecdo/mcp-auth.json. Shared folder servers use the same sign-in as ones in Settings. */
 export class McpAuthStore {
   private chain: Promise<unknown> = Promise.resolve();
 
@@ -346,7 +346,7 @@ function authProvider(store: McpAuthStore, url: string, name: string, ui: SignIn
 /** A server that needs the user to sign in before its tools can be used. */
 export class NeedsSignIn extends Error {
   constructor(readonly server: string) {
-    super(`${server} needs you to sign in. Open the Tools menu above the chat, or Settings, and press Sign in.`);
+    super(`${server} needs you to sign in. Open Connectors above the chat, or Settings, and press Sign in.`);
   }
 }
 
@@ -364,7 +364,7 @@ export interface McpHubOptions {
   version: string;
 }
 
-/** The app's connections to tool servers, started when a chat first needs them and kept until the app quits. */
+/** The app's connections to connectors, started when a chat first needs them and kept until the app quits. */
 export class McpHub {
   private connections = new Map<string, Promise<Connection>>();
   readonly auth: McpAuthStore;
@@ -525,7 +525,7 @@ export function cleanSchema(schema: Tool["inputSchema"]): TSchema {
 }
 
 function agentTool(server: McpServerEntry, tool: Tool, client: Client, used: Set<string>): AgentTool {
-  const from = `From the "${server.name}" tool server${server.config.note ? ` (${server.config.note})` : ""}.`;
+  const from = `From the "${server.name}" connector.${server.config.note ? ` The user says: ${server.config.note}` : ""}`;
   return {
     name: toolName(server.name, tool.name, used),
     label: `${server.name}: ${tool.title ?? tool.annotations?.title ?? tool.name}`,

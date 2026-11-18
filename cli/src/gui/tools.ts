@@ -33,7 +33,7 @@ export interface ServerSetup {
   everywhere?: boolean;
 }
 
-/** Tool servers in the app: the ones in Settings, which are on in each folder, sign-ins, and their tools for the assistant. */
+/** MCP connectors in the app: the ones in Settings, which are on in each folder, sign-ins, and their tools for the assistant. */
 export class GuiTools {
   readonly config: McpConfig;
   readonly hub: McpHub;
@@ -90,12 +90,12 @@ export class GuiTools {
 
   async setEverywhere(name: string, on: boolean): Promise<string> {
     const config = (await this.config.servers())[name];
-    if (!config) throw new Error(`There's no server called ${name}.`);
+    if (!config) throw new Error(`There's no connector called ${name}.`);
     const next = { ...config };
     if (on) next.everywhere = true;
     else delete next.everywhere;
     await this.config.saveServer(name, next);
-    return on ? `${name} is on in every folder that hasn't picked its own servers.` : `${name} is only on in folders that turn it on.`;
+    return on ? `${name} is on in every folder that hasn't picked its own connectors.` : `${name} is only on in folders that turn it on.`;
   }
 
   async remove(name: string): Promise<string> {
@@ -107,7 +107,7 @@ export class GuiTools {
 
   private async find(cwd: string, name: string): Promise<McpServerEntry> {
     const entry = (await this.config.folderServers(cwd)).servers.find((s) => s.name === name);
-    if (!entry) throw new Error(`There's no server called ${name}.`);
+    if (!entry) throw new Error(`There's no connector called ${name}.`);
     return entry;
   }
 

@@ -90,7 +90,7 @@ test("a server started on this computer gives the assistant its tools", async ()
     assert.deepEqual(problems, []);
     assert.deepEqual(tools.map((t) => t.name), ["codes__search_sections", "codes__fail"]);
     const search = tools[0];
-    assert.match(search.description, /"codes" tool server \(Vancouver Building By-law\)/);
+    assert.match(search.description, /"codes" connector\. The user says: Vancouver Building By-law/);
     assert.equal((search.parameters as { $schema?: string }).$schema, undefined);
     const result = await search.execute("1", { query: "riser" });
     const text = (result.content[0] as { text: string }).text;

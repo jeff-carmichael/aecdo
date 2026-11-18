@@ -1230,7 +1230,7 @@ async function settingsModal(info) {
   body.className = "settings";
   /** @type {string | undefined} which route's form is open */
   let editing;
-  /** @type {string | undefined} which tool server's form is open ("" for a new one) */
+  /** @type {string | undefined} which connector's form is open ("" for a new one) */
   let editingServer;
   let busy = false;
 
@@ -1278,17 +1278,17 @@ ${models}
 
   const serverRow = (/** @type {any} */ v) => {
     const signIn = v.signedIn === undefined ? "" : v.signedIn ? `<button data-server-sign-out="${esc(v.name)}" title="Forget the saved sign-in">Sign out</button>` : `<button class="primary" data-server-sign-in="${esc(v.name)}">Sign in</button>`;
-    const buttons = `${signIn}<button data-server-everywhere="${esc(v.name)}" aria-pressed="${v.everywhere}" title="On in every folder that hasn't picked its own servers">${v.everywhere ? "✓ " : ""}Every folder</button><button data-server-edit="${esc(v.name)}">Change</button><button data-server-remove="${esc(v.name)}">Remove</button>`;
+    const buttons = `${signIn}<button data-server-everywhere="${esc(v.name)}" aria-pressed="${v.everywhere}" title="On in every folder that hasn't picked its own connectors">${v.everywhere ? "✓ " : ""}Every folder</button><button data-server-edit="${esc(v.name)}">Change</button><button data-server-remove="${esc(v.name)}">Remove</button>`;
     const detail = [v.target, v.note].filter(Boolean).join(" · ");
     return `<li><span class="route-name">${esc(v.name)}${v.signedIn ? ' <span class="ok" title="Signed in">✓</span>' : ""}<small class="dim">${esc(detail)}</small></span><span class="row-actions">${buttons}</span>${editingServer === v.name ? serverForm(v) : ""}</li>`;
   };
 
-  const serverForm = (/** @type {any} */ v) => `<form class="settings-form" data-form="server"><p class="dim">A tool server (MCP) the AI can look things up in, such as building codes, standards, or your firm's specs. Paste its URL, or the command that starts it on this computer.</p>
-<label>Name <input name="name" value="${esc(v?.name ?? "")}" placeholder="e.g. Codes" autocomplete="off" required${v ? " readonly" : ""}></label>
+  const serverForm = (/** @type {any} */ v) => `<form class="settings-form" data-form="server"><p class="dim">Any MCP server. Paste its URL, or the command that starts it on this computer, and tell the AI what it's for.</p>
+<label>Name <input name="name" value="${esc(v?.name ?? "")}" placeholder="e.g. Specs" autocomplete="off" required${v ? " readonly" : ""}></label>
 <label>URL or command <input name="target" value="${esc(v?.target ?? "")}" placeholder="https://…/mcp  or  npx -y some-mcp-server" autocomplete="off" spellcheck="false" required></label>
 <label>API key <input name="token" type="password" placeholder="only if the server uses a key instead of a sign-in" autocomplete="off"></label>
-<label>Note for the AI <input name="note" value="${esc(v?.note ?? "")}" placeholder="e.g. Firm standards, 2025 edition. Advisory only." autocomplete="off"></label>
-<label class="check"><input type="checkbox" name="everywhere"${v?.everywhere ?? true ? " checked" : ""}> On in every folder that hasn't picked its own servers</label>
+<label>Note for the AI <input name="note" value="${esc(v?.note ?? "")}" placeholder="what it's for and when to use it" autocomplete="off"></label>
+<label class="check"><input type="checkbox" name="everywhere"${v?.everywhere ?? true ? " checked" : ""}> On in every folder that hasn't picked its own connectors</label>
 <div class="actions"><button type="button" data-cancel>Cancel</button><button class="primary">Save</button></div></form>`;
 
   const draw = () => {
@@ -1326,10 +1326,10 @@ ${pdfPart}
 
   const toolsPart = () => {
     const own = (info.tools?.servers ?? []).filter((/** @type {any} */ v) => v.source === "settings");
-    return `<h3>Tool servers</h3>
-<p class="dim">Codes, standards, and specs the AI can look things up in. Turn them on or off for a folder with <strong>Tools</strong> above the chat.</p>
+    return `<h3>Connectors</h3>
+<p class="dim">MCP servers the AI can use. Turn them on or off for a folder with <strong>Connectors</strong> above the chat.</p>
 ${own.length ? `<ul class="routes">${own.map(serverRow).join("")}</ul>` : ""}
-${editingServer === "" ? `<ul class="routes"><li>${serverForm(undefined)}</li></ul>` : `<div class="actions"><button data-server-add>Add a server</button></div>`}`;
+${editingServer === "" ? `<ul class="routes"><li>${serverForm(undefined)}</li></ul>` : `<div class="actions"><button data-server-add>Add a connector</button></div>`}`;
   };
 
   const loadModelChoices = async () => {
@@ -1474,7 +1474,7 @@ ${editingServer === "" ? `<ul class="routes"><li>${serverForm(undefined)}</li></
 }
 
 /**
- * Which tool servers the AI uses in this folder: on/off for each, and sign-ins.
+ * Which connectors the AI uses in this folder: on/off for each, and sign-ins.
  * @param {any} [info]
  */
 async function toolsModal(info) {
@@ -1482,7 +1482,7 @@ async function toolsModal(info) {
     try {
       info = await api("api/tools");
     } catch (err) {
-      return toast(`Couldn't load the tool servers: ${/** @type {Error} */ (err).message}`, "warn");
+      return toast(`Couldn't load the connectors: ${/** @type {Error} */ (err).message}`, "warn");
     }
   }
   const body = document.createElement("div");
@@ -1500,10 +1500,10 @@ async function toolsModal(info) {
     const auth = authNote ? `<div class="auth-note">${esc(authNote.text)}${authNote.url ? `<br><a href="${esc(authNote.url)}" target="_blank" rel="noreferrer">${esc(authNote.url)}</a>` : ""}</div>` : "";
     const list = info.servers.length
       ? `<ul class="routes">${info.servers.map(row).join("")}</ul>`
-      : `<p class="dim">No tool servers yet. Add one in Settings: building codes, standards, or your firm's specs that the AI can look things up in.</p>`;
-    body.innerHTML = `${auth}<p class="dim">Your choice applies to <code>${esc(info.folder)}</code> and the folders in it.${info.sharedFile ? " Servers listed in its .mcp.json stay off until you turn them on, and each person signs in with their own account." : ""}</p>
+      : `<p class="dim">No connectors yet. Add an MCP server in Settings.</p>`;
+    body.innerHTML = `${auth}<p class="dim">Your choice applies to <code>${esc(info.folder)}</code> and the folders in it.${info.sharedFile ? " Connectors listed in its .mcp.json stay off until you turn them on, and each person signs in with their own account." : ""}</p>
 ${list}
-<div class="actions settings-foot"><button data-settings>Add or change servers in Settings</button><button data-close>Done <kbd>Esc</kbd></button></div>`;
+<div class="actions settings-foot"><button data-settings>Add or change connectors in Settings</button><button data-close>Done <kbd>Esc</kbd></button></div>`;
     body.querySelectorAll("button, input").forEach((b) => (/** @type {HTMLButtonElement} */ (b).disabled ||= busy && !b.hasAttribute("data-close")));
   };
 
@@ -1539,7 +1539,7 @@ ${list}
   draw();
   openModal({
     kind: "tools",
-    title: "Tools for this folder",
+    title: "Connectors for this folder",
     body,
     wide: true,
     onClose: () => (authNote = undefined),

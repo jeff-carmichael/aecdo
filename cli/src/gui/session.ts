@@ -149,7 +149,7 @@ export interface GuiSessionOptions {
   bridge?: (out: AssistantOutput, hooks: BridgeHooks) => ChatBridge;
   /** Where chats are saved, one folder per set (the app uses ~/.aecdo/projects); unset, chats aren't saved. */
   chatsDir?: string;
-  /** Tools from the tool servers on in the folder, checked before each question. */
+  /** Tools from the connectors on in the folder, checked before each question. */
   serverTools?: () => Promise<{ tools: AgentTool[]; problems: string[] }>;
 }
 
