@@ -1230,6 +1230,8 @@ async function settingsModal(info) {
   body.className = "settings";
   /** @type {string | undefined} which route's form is open */
   let editing;
+  /** @type {string | undefined} which tool server's form is open ("" for a new one) */
+  let editingServer;
   let busy = false;
 
   /** The @names a route reaches, shown under its name. */
@@ -1274,6 +1276,21 @@ ${models}
     return `<tr data-name="${m.name}"><td>@${esc(m.name)}</td><td><select data-route aria-label="How @${esc(m.name)} is reached">${routes}</select></td><td><select data-model aria-label="@${esc(m.name)} model"><option>${esc(m.model ?? "")}</option></select></td></tr>`;
   };
 
+  const serverRow = (/** @type {any} */ v) => {
+    const signIn = v.signedIn === undefined ? "" : v.signedIn ? `<button data-server-sign-out="${esc(v.name)}" title="Forget the saved sign-in">Sign out</button>` : `<button class="primary" data-server-sign-in="${esc(v.name)}">Sign in</button>`;
+    const buttons = `${signIn}<button data-server-everywhere="${esc(v.name)}" aria-pressed="${v.everywhere}" title="On in every folder that hasn't picked its own servers">${v.everywhere ? "✓ " : ""}Every folder</button><button data-server-edit="${esc(v.name)}">Change</button><button data-server-remove="${esc(v.name)}">Remove</button>`;
+    const detail = [v.target, v.note].filter(Boolean).join(" · ");
+    return `<li><span class="route-name">${esc(v.name)}${v.signedIn ? ' <span class="ok" title="Signed in">✓</span>' : ""}<small class="dim">${esc(detail)}</small></span><span class="row-actions">${buttons}</span>${editingServer === v.name ? serverForm(v) : ""}</li>`;
+  };
+
+  const serverForm = (/** @type {any} */ v) => `<form class="settings-form" data-form="server"><p class="dim">A tool server (MCP) the AI can look things up in, such as building codes, standards, or your firm's specs. Paste its URL, or the command that starts it on this computer.</p>
+<label>Name <input name="name" value="${esc(v?.name ?? "")}" placeholder="e.g. Codes" autocomplete="off" required${v ? " readonly" : ""}></label>
+<label>URL or command <input name="target" value="${esc(v?.target ?? "")}" placeholder="https://…/mcp  or  npx -y some-mcp-server" autocomplete="off" spellcheck="false" required></label>
+<label>API key <input name="token" type="password" placeholder="only if the server uses a key instead of a sign-in" autocomplete="off"></label>
+<label>Note for the AI <input name="note" value="${esc(v?.note ?? "")}" placeholder="e.g. Firm standards, 2025 edition. Advisory only." autocomplete="off"></label>
+<label class="check"><input type="checkbox" name="everywhere"${v?.everywhere ?? true ? " checked" : ""}> On in every folder that hasn't picked its own servers</label>
+<div class="actions"><button type="button" data-cancel>Cancel</button><button class="primary">Save</button></div></form>`;
+
   const draw = () => {
     const ai = info.ai;
     const auth = authNote
@@ -1300,10 +1317,19 @@ ${ready.length ? `<h3>Models</h3><table class="assistants">${ready.map(assistant
     const folder = ai.path.replace(/[\\/][^\\/]*$/, "");
     body.innerHTML = `${auth}<div class="prefs"><span class="pref-label">Look</span><div class="pref-value"><div class="theme-choice" role="group" aria-label="Light or dark">${themes}</div></div>${versionRow()}</div>
 <h3>AI sign-ins</h3>${aiPart}
+${toolsPart()}
 ${pdfPart}
 <div class="actions settings-foot"><span class="dim">Saved in <code>${esc(folder)}</code></span><button data-close>Done <kbd>Esc</kbd></button></div>`;
     body.querySelectorAll("button").forEach((b) => (b.disabled ||= busy && !b.hasAttribute("data-close")));
     void loadModelChoices();
+  };
+
+  const toolsPart = () => {
+    const own = (info.tools?.servers ?? []).filter((/** @type {any} */ v) => v.source === "settings");
+    return `<h3>Tool servers</h3>
+<p class="dim">Codes, standards, and specs the AI can look things up in. Turn them on or off for a folder with <strong>Tools</strong> above the chat.</p>
+${own.length ? `<ul class="routes">${own.map(serverRow).join("")}</ul>` : ""}
+${editingServer === "" ? `<ul class="routes"><li>${serverForm(undefined)}</li></ul>` : `<div class="actions"><button data-server-add>Add a server</button></div>`}`;
   };
 
   const loadModelChoices = async () => {
@@ -1332,6 +1358,7 @@ ${pdfPart}
       const r = await api("api/settings", change);
       info = r.settings;
       editing = undefined;
+      editingServer = undefined;
       authNote = undefined;
       toast(r.message);
     } catch (err) {
@@ -1352,8 +1379,18 @@ ${pdfPart}
     if (t.dataset.update) return void updateAction(t.dataset.update);
     if (t.dataset.cancel !== undefined) {
       editing = undefined;
+      editingServer = undefined;
       return draw();
     }
+    if (t.dataset.serverAdd !== undefined || t.dataset.serverEdit) {
+      editingServer = t.dataset.serverEdit ?? "";
+      draw();
+      return /** @type {HTMLElement | null} */ (body.querySelector('[data-form="server"] input:not([readonly])'))?.focus();
+    }
+    if (t.dataset.serverSignIn) return void save({ action: "server-sign-in", name: t.dataset.serverSignIn });
+    if (t.dataset.serverSignOut) return void save({ action: "server-sign-out", name: t.dataset.serverSignOut });
+    if (t.dataset.serverRemove) return void save({ action: "server-remove", name: t.dataset.serverRemove });
+    if (t.dataset.serverEverywhere) return void save({ action: "server-everywhere", name: t.dataset.serverEverywhere, on: t.getAttribute("aria-pressed") !== "true" });
     if (t.dataset.edit) {
       editing = editing === t.dataset.edit ? undefined : t.dataset.edit;
       draw();
@@ -1373,6 +1410,8 @@ ${pdfPart}
         return void save({ action: "key", route: form.dataset.route, key: v.key });
       case "bedrock":
         return void save({ action: "bedrock", region: v.region });
+      case "server":
+        return void save({ action: "server", name: v.name, target: v.target, token: v.token, note: v.note, everywhere: v.everywhere === "on" });
       case "custom": {
         /** @type {Record<string, unknown>} */
         const models = {};
@@ -1417,7 +1456,8 @@ ${pdfPart}
     wide: true,
     dismiss: closeSettings,
     update: async (/** @type {any} */ next) => {
-      if (busy) return;
+      // While a sign-in runs, only show its link; the settings come back with the answer.
+      if (busy) return void (body.isConnected && draw());
       if (next) info = next;
       else if (next === undefined) {
         try {
@@ -1431,6 +1471,90 @@ ${pdfPart}
     keys: () => false,
   });
   if (location.hash === "#settings") history.replaceState(null, "", location.pathname + location.search);
+}
+
+/**
+ * Which tool servers the AI uses in this folder: on/off for each, and sign-ins.
+ * @param {any} [info]
+ */
+async function toolsModal(info) {
+  if (!info) {
+    try {
+      info = await api("api/tools");
+    } catch (err) {
+      return toast(`Couldn't load the tool servers: ${/** @type {Error} */ (err).message}`, "warn");
+    }
+  }
+  const body = document.createElement("div");
+  body.className = "settings";
+  let busy = false;
+
+  const row = (/** @type {any} */ v) => {
+    const from = v.source === "folder" ? "listed in this folder's .mcp.json" : v.target;
+    const detail = [from, v.note].filter(Boolean).join(" · ");
+    const signIn = v.signedIn === false ? `<button class="primary" data-sign-in="${esc(v.name)}">Sign in</button>` : "";
+    return `<li><label class="route-name check"><input type="checkbox" data-server="${esc(v.name)}"${v.on ? " checked" : ""}> ${esc(v.name)}${v.signedIn ? ' <span class="ok" title="Signed in">✓</span>' : ""}<small class="dim">${esc(detail)}</small></label><span class="row-actions">${signIn}</span></li>`;
+  };
+
+  const draw = () => {
+    const auth = authNote ? `<div class="auth-note">${esc(authNote.text)}${authNote.url ? `<br><a href="${esc(authNote.url)}" target="_blank" rel="noreferrer">${esc(authNote.url)}</a>` : ""}</div>` : "";
+    const list = info.servers.length
+      ? `<ul class="routes">${info.servers.map(row).join("")}</ul>`
+      : `<p class="dim">No tool servers yet. Add one in Settings: building codes, standards, or your firm's specs that the AI can look things up in.</p>`;
+    body.innerHTML = `${auth}<p class="dim">Your choice applies to <code>${esc(info.folder)}</code> and the folders in it.${info.sharedFile ? " Servers listed in its .mcp.json stay off until you turn them on, and each person signs in with their own account." : ""}</p>
+${list}
+<div class="actions settings-foot"><button data-settings>Add or change servers in Settings</button><button data-close>Done <kbd>Esc</kbd></button></div>`;
+    body.querySelectorAll("button, input").forEach((b) => (/** @type {HTMLButtonElement} */ (b).disabled ||= busy && !b.hasAttribute("data-close")));
+  };
+
+  /** @param {Record<string, unknown>} change */
+  const send = async (change) => {
+    busy = true;
+    draw();
+    try {
+      const r = await api("api/tools", change);
+      info = r.tools;
+      authNote = undefined;
+      toast(r.message);
+    } catch (err) {
+      const text = /** @type {Error} */ (err).message;
+      if (!/^(Cancelled|aborted)$/i.test(text)) toast(text, "warn");
+    }
+    busy = false;
+    if (body.isConnected) draw();
+  };
+
+  body.addEventListener("click", (e) => {
+    const t = /** @type {HTMLElement} */ (e.target).closest("button");
+    if (!t || t.disabled) return;
+    if (t.dataset.close !== undefined) return closeModal();
+    if (t.dataset.settings !== undefined) return void settingsModal();
+    if (t.dataset.signIn) return void send({ action: "sign-in", name: t.dataset.signIn });
+  });
+  body.addEventListener("change", (e) => {
+    const box = /** @type {HTMLInputElement} */ (e.target);
+    if (box.dataset.server) void send({ action: box.checked ? "on" : "off", name: box.dataset.server });
+  });
+
+  draw();
+  openModal({
+    kind: "tools",
+    title: "Tools for this folder",
+    body,
+    wide: true,
+    onClose: () => (authNote = undefined),
+    update: async () => {
+      // While a sign-in runs, only show its link; the list comes back with the answer.
+      if (busy) return void (body.isConnected && draw());
+      try {
+        info = await api("api/tools");
+      } catch {
+        return;
+      }
+      if (body.isConnected) draw();
+    },
+    keys: () => false,
+  });
 }
 
 function closeSettings() {
@@ -1714,11 +1838,11 @@ function listen() {
         break;
       case "auth":
         authNote = { text: ev.text, url: ev.url, code: ev.code };
-        if (modal?.kind === "settings") void modal.update?.(undefined);
+        if (modal?.kind === "settings" || modal?.kind === "tools") void modal.update?.(undefined);
         else toast(ev.code ? `${ev.text} ${ev.url ?? ""}` : ev.text);
         break;
       case "settings":
-        if (modal?.kind === "settings") void modal.update?.(undefined);
+        if (modal?.kind === "settings" || modal?.kind === "tools") void modal.update?.(undefined);
         if (set) void chat.loadModels();
         break;
       case "update":
@@ -1989,6 +2113,7 @@ $("settings-btn").addEventListener("click", () => void settingsModal());
 $("theme-btn").addEventListener("click", () => void toggleTheme());
 $("chat-btn").addEventListener("click", toggleChat);
 $("chat-hide").addEventListener("click", toggleChat);
+$("chat-tools").addEventListener("click", () => void toolsModal());
 $("chat-input").addEventListener("focus", renderHints);
 $("chat-input").addEventListener("blur", renderHints);
 $("markups-btn").addEventListener("click", markupsPanel);

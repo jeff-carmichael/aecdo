@@ -53,6 +53,23 @@ Files go in the app's current folder. The chat links to each one, so you can ope
 
 It can't delete files, touch other file types, or reach other folders.
 
+## Codes, standards, and specs
+
+Connect tool servers (MCP) so the AI can look things up while it reads the drawings: building codes, your firm's standards, a project's specs. It names the section each point rests on.
+
+1. In **Settings**, under **Tool servers**, press **Add a server**. Paste its URL, or the command that starts it on your computer. Add a note for the AI if it helps, like "Firm standards, 2025 edition. Advisory only."
+2. If it needs an account, press **Sign in** and finish in your browser.
+3. Press **Tools** above the chat to turn servers on or off for this folder. The choice covers the folders inside it too. Servers marked **Every folder** are on wherever you haven't picked.
+
+A project folder can list its servers in a `.mcp.json` for the whole team (the same file Claude Code uses). They show up under **Tools**, off until you turn them on, and each person signs in with their own account. Don't put keys in that file; the app ignores them.
+
+Which source wins when they disagree is up to you. Say it in `AGENTS.md`:
+
+```markdown
+- The project spec overrides our firm standards.
+- City amendments override the base building code.
+```
+
 ## AGENTS.md
 
 Put an `AGENTS.md` in your folder to give the assistant standing instructions:
@@ -66,4 +83,4 @@ Restart the app after editing it.
 
 ## Privacy
 
-Your questions and the parts of the set it reads go to the model you chose. The PDF isn't sent. Nothing is sent until you ask.
+Your questions and the parts of the set it reads go to the model you chose. The PDF isn't sent. Nothing is sent until you ask. What the AI searches for goes to the tool servers you turned on.

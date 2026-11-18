@@ -134,7 +134,7 @@ function routeId(value: unknown): RouteId {
 
 /** Settings, with the update status shown at the top of the screen. */
 async function settingsInfo(app: GuiApp) {
-  return { ...(await app.settings.info()), update: app.updates.state() };
+  return { ...(await app.settings.info()), update: app.updates.state(), tools: await app.tools.info(app.cwd) };
 }
 
 function routes(app: GuiApp): Record<string, Handler> {
@@ -282,11 +282,41 @@ function routes(app: GuiApp): Record<string, Handler> {
               return s.choose(assistantName(b.name) ?? "claude", route(), opt("model"));
             case "sign-out":
               return s.signOut(route());
+            case "server":
+              return app.tools.save({ name: opt("name"), target: opt("target"), token: opt("token"), note: opt("note"), everywhere: b.everywhere === true });
+            case "server-everywhere":
+              return app.tools.setEverywhere(opt("name"), b.on === true);
+            case "server-remove":
+              return app.tools.remove(opt("name"));
+            case "server-sign-in":
+              return app.tools.signIn(app.cwd, opt("name"));
+            case "server-sign-out":
+              return app.tools.signOut(app.cwd, opt("name"));
             default:
               throw new HttpError(400, `Unknown settings action "${action}"`);
           }
         });
         return { message, settings: await settingsInfo(app) };
+      } catch (err) {
+        if (err instanceof HttpError) throw err;
+        throw new HttpError(400, (err as Error).message);
+      }
+    },
+    "GET /api/tools": () => app.tools.info(app.cwd),
+    "POST /api/tools": async (b) => {
+      const name = str(b, "name");
+      try {
+        const action = str(b, "action");
+        const message =
+          action === "on" || action === "off"
+            ? await app.tools.setOn(app.cwd, name, action === "on")
+            : action === "sign-in"
+              ? await app.tools.signIn(app.cwd, name)
+              : action === "sign-out"
+                ? await app.tools.signOut(app.cwd, name)
+                : undefined;
+        if (message === undefined) throw new HttpError(400, `Unknown tools action "${action}"`);
+        return { message, tools: await app.tools.info(app.cwd) };
       } catch (err) {
         if (err instanceof HttpError) throw err;
         throw new HttpError(400, (err as Error).message);

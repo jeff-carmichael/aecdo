@@ -1639,6 +1639,11 @@ button.primary kbd {
   grid-column: 1 / -1;
 }
 
+.settings .row-actions button[aria-pressed="true"] {
+  background: var(--select);
+  border-color: var(--accent);
+}
+
 .settings .row-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1735,6 +1740,24 @@ button.primary kbd {
 
 .settings .assistants select {
   width: 100%;
+}
+
+.settings-form label.check {
+  display: flex;
+  gap: 8px;
+}
+
+.settings .routes label.check {
+  cursor: pointer;
+}
+
+.settings .routes label.check > input {
+  margin: 0 6px 0 0;
+  vertical-align: -1px;
+}
+
+.settings .routes .route-name small {
+  overflow-wrap: anywhere;
 }
 
 .auth-note {
