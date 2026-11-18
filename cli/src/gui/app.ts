@@ -12,6 +12,7 @@ import { openWithDefaultApp } from "../lib/open.js";
 import { chooseFolder } from "../lib/folder-dialog.js";
 import { GuiSettings } from "./settings.js";
 import { GuiUpdates, type GuiUpdatesOptions } from "./updates.js";
+import { GuiTools } from "./tools.js";
 import { appVersion, isStandalone } from "../lib/version.js";
 import { NOTE_EXTENSIONS, resolveInCwd } from "../lib/assistant.js";
 import { SPREADSHEET_EXTENSIONS } from "../lib/spreadsheet.js";
@@ -128,6 +129,7 @@ export class GuiApp {
   private prompts = new Map<string, { resolve: (value: string) => void; reject: (err: Error) => void }>();
   readonly settings: GuiSettings;
   readonly updates: GuiUpdates;
+  readonly tools: GuiTools;
   private confirmSeq = 0;
   /** PDFs being processed, by full path, with their latest progress. */
   private jobs = new Map<string, string>();
@@ -141,6 +143,14 @@ export class GuiApp {
     this.cwd = opts.cwd;
     this.quitting = new Promise((res) => (this.quitWith = res));
     this.settings = new GuiSettings(this.interaction(), { llmPath: opts.llmPath, configDir: opts.configDir, processing: opts.processing });
+    this.tools = new GuiTools({
+      configDir: opts.configDir,
+      version: appVersion(),
+      ui: {
+        openUrl: (url) => (this.opts.openUrl ?? openWithDefaultApp)(url),
+        notify: (text, url) => this.emit({ type: "auth", text, ...(url ? { url } : {}) }),
+      },
+    });
     this.updates = new GuiUpdates({
       currentVersion: appVersion(),
       standalone: isStandalone(),
@@ -296,6 +306,7 @@ export class GuiApp {
       confirm: (q, thread) => this.confirm(q, thread),
       bridge: this.opts.bridge,
       chatsDir: join(this.opts.configDir ?? getConfigDir(), "projects"),
+      serverTools: () => this.tools.tools(this.cwd),
     });
     await this.remember({ file: full, folder: this.cwd });
     void this.checkValid(data, full);
@@ -493,6 +504,7 @@ export class GuiApp {
 
   quit(reason: string): void {
     this.session?.stopAll();
+    this.tools.close();
     for (const id of [...this.confirms.keys()]) this.answer(id, false);
     for (const id of [...this.prompts.keys()]) this.answerPrompt(id, null);
     this.quitWith(reason);

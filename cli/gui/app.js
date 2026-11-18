@@ -1230,6 +1230,8 @@ async function settingsModal(info) {
   body.className = "settings";
   /** @type {string | undefined} which route's form is open */
   let editing;
+  /** @type {string | undefined} which connector's form is open ("" for a new one) */
+  let editingServer;
   let busy = false;
 
   /** The @names a route reaches, shown under its name. */
@@ -1274,6 +1276,25 @@ ${models}
     return `<tr data-name="${m.name}"><td>@${esc(m.name)}</td><td><select data-route aria-label="How @${esc(m.name)} is reached">${routes}</select></td><td><select data-model aria-label="@${esc(m.name)} model"><option>${esc(m.model ?? "")}</option></select></td></tr>`;
   };
 
+  const serverRow = (/** @type {any} */ v) => {
+    const signIn = v.signedIn === undefined ? "" : v.signedIn ? `<button data-server-sign-out="${esc(v.name)}" title="Forget the saved sign-in">Sign out</button>` : `<button class="primary" data-server-sign-in="${esc(v.name)}">Sign in</button>`;
+    const own = v.source === "settings";
+    const buttons = own
+      ? `${signIn}<button data-server-everywhere="${esc(v.name)}" aria-pressed="${v.everywhere}" title="On in every folder that hasn't picked its own connectors">${v.everywhere ? "✓ " : ""}Every folder</button><button data-server-edit="${esc(v.name)}">Change</button><button data-server-remove="${esc(v.name)}">Remove</button>`
+      : signIn;
+    const detail = [own ? v.target : "listed in this folder's .mcp.json", v.note].filter(Boolean).join(" · ");
+    const box = info.tools.folder ? `<input type="checkbox" data-server-on="${esc(v.name)}"${v.on ? " checked" : ""} title="On in this folder"${busy ? " disabled" : ""}> ` : "";
+    return `<li><label class="route-name check">${box}${esc(v.name)}${v.signedIn ? ' <span class="ok" title="Signed in">✓</span>' : ""}<small class="dim">${esc(detail)}</small></label><span class="row-actions">${buttons}</span>${editingServer === v.name ? serverForm(v) : ""}</li>`;
+  };
+
+  const serverForm = (/** @type {any} */ v) => `<form class="settings-form" data-form="server"><p class="dim">Any MCP server. Paste its URL, or the command that starts it on this computer, and tell the AI what it's for.</p>
+<label>Name <input name="name" value="${esc(v?.name ?? "")}" placeholder="e.g. Specs" autocomplete="off" required${v ? " readonly" : ""}></label>
+<label>URL or command <input name="target" value="${esc(v?.target ?? "")}" placeholder="https://…/mcp  or  npx -y some-mcp-server" autocomplete="off" spellcheck="false" required></label>
+<label>API key <input name="token" type="password" placeholder="only if the server uses a key instead of a sign-in" autocomplete="off"></label>
+<label>Note for the AI <input name="note" value="${esc(v?.note ?? "")}" placeholder="what it's for and when to use it" autocomplete="off"></label>
+<label class="check"><input type="checkbox" name="everywhere"${v?.everywhere ?? true ? " checked" : ""}> On in every folder that hasn't picked its own connectors</label>
+<div class="actions"><button type="button" data-cancel>Cancel</button><button class="primary">Save</button></div></form>`;
+
   const draw = () => {
     const ai = info.ai;
     const auth = authNote
@@ -1300,10 +1321,23 @@ ${ready.length ? `<h3>Models</h3><table class="assistants">${ready.map(assistant
     const folder = ai.path.replace(/[\\/][^\\/]*$/, "");
     body.innerHTML = `${auth}<div class="prefs"><span class="pref-label">Look</span><div class="pref-value"><div class="theme-choice" role="group" aria-label="Light or dark">${themes}</div></div>${versionRow()}</div>
 <h3>AI sign-ins</h3>${aiPart}
+${toolsPart()}
 ${pdfPart}
 <div class="actions settings-foot"><span class="dim">Saved in <code>${esc(folder)}</code></span><button data-close>Done <kbd>Esc</kbd></button></div>`;
     body.querySelectorAll("button").forEach((b) => (b.disabled ||= busy && !b.hasAttribute("data-close")));
     void loadModelChoices();
+  };
+
+  const toolsPart = () => {
+    const t = info.tools;
+    const all = t?.servers ?? [];
+    const where = all.length && t.folder
+      ? ` A check turns one on for <code>${esc(t.folder)}</code> and the folders in it.${t.sharedFile ? " Connectors listed in its .mcp.json stay off until you check them, and each person signs in with their own account." : ""}`
+      : "";
+    return `<h3>Connectors</h3>
+<p class="dim">MCP servers the AI can use.${where}</p>
+${all.length ? `<ul class="routes">${all.map(serverRow).join("")}</ul>` : ""}
+${editingServer === "" ? `<ul class="routes"><li>${serverForm(undefined)}</li></ul>` : `<div class="actions"><button data-server-add>Add a connector</button></div>`}`;
   };
 
   const loadModelChoices = async () => {
@@ -1332,6 +1366,7 @@ ${pdfPart}
       const r = await api("api/settings", change);
       info = r.settings;
       editing = undefined;
+      editingServer = undefined;
       authNote = undefined;
       toast(r.message);
     } catch (err) {
@@ -1352,8 +1387,18 @@ ${pdfPart}
     if (t.dataset.update) return void updateAction(t.dataset.update);
     if (t.dataset.cancel !== undefined) {
       editing = undefined;
+      editingServer = undefined;
       return draw();
     }
+    if (t.dataset.serverAdd !== undefined || t.dataset.serverEdit) {
+      editingServer = t.dataset.serverEdit ?? "";
+      draw();
+      return /** @type {HTMLElement | null} */ (body.querySelector('[data-form="server"] input:not([readonly])'))?.focus();
+    }
+    if (t.dataset.serverSignIn) return void save({ action: "server-sign-in", name: t.dataset.serverSignIn });
+    if (t.dataset.serverSignOut) return void save({ action: "server-sign-out", name: t.dataset.serverSignOut });
+    if (t.dataset.serverRemove) return void save({ action: "server-remove", name: t.dataset.serverRemove });
+    if (t.dataset.serverEverywhere) return void save({ action: "server-everywhere", name: t.dataset.serverEverywhere, on: t.getAttribute("aria-pressed") !== "true" });
     if (t.dataset.edit) {
       editing = editing === t.dataset.edit ? undefined : t.dataset.edit;
       draw();
@@ -1373,6 +1418,8 @@ ${pdfPart}
         return void save({ action: "key", route: form.dataset.route, key: v.key });
       case "bedrock":
         return void save({ action: "bedrock", region: v.region });
+      case "server":
+        return void save({ action: "server", name: v.name, target: v.target, token: v.token, note: v.note, everywhere: v.everywhere === "on" });
       case "custom": {
         /** @type {Record<string, unknown>} */
         const models = {};
@@ -1382,6 +1429,8 @@ ${pdfPart}
     }
   });
   body.addEventListener("change", (e) => {
+    const box = /** @type {HTMLInputElement} */ (e.target);
+    if (box.dataset.serverOn) return void save({ action: "server-on", name: box.dataset.serverOn, on: box.checked });
     const t = /** @type {HTMLSelectElement} */ (e.target);
     const row = t.closest("tr[data-name]");
     if (!row) return;
@@ -1417,7 +1466,8 @@ ${pdfPart}
     wide: true,
     dismiss: closeSettings,
     update: async (/** @type {any} */ next) => {
-      if (busy) return;
+      // While a sign-in runs, only show its link; the settings come back with the answer.
+      if (busy) return void (body.isConnected && draw());
       if (next) info = next;
       else if (next === undefined) {
         try {

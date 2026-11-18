@@ -1,5 +1,5 @@
-import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { readFile, writeFile, mkdir, stat, chmod } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import type { ApiConfig, ApiRegion } from "../types.js";
 
@@ -15,6 +15,23 @@ export const DEFAULT_REGION: ApiRegion = "us-west-2";
 
 export function getConfigDir(): string {
   return join(homedir(), ".aecdo");
+}
+
+/** A JSON file in ~/.aecdo, or `fallback` when it isn't there yet. */
+export async function readJsonFile<T>(path: string, fallback: T): Promise<T> {
+  try {
+    return JSON.parse(await readFile(path, "utf-8")) as T;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return fallback;
+    throw new Error(`Could not read ${path}: ${(err as Error).message}`);
+  }
+}
+
+/** Writes a JSON file only this user can read, since these hold keys and sign-ins. */
+export async function writePrivateJson(path: string, value: unknown): Promise<void> {
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  await writeFile(path, JSON.stringify(value, null, 2) + "\n", { encoding: "utf-8", mode: 0o600 });
+  if (process.platform !== "win32") await chmod(path, 0o600);
 }
 
 export function resolveEndpoints(region: ApiRegion): { baseUrl: string; tokenUrl: string } {

@@ -1,3 +1,4 @@
+import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { basename, dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -148,6 +149,8 @@ export interface GuiSessionOptions {
   bridge?: (out: AssistantOutput, hooks: BridgeHooks) => ChatBridge;
   /** Where chats are saved, one folder per set (the app uses ~/.aecdo/projects); unset, chats aren't saved. */
   chatsDir?: string;
+  /** Tools from the connectors on in the folder, checked before each question. */
+  serverTools?: () => Promise<{ tools: AgentTool[]; problems: string[] }>;
 }
 
 /** A saved chat as the app's list shows it. */
@@ -321,8 +324,14 @@ function toolNote(name: string, args: unknown): string {
       return "Removing a markup";
     case "append_note":
       return `Writing to ${s("file") || "notes.md"}`;
-    default:
+    default: {
+      const at = name.indexOf("__");
+      if (at > 0) {
+        const first = Object.values(a).find((v) => typeof v === "string");
+        return `Asking ${name.slice(0, at)}: ${name.slice(at + 2).replace(/_/g, " ")}${first ? ` "${String(first).slice(0, 80)}"` : ""}`;
+      }
       return s("file") ? `${name.replace(/_/g, " ")} ${s("file")}` : name.replace(/_/g, " ");
+    }
   }
 }
 
@@ -716,6 +725,7 @@ export class GuiSession {
       markups: this.markups,
       ...hooks,
       conversation,
+      serverTools: this.opts.serverTools,
     });
   }
 

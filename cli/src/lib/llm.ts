@@ -1,7 +1,6 @@
-import { readFile, writeFile, mkdir, chmod } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { getConfigDir } from "./config.js";
+import { getConfigDir, readJsonFile, writePrivateJson } from "./config.js";
 import type {
   ApiKeyAuth,
   Credential,
@@ -123,19 +122,12 @@ export function llmConfigPath(): string {
   return join(getConfigDir(), "llm.json");
 }
 
-async function readLlmConfig(path = llmConfigPath()): Promise<LlmConfigFile> {
-  try {
-    return JSON.parse(await readFile(path, "utf-8")) as LlmConfigFile;
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return {};
-    throw new Error(`Could not read ${path}: ${(err as Error).message}`);
-  }
+function readLlmConfig(path = llmConfigPath()): Promise<LlmConfigFile> {
+  return readJsonFile<LlmConfigFile>(path, {});
 }
 
-async function writeLlmConfig(config: LlmConfigFile, path = llmConfigPath()): Promise<void> {
-  await mkdir(join(path, ".."), { recursive: true, mode: 0o700 });
-  await writeFile(path, JSON.stringify(config, null, 2) + "\n", { encoding: "utf-8", mode: 0o600 });
-  if (process.platform !== "win32") await chmod(path, 0o600);
+function writeLlmConfig(config: LlmConfigFile, path = llmConfigPath()): Promise<void> {
+  return writePrivateJson(path, config);
 }
 
 let writeChain: Promise<unknown> = Promise.resolve();
