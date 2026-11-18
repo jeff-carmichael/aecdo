@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-import { expectedChecksum, replaceBinary, resolveAsset, update } from "./update.js";
+import { readFileSync, writeFileSync, existsSync, statSync, readdirSync, mkdirSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
+import { cleanupOldBinary, expectedChecksum, replaceBinary, resolveAsset, update } from "./update.js";
 import { fakeFetch, installedBinary, makeTarball, releaseRoutes, tmp } from "./update.test-helpers.js";
 import { readCache } from "../lib/update-check.js";
 
@@ -28,6 +28,29 @@ test("replaceBinary on Windows keeps the old file aside", async () => {
   await replaceBinary(staged, target, "win32");
   assert.equal(readFileSync(target, "utf-8"), "new");
   assert.equal(readFileSync(`${target}.old`, "utf-8"), "old");
+});
+
+test("replaceBinary on Windows picks a new name when the old .old can't be deleted", async () => {
+  const target = installedBinary("v2");
+  // A directory stands in for a locked file: unlink fails with something other than ENOENT.
+  mkdirSync(`${target}.old`);
+  const staged = join(tmp(), "new");
+  writeFileSync(staged, "v3");
+  await replaceBinary(staged, target, "win32");
+  assert.equal(readFileSync(target, "utf-8"), "v3");
+  const aside = readdirSync(dirname(target)).filter((n) => n.startsWith(`${basename(target)}.old-`));
+  assert.equal(aside.length, 1);
+  assert.equal(readFileSync(join(dirname(target), aside[0]), "utf-8"), "v2");
+});
+
+test("cleanupOldBinary deletes every moved-aside binary and leaves the rest", async () => {
+  const target = installedBinary("current");
+  const dir = dirname(target);
+  writeFileSync(`${target}.old`, "a");
+  writeFileSync(`${target}.old-123`, "b");
+  mkdirSync(`${target}.old-456`);
+  await cleanupOldBinary(target);
+  assert.deepEqual(readdirSync(dir).sort(), [basename(target), `${basename(target)}.old-456`].sort());
 });
 
 test("npm installs get the npm command instead of a self-update", async () => {
