@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-19
+
+One additive schema change (an optional property), so it stays in `ontology/v0.3.0` and existing files remain valid.
+
 ### Schema
 - `DrawingSet` has an optional `sourcePdfSha256`: the SHA-256 of the PDF the set was made from, as hex. Tools can use it to tell whether a PDF is the right one. It's optional, so existing files stay valid and it stays in `v0.3.0`.
 
